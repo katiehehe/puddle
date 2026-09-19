@@ -1,6 +1,15 @@
+.venv/
 brain/.venv/
+data/
 web/node_modules/
 web/dist/
 __pycache__/
 *.pyc
 .DS_Store
+
+*.sqlite3
+*.sqlite3-*
+
+*.egg-info/
+.pytest_cache/
+.ruff_cache/

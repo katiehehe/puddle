@@ -1,165 +1,294 @@
-"""Puddle brain API. Serves the portfolio dashboard and the checkout duck."""
+"""Puddle brain API.
+
+One brain, two surfaces: the MV3 extension calls /score_item and /checkout at
+the moment of purchase, the dashboard calls /portfolio. The response shapes are
+the contract both surfaces were written against.
+"""
+
 from __future__ import annotations
 
-import uuid
-import numpy as np
+import math
+from datetime import datetime
+from typing import Literal
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-import portfolio as pf
-import visa
-from miner import build_insights
-from seed import CATALOG, CLOSET, CANDIDATES, HISTORY
+from . import history, ledger, payments, pond, storage
+from .catalog import CLOSET, STOREFRONT, Item, coerce_item
+from .miner import Miner, rank, verdict
+from .portfolio import Closet
+from .states import life_mix
 
-app = FastAPI(title="Puddle Brain", version="0.1.0")
+BUDGET = 400.0
+
+app = FastAPI(title="Puddle Brain", version="0.2.0")
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# in-memory prediction ledger (seeded so the duck has a public track record)
-PREDICTIONS: list[dict] = [
-    {"id": "p_0001", "item": "Suede boots", "call": "skip", "graded": True, "correct": True},
-    {"id": "p_0002", "item": "Third hoodie", "call": "skip", "graded": True, "correct": True},
-    {"id": "p_0003", "item": "Wool coat", "call": "buy", "graded": True, "correct": True},
-    {"id": "p_0004", "item": "Neon sneakers", "call": "skip", "graded": True, "correct": False},
-    {"id": "p_0005", "item": "Linen shirt", "call": "buy", "graded": True, "correct": True},
-]
 
-
-def _by_id(item_id: str) -> dict | None:
-    for it in CATALOG:
-        if it["id"] == item_id:
-            return it
-    return None
+def _context() -> tuple[Closet, Miner, dict[str, int]]:
+    mix = life_mix([w.dict() for w in history.wears()])
+    counts = history.wear_counts()
+    owned = CLOSET + [Item(**raw) for raw in storage.owned()]
+    return Closet(owned, mix), Miner(history.purchases(), counts), counts
 
 
 class ScoreRequest(BaseModel):
     item_id: str | None = None
     item: dict | None = None
-    now_hour: int = 23
-
-
-@app.get("/health")
-def health():
-    return {"ok": True, "service": "puddle-brain"}
-
-
-@app.get("/catalog")
-def catalog():
-    return {"catalog": CATALOG, "candidates": CANDIDATES}
-
-
-@app.get("/closet")
-def closet():
-    A = pf.payoff_matrix(CLOSET)
-    mu = pf.w_mean(A)
-    items = []
-    for it, m in zip(CLOSET, mu):
-        items.append({**it, "expected_payoff": round(float(m), 3)})
-    return {"closet": items}
-
-
-@app.get("/portfolio")
-def portfolio():
-    sb, w = pf.closet_sharpe(CLOSET)
-    A = pf.payoff_matrix(CLOSET)
-    mu = pf.w_mean(A)
-
-    # coverage by state
-    cov = pf.coverage_by_state(CLOSET)
-    coverage = [{"state": s["name"], "coverage": round(float(c), 3), "p": s["p"]}
-                for s, c in zip(pf.STATES, cov)]
-
-    # holdings with redundancy flag
-    holdings = []
-    for i, it in enumerate(CLOSET):
-        a_i = A[i]
-        dupes = []
-        for j, other in enumerate(CLOSET):
-            if i != j and other["category"] == it["category"] and pf.w_corr(a_i, A[j]) > 0.80:
-                dupes.append(other["id"])
-        holdings.append({
-            "id": it["id"], "title": it["title"], "category": it["category"],
-            "price": it["price"], "wears": it.get("wears", 0),
-            "expected_payoff": round(float(mu[i]), 3),
-            "cost_per_wear": round(it["price"] / max(it.get("wears", 0), 1), 2),
-            "redundant_with": dupes,
-        })
-
-    # rebalance: score candidates, decide buy / skip
-    buys, skips = [], []
-    for c in CANDIDATES:
-        sc = pf.score_candidate(c, CLOSET)
-        rec = {
-            "id": c["id"], "title": c["title"], "price": c["price"],
-            "alpha": sc.alpha, "sharpe_after": sc.sharpe_after,
-            "covers_gap": sc.covers_gap, "redundant_with": sc.redundant_with,
-        }
-        if sc.alpha > 0.0:
-            buys.append(rec)
-        else:
-            skips.append(rec)
-    buys.sort(key=lambda r: r["alpha"], reverse=True)
-
-    # greedy under budget
-    budget, spent, picked = 400.0, 0.0, []
-    for b in buys:
-        if spent + b["price"] <= budget:
-            picked.append(b)
-            spent += b["price"]
-
-    # donate: lowest expected-payoff owned items (dead weight)
-    donate = sorted(holdings, key=lambda h: h["expected_payoff"])[:2]
-
-    saved = round(sum(s["price"] for s in skips), 2)
-    graded = [p for p in PREDICTIONS if p["graded"]]
-    acc = sum(1 for p in graded if p["correct"])
-
-    return {
-        "style_sharpe": round(sb, 3),
-        "coverage": coverage,
-        "holdings": holdings,
-        "rebalance": {"buy": picked, "skip": skips, "donate": donate, "budget": budget, "spent": round(spent, 2)},
-        "overexposure": round(pf.herfindahl_overexposure(CLOSET), 3),
-        "pond": {"saved": saved},
-        "ledger": {"predictions": PREDICTIONS, "accuracy": f"{acc}/{len(graded)}"},
-    }
-
-
-@app.post("/score_item")
-def score_item(req: ScoreRequest):
-    item = req.item or (_by_id(req.item_id) if req.item_id else None)
-    if item is None:
-        raise HTTPException(404, "item not found; pass item_id or item")
-    result = build_insights(item, CLOSET, HISTORY, now_hour=req.now_hour)
-    pid = "p_" + uuid.uuid4().hex[:6]
-    top = result["insights"][0]["line"] if result["insights"] else "That one's fine."
-    PREDICTIONS.append({
-        "id": pid, "item": item["title"],
-        "call": "skip" if result["duck_state"] == "concerned" else "buy",
-        "graded": False, "correct": None,
-    })
-    return {"item": item, "prediction_id": pid, "headline": top, **result}
-
-
-@app.post("/predict/{pid}/grade")
-def grade(pid: str, correct: bool):
-    for p in PREDICTIONS:
-        if p["id"] == pid:
-            p["graded"], p["correct"] = True, correct
-            return p
-    raise HTTPException(404, "prediction not found")
+    now_hour: int | None = Field(default=None, ge=0, le=23)
 
 
 class CheckoutRequest(BaseModel):
     item_id: str | None = None
     item: dict | None = None
+    prediction_id: str | None = None
+    event_id: str | None = Field(default=None, min_length=1, max_length=128)
+
+
+class SkipRequest(BaseModel):
+    item_id: str | None = None
+    item: dict | None = None
+    prediction_id: str | None = None
+    event_id: str | None = Field(default=None, min_length=1, max_length=128)
+
+
+class ActionRequest(BaseModel):
+    event_id: str = Field(min_length=1, max_length=128)
+    item_id: str | None = None
+    item: dict | None = None
+    prediction_id: str | None = None
+    action: Literal["skip", "buy"]
+
+
+def _resolve(req) -> Item:
+    try:
+        item = coerce_item(req.item if req.item is not None else {"id": req.item_id})
+        if item is None:
+            raise HTTPException(404, "item not found; pass item_id or a complete item")
+        if (
+            not item.id
+            or not math.isfinite(item.price)
+            or item.price < 0
+            or not math.isfinite(item.quality)
+            or not 0 <= item.quality <= 1
+            or not 1 <= item.formality <= 5
+            or not 1 <= item.warmth <= 5
+        ):
+            raise ValueError("invalid item attributes")
+        return item
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError) as exc:
+        raise HTTPException(422, "invalid item attributes") from exc
+
+
+def recommend(item, closet, miner, now):
+    evaluation = closet.evaluate(item)
+    insights = rank(
+        [
+            miner.return_pattern(item),
+            miner.redundancy(item, evaluation),
+            miner.time_pattern(now),
+            miner.coverage_gap(evaluation),
+            miner.overexposure(item, closet.concentration(), closet.items),
+        ]
+    )
+    # Return/redundancy evidence takes precedence over portfolio improvement.
+    warnings = [i for i in insights if i["type"] in ("return_pattern", "redundancy", "overexposure")]
+    if warnings:
+        decision = "skip"
+        insights = [i for i in insights if i["type"] != "coverage_gap"]
+    elif evaluation["alpha"] > 0:
+        decision = "buy"
+    else:
+        decision = "neutral"
+    state, confidence, speak = verdict(insights, item.price)
+    if decision == "skip" and speak:
+        state = "concerned"
+    return {
+        "decision": decision,
+        "reasons": [i["line"] for i in insights],
+        "portfolio": evaluation,
+        "insights": insights,
+        "headline": insights[0]["line"] if insights else "No strong pattern in your history for this item.",
+        "duck_state": state,
+        "confidence": round(confidence, 3),
+        "speak": speak,
+    }
+
+
+def _act(req, action):
+    item = _resolve(req)
+    # Legacy clients can retry the same item/prediction safely. New clients
+    # should supply their own event_id and retain it until the request succeeds.
+    event_id = req.event_id or f"legacy:{action}:{req.prediction_id or storage.variant(item)}"
+    try:
+        result = storage.act(
+            event_id,
+            item,
+            action,
+            req.prediction_id,
+            pay=(lambda: payments.get_provider().pay(item.price, item.id).dict()) if action == "buy" else None,
+        )
+        return result
+    except storage.Conflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(404, "prediction not found") from exc
+
+
+# --- the checkout intervention ---------------------------------------------
+@app.post("/score_item")
+def score_item(req: ScoreRequest) -> dict:
+    item = _resolve(req)
+    closet, miner, _ = _context()
+
+    now = datetime.now()
+    if req.now_hour is not None:
+        now = now.replace(hour=req.now_hour, minute=40)
+
+    result = recommend(item, closet, miner, now)
+    prediction_id = storage.record(
+        item, result["headline"], result["decision"], result["duck_state"], result["confidence"]
+    )
+    return {"item": item.dict(), **result, "prediction_id": prediction_id, "accuracy": ledger.accuracy()}
+
+
+@app.post("/actions")
+def record_action(req: ActionRequest):
+    return _act(req, req.action)
+
+
+@app.get("/actions")
+def action_history():
+    return {"actions": storage.actions(), "pond": pond.state()}
 
 
 @app.post("/checkout")
-def checkout(req: CheckoutRequest):
-    item = req.item or (_by_id(req.item_id) if req.item_id else None)
-    if item is None:
-        raise HTTPException(404, "item not found")
-    return visa.checkout(item)
+def checkout(req: CheckoutRequest) -> dict:
+    result = _act(req, "buy")
+    return {**result["event"]["payment"], **result}
+
+
+@app.post("/skip")
+def skip(req: SkipRequest) -> dict:
+    return _act(req, "skip")
+
+
+# --- the dashboard ----------------------------------------------------------
+@app.get("/portfolio")
+def portfolio(now_hour: int | None = None) -> dict:
+    if now_hour is not None and not 0 <= now_hour <= 23:
+        raise HTTPException(422, "now_hour must be between 0 and 23")
+    now = datetime.now()
+    if now_hour is not None:
+        now = now.replace(hour=now_hour, minute=40)
+    closet, miner, counts = _context()
+
+    holdings = []
+    for idx, item in enumerate(closet.items):
+        wears = counts.get(item.id, 0)
+        dupes = [d["id"] for d in closet.evaluate(item)["redundant_with"] if d["id"] != item.id]
+        holdings.append(
+            {
+                "id": item.id,
+                "title": item.title,
+                "category": item.category,
+                "price": item.price,
+                "wears": wears,
+                "expected_payoff": round(float(closet.mu[idx]), 3),
+                "weight": round(float(closet.w[idx]), 4),
+                "cost_per_wear": round(item.price / max(wears, 1), 2),
+                "redundant_with": dupes,
+            }
+        )
+
+    buys, skips, neutral = [], [], []
+    owned_variants = {storage.variant(i) for i in closet.items}
+    for candidate in STOREFRONT:
+        if storage.variant(candidate) in owned_variants:
+            continue
+        result = recommend(candidate, closet, miner, now)
+        ev = result["portfolio"]
+        rec = {
+            "decision": result["decision"],
+            "reasons": result["reasons"],
+            "id": candidate.id,
+            "title": candidate.title,
+            "price": candidate.price,
+            "alpha": ev["alpha"],
+            "sharpe_after": ev["style_sharpe_after"],
+            "covers_gap": ev["covers_gap"]["label"] if ev["covers_gap"] else None,
+            "redundant_with": [d["id"] for d in ev["redundant_with"]],
+        }
+        {"buy": buys, "skip": skips, "neutral": neutral}[result["decision"]].append(rec)
+    buys.sort(key=lambda r: -r["alpha"])
+
+    spent, picked = 0.0, []
+    for b in buys:
+        if spent + b["price"] <= BUDGET:
+            picked.append(b)
+            spent += b["price"]
+
+    return {
+        "style_sharpe": round(closet.sharpe, 3),
+        "risk_free": round(closet.rf, 3),
+        "coverage": [
+            {"state": c["label"], "coverage": c["best"], "p": c["p"], "covered": c["covered"]}
+            for c in closet.coverage()
+        ],
+        "holdings": holdings,
+        "rebalance": {
+            "buy": picked,
+            "skip": skips,
+            "neutral": neutral,
+            "donate": sorted(holdings, key=lambda h: h["expected_payoff"])[:2],
+            "budget": BUDGET,
+            "spent": round(spent, 2),
+        },
+        "overexposure": closet.concentration(),
+        "pond": pond.state(),
+        "ledger": {"predictions": ledger.entries(), "accuracy": ledger.accuracy_label()},
+    }
+
+
+@app.get("/closet")
+def closet_items() -> dict:
+    closet, _, counts = _context()
+    return {
+        "closet": [
+            {**item.dict(), "wears": counts.get(item.id, 0), "expected_payoff": round(float(closet.mu[i]), 3)}
+            for i, item in enumerate(closet.items)
+        ]
+    }
+
+
+@app.get("/pond")
+def pond_state() -> dict:
+    return pond.state()
+
+
+@app.get("/catalog")
+def catalog() -> dict:
+    return {
+        "catalog": [i.dict() for i in CLOSET + STOREFRONT],
+        "candidates": [i.dict() for i in STOREFRONT],
+    }
+
+
+@app.post("/predict/{prediction_id}/grade")
+def grade(prediction_id: str, correct: bool) -> dict:
+    entry = ledger.grade(prediction_id, correct)
+    if entry is None:
+        raise HTTPException(404, "prediction not found")
+    return {"prediction": entry, "accuracy": ledger.accuracy_label()}
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"ok": True, "service": "puddle-brain", "payments": payments.get_provider().name}

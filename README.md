@@ -15,11 +15,10 @@ See [`PRD.md`](./PRD.md) for the full product spec.
 
 ### 1. Brain (FastAPI + real portfolio math)
 ```bash
-cd brain
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python test_brain.py           # sanity: 5 checks pass
-.venv/bin/uvicorn app:app --port 8000     # http://localhost:8000
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m pytest -q             # backend math, API and persistence checks
+.venv/bin/uvicorn brain.app:app --port 8000   # http://localhost:8000
 ```
 
 ### 2. Website (React dashboard)
@@ -50,7 +49,7 @@ Or just run everything: `./run.sh`
 2. Switch to **crewneck**. Checkout.
    → Duck: *"You already own 3 charcoal crewnecks. This adds nothing new."* (redundancy = covariance)
 3. Switch to **suit**. Checkout.
-   → Duck (approving): *"Buy it — you've got nothing for Formal, and this covers it."* → **Buy anyway** → Visa (sandbox) confirms.
+   → Duck (approving): *"Buy it — you've got nothing for Formal, and this covers it."* → **Buy anyway** → simulated checkout confirms (`mode: mock` by default).
 4. Open the **dashboard** (`localhost:5173`): Style Sharpe, the coverage radar (Formal + Rain glowing red as gaps), the rebalance trades, and the duck's public accuracy ledger.
 
 Close on the line: **retailers run return-prediction models on you and never tell you. We point that model — plus a portfolio of everything you own — at you.**
@@ -63,7 +62,8 @@ Close on the line: **retailers run return-prediction models on you and never tel
 | Portfolio math (states → μ, Σ, Style Sharpe, alpha buy-rule) | **Real** (numpy, tested) |
 | History mining (return / time / redundancy / gap / overexposure) | **Real** |
 | Extension → brain → duck overlay + voice | **Real** (voice via Web Speech; swap in ElevenLabs/Deepgram) |
-| Visa checkout | **Interface real, call mocked** — set `VISA_API_KEY` + `VISA_SHARED_SECRET` to go live |
+| Prediction ledger + pond | **Backend persists state in SQLite.** Extension action wiring and dashboard refresh remain to be integrated. |
+| Visa checkout | **Interface real, call unverified** — with `VISA_API_KEY` + `VISA_SHARED_SECRET` it attempts an X-Pay-Token sandbox call. Failures are reported without successful mock fallback. Untested against live credentials. |
 | Voice STT/TTS | Web Speech fallback; wire Deepgram (STT) + ElevenLabs (TTS) at marked points |
 
 ## Sponsor tracks
@@ -71,8 +71,16 @@ Visa (primary) · Ramp (pond of saved money) · Deepgram + ElevenLabs (voice) ·
 
 ## Architecture
 ```
-brain/       FastAPI + numpy  — portfolio engine, history miner, seed data, Visa iface
+brain/       FastAPI + numpy  — portfolio engine, history miner, ledger, pond, payments
+tests/       pytest           — the planted patterns and the portfolio invariants
 extension/   MV3 Chrome ext   — content script, shadow-DOM duck, background worker
 mock-shop/   static page      — a controlled checkout to demo the extension on
 web/         Vite + React     — closet-as-portfolio dashboard
 ```
+
+## Backend integration
+
+See [the API handoff](docs/backend-api.md) for shared decisions, idempotent action
+requests, SQLite persistence, payment status, and frontend integration steps.
+Savings and prediction accuracy start empty; purchases and skips persist across
+restarts.
