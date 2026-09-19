@@ -7,15 +7,16 @@ the contract both surfaces were written against.
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
-from functools import lru_cache
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from . import history, ledger, payments, pond
-from .catalog import BY_ID, CLOSET, STOREFRONT, coerce_item
+from . import history, ledger, payments, pond, storage
+from .catalog import CLOSET, STOREFRONT, Item, coerce_item
 from .miner import Miner, rank, verdict
 from .portfolio import Closet
 from .states import life_mix
@@ -31,36 +32,114 @@ app.add_middleware(
 )
 
 
-@lru_cache(maxsize=1)
 def _context() -> tuple[Closet, Miner, dict[str, int]]:
     mix = life_mix([w.dict() for w in history.wears()])
     counts = history.wear_counts()
-    return Closet(CLOSET, mix), Miner(history.purchases(), counts), counts
+    owned = CLOSET + [Item(**raw) for raw in storage.owned()]
+    return Closet(owned, mix), Miner(history.purchases(), counts), counts
 
 
 class ScoreRequest(BaseModel):
     item_id: str | None = None
     item: dict | None = None
-    now_hour: int | None = None
+    now_hour: int | None = Field(default=None, ge=0, le=23)
 
 
 class CheckoutRequest(BaseModel):
     item_id: str | None = None
     item: dict | None = None
     prediction_id: str | None = None
+    event_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class SkipRequest(BaseModel):
     item_id: str | None = None
     item: dict | None = None
     prediction_id: str | None = None
+    event_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
-def _resolve(req) -> object:
-    item = coerce_item(req.item) if req.item else (BY_ID.get(req.item_id) if req.item_id else None)
-    if item is None:
-        raise HTTPException(404, "item not found; pass item_id or item")
-    return item
+class ActionRequest(BaseModel):
+    event_id: str = Field(min_length=1, max_length=128)
+    item_id: str | None = None
+    item: dict | None = None
+    prediction_id: str | None = None
+    action: Literal["skip", "buy"]
+
+
+def _resolve(req) -> Item:
+    try:
+        item = coerce_item(req.item if req.item is not None else {"id": req.item_id})
+        if item is None:
+            raise HTTPException(404, "item not found; pass item_id or a complete item")
+        if (
+            not item.id
+            or not math.isfinite(item.price)
+            or item.price < 0
+            or not math.isfinite(item.quality)
+            or not 0 <= item.quality <= 1
+            or not 1 <= item.formality <= 5
+            or not 1 <= item.warmth <= 5
+        ):
+            raise ValueError("invalid item attributes")
+        return item
+    except (ValueError, TypeError, KeyError, AttributeError, OverflowError) as exc:
+        raise HTTPException(422, "invalid item attributes") from exc
+
+
+def recommend(item, closet, miner, now):
+    evaluation = closet.evaluate(item)
+    insights = rank(
+        [
+            miner.return_pattern(item),
+            miner.redundancy(item, evaluation),
+            miner.time_pattern(now),
+            miner.coverage_gap(evaluation),
+            miner.overexposure(item, closet.concentration(), closet.items),
+        ]
+    )
+    # Return/redundancy evidence takes precedence over portfolio improvement.
+    warnings = [i for i in insights if i["type"] in ("return_pattern", "redundancy", "overexposure")]
+    if warnings:
+        decision = "skip"
+        insights = [i for i in insights if i["type"] != "coverage_gap"]
+    elif evaluation["alpha"] > 0:
+        decision = "buy"
+    else:
+        decision = "neutral"
+    state, confidence, speak = verdict(insights, item.price)
+    if decision == "skip" and speak:
+        state = "concerned"
+    return {
+        "decision": decision,
+        "reasons": [i["line"] for i in insights],
+        "portfolio": evaluation,
+        "insights": insights,
+        "headline": insights[0]["line"] if insights else "No strong pattern in your history for this item.",
+        "duck_state": state,
+        "confidence": round(confidence, 3),
+        "speak": speak,
+    }
+
+
+def _act(req, action):
+    item = _resolve(req)
+    # Legacy clients can retry the same item/prediction safely. New clients
+    # should supply their own event_id and retain it until the request succeeds.
+    event_id = req.event_id or f"legacy:{action}:{req.prediction_id or storage.variant(item)}"
+    try:
+        result = storage.act(
+            event_id,
+            item,
+            action,
+            req.prediction_id,
+            pay=(lambda: payments.get_provider().pay(item.price, item.id).dict()) if action == "buy" else None,
+        )
+        return result
+    except storage.Conflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(404, "prediction not found") from exc
 
 
 # --- the checkout intervention ---------------------------------------------
@@ -73,58 +152,43 @@ def score_item(req: ScoreRequest) -> dict:
     if req.now_hour is not None:
         now = now.replace(hour=req.now_hour, minute=40)
 
-    evaluation = closet.evaluate(item)
-    insights = rank(
-        [
-            miner.return_pattern(item),
-            miner.redundancy(item, evaluation),
-            miner.time_pattern(now),
-            miner.coverage_gap(evaluation),
-            miner.overexposure(item, closet.concentration(), closet.items),
-        ]
+    result = recommend(item, closet, miner, now)
+    prediction_id = storage.record(
+        item, result["headline"], result["decision"], result["duck_state"], result["confidence"]
     )
-    duck_state, confidence, speak = verdict(insights, item.price)
-    headline = insights[0]["line"] if insights else "Nothing in your history says anything about this."
+    return {"item": item.dict(), **result, "prediction_id": prediction_id, "accuracy": ledger.accuracy()}
 
-    prediction_id = None
-    if speak:
-        prediction_id = ledger.record(
-            item.title, headline, duck_state, confidence, call="buy" if duck_state == "approving" else "skip"
-        )
 
-    return {
-        "item": item.dict(),
-        "portfolio": evaluation,
-        "insights": insights,
-        "headline": headline,
-        "duck_state": duck_state,
-        "confidence": round(confidence, 3),
-        "speak": speak,
-        "prediction_id": prediction_id,
-        "accuracy": ledger.accuracy(),
-    }
+@app.post("/actions")
+def record_action(req: ActionRequest):
+    return _act(req, req.action)
+
+
+@app.get("/actions")
+def action_history():
+    return {"actions": storage.actions(), "pond": pond.state()}
 
 
 @app.post("/checkout")
 def checkout(req: CheckoutRequest) -> dict:
-    item = _resolve(req)
-    if req.prediction_id:
-        ledger.act(req.prediction_id, "bought")
-    return payments.get_provider().pay(item.price, item.id).dict()
+    result = _act(req, "buy")
+    return {**result["event"]["payment"], **result}
 
 
 @app.post("/skip")
 def skip(req: SkipRequest) -> dict:
-    item = _resolve(req)
-    if req.prediction_id:
-        ledger.act(req.prediction_id, "skipped")
-    return {"pond": pond.add(item.price)}
+    return _act(req, "skip")
 
 
 # --- the dashboard ----------------------------------------------------------
 @app.get("/portfolio")
-def portfolio() -> dict:
-    closet, _, counts = _context()
+def portfolio(now_hour: int | None = None) -> dict:
+    if now_hour is not None and not 0 <= now_hour <= 23:
+        raise HTTPException(422, "now_hour must be between 0 and 23")
+    now = datetime.now()
+    if now_hour is not None:
+        now = now.replace(hour=now_hour, minute=40)
+    closet, miner, counts = _context()
 
     holdings = []
     for idx, item in enumerate(closet.items):
@@ -144,10 +208,16 @@ def portfolio() -> dict:
             }
         )
 
-    buys, skips = [], []
+    buys, skips, neutral = [], [], []
+    owned_variants = {storage.variant(i) for i in closet.items}
     for candidate in STOREFRONT:
-        ev = closet.evaluate(candidate)
+        if storage.variant(candidate) in owned_variants:
+            continue
+        result = recommend(candidate, closet, miner, now)
+        ev = result["portfolio"]
         rec = {
+            "decision": result["decision"],
+            "reasons": result["reasons"],
             "id": candidate.id,
             "title": candidate.title,
             "price": candidate.price,
@@ -156,7 +226,7 @@ def portfolio() -> dict:
             "covers_gap": ev["covers_gap"]["label"] if ev["covers_gap"] else None,
             "redundant_with": [d["id"] for d in ev["redundant_with"]],
         }
-        (buys if ev["alpha"] > 0 else skips).append(rec)
+        {"buy": buys, "skip": skips, "neutral": neutral}[result["decision"]].append(rec)
     buys.sort(key=lambda r: -r["alpha"])
 
     spent, picked = 0.0, []
@@ -176,6 +246,7 @@ def portfolio() -> dict:
         "rebalance": {
             "buy": picked,
             "skip": skips,
+            "neutral": neutral,
             "donate": sorted(holdings, key=lambda h: h["expected_payoff"])[:2],
             "budget": BUDGET,
             "spent": round(spent, 2),

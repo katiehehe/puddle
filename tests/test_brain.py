@@ -102,6 +102,8 @@ def test_score_item_contract():
         "speak",
         "prediction_id",
         "accuracy",
+        "decision",
+        "reasons",
     }
     assert res["duck_state"] == "concerned"
     assert res["insights"][0]["type"] == "return_pattern"
@@ -119,7 +121,7 @@ def test_portfolio_view_shape():
     assert view["style_sharpe"] > 0
     assert len(view["holdings"]) == len(CLOSET)
     assert len(view["coverage"]) == 8
-    assert view["pond"]["saved"] > 0
+    assert view["pond"]["saved"] == 0
     assert "/" in view["ledger"]["accuracy"]
     assert view["rebalance"]["spent"] <= view["rebalance"]["budget"]
 

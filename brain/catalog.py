@@ -6,7 +6,7 @@ The closet is deliberately shaped so the engine has real structure to find:
   * nothing that is simultaneously formal and warm (a coverage gap)
 """
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 
 
 @dataclass
@@ -108,7 +108,7 @@ def coerce_item(raw: dict) -> Item | None:
     """Build an Item from whatever a checkout page hands us."""
     known = BY_ID.get(ALIASES.get(raw.get("id", ""), raw.get("id", "")))
     if known is not None:
-        return known
+        return replace(known, size=str(raw["size"]) if raw.get("size") is not None else known.size)
     if "formality" not in raw or "warmth" not in raw:
         return None
     category = raw.get("category", "top")

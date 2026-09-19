@@ -57,7 +57,7 @@ class Miner:
         count = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}.get(returned, str(returned))
         line = (
             f"{ordinal} {noun} of {sized}{label} you've bought. "
-            f"You returned the other {count}."
+            f"You returned {count} of the previous {total}."
         )
         return {
             "type": "return_pattern",
