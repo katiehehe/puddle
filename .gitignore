@@ -1,0 +1,6 @@
+brain/.venv/
+web/node_modules/
+web/dist/
+__pycache__/
+*.pyc
+.DS_Store
