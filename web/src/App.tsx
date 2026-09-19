@@ -12,7 +12,7 @@ function CoverageRadar({ coverage }: { coverage: Portfolio["coverage"] }) {
   const poly = coverage.map((c, i) => pt(i, R * c.coverage).join(",")).join(" ");
   const rings = [0.25, 0.5, 0.75, 1].map((f) => coverage.map((_, i) => pt(i, R * f).join(",")).join(" "));
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg width={size + 130} height={size} viewBox={`-65 0 ${size + 130} ${size}`}>
       {rings.map((r, i) => (
         <polygon key={i} points={r} fill="none" stroke="#e4e8ec" />
       ))}
@@ -22,15 +22,20 @@ function CoverageRadar({ coverage }: { coverage: Portfolio["coverage"] }) {
       })}
       <polygon points={poly} fill="rgba(42,127,184,.18)" stroke="#2a7fb8" strokeWidth={2} />
       {coverage.map((c, i) => {
-        const [lx, ly] = pt(i, R + 22);
+        const [lx, ly] = pt(i, R + 20);
         const gap = c.coverage < 0.45;
         const [dx, dy] = pt(i, R * c.coverage);
+        // Labels are long; anchor them away from the wheel and wrap on the slash.
+        const anchor = lx - cx > 8 ? "start" : lx - cx < -8 ? "end" : "middle";
+        const lines = c.state.split(" / ");
         return (
           <g key={i}>
             <circle cx={dx} cy={dy} r={3.5} fill={gap ? "#b3261e" : "#2a7fb8"} />
-            <text x={lx} y={ly} fontSize={11} textAnchor="middle"
+            <text x={lx} y={ly - (lines.length - 1) * 6} fontSize={11} textAnchor={anchor}
               fill={gap ? "#b3261e" : "#5d6771"} fontWeight={gap ? 700 : 400}>
-              {c.state}
+              {lines.map((l, k) => (
+                <tspan key={k} x={lx} dy={k === 0 ? 0 : 12}>{l}</tspan>
+              ))}
             </text>
           </g>
         );
