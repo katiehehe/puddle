@@ -9,8 +9,13 @@ from pydantic import BaseModel
 
 import portfolio as pf
 import visa
-from miner import build_insights
+from miner import HARD_NEGATIVE, build_insights
 from seed import CATALOG, CLOSET, CANDIDATES, HISTORY
+
+# The dashboard is a planning surface, not a 2am checkout. Scoring it at the
+# wall-clock hour let the late-night signal leak into every recommendation.
+DASHBOARD_HOUR = 14
+DEFAULT_BUDGET = 500.0
 
 app = FastAPI(title="Puddle Brain", version="0.1.0")
 app.add_middleware(
@@ -61,7 +66,7 @@ def closet():
 
 
 @app.get("/portfolio")
-def portfolio():
+def portfolio(budget: float = DEFAULT_BUDGET):
     sb, w = pf.closet_sharpe(CLOSET)
     A = pf.payoff_matrix(CLOSET)
     mu = pf.w_mean(A)
@@ -87,23 +92,36 @@ def portfolio():
             "redundant_with": dupes,
         })
 
-    # rebalance: score candidates, decide buy / skip
+    # rebalance: score candidates, decide buy / skip.
+    #
+    # Alpha alone is not the verdict. The duck refuses items on history the
+    # portfolio engine cannot see (you have returned four pairs of these), so
+    # the dashboard has to run the same miner or the two surfaces contradict
+    # each other on stage -- "Buy: Chelsea boots" next to a duck saying skip.
     buys, skips = [], []
     for c in CANDIDATES:
         sc = pf.score_candidate(c, CLOSET)
+        ins = build_insights(c, CLOSET, HISTORY, now_hour=DASHBOARD_HOUR)
+        blockers = [i for i in ins["insights"] if i["type"] in HARD_NEGATIVE]
+        lead = blockers[0] if blockers else (ins["insights"][0] if ins["insights"] else None)
         rec = {
             "id": c["id"], "title": c["title"], "price": c["price"],
             "alpha": sc.alpha, "sharpe_after": sc.sharpe_after,
             "covers_gap": sc.covers_gap, "redundant_with": sc.redundant_with,
+            "blocked_by": [i["type"] for i in blockers],
+            "why": lead["line"] if lead else None,
+            # PRD 3.2 ranks by marginal Sharpe per dollar, not raw alpha: a
+            # $320 coat with big alpha should not crowd out two cheap fixes.
+            "sharpe_per_dollar": round(float(sc.sharpe_after - sc.sharpe_before) / c["price"], 6),
         }
-        if sc.alpha > 0.0:
+        if sc.alpha > 0.0 and not blockers:
             buys.append(rec)
         else:
             skips.append(rec)
-    buys.sort(key=lambda r: r["alpha"], reverse=True)
+    buys.sort(key=lambda r: r["sharpe_per_dollar"], reverse=True)
 
     # greedy under budget
-    budget, spent, picked = 400.0, 0.0, []
+    spent, picked = 0.0, []
     for b in buys:
         if spent + b["price"] <= budget:
             picked.append(b)

@@ -11,18 +11,18 @@ const FALLBACK = {
     insights: [
       { type: "return_pattern", stat: { returned: 4, total: 5, size: "8" },
         line: "Fifth pair of size-8 boots. You returned the other 4." },
-      { type: "time_pattern", stat: { hour: 23, return_rate: 1.0, baseline: 0.58 },
-        line: "It's late — that's when most of your returns get bought." }
+      { type: "time_pattern", stat: { hour: 23, return_rate: 0.88, baseline: 0.18 },
+        line: "It's late — 88% of what you buy this late comes back, against 18% the rest of the day." }
     ],
     portfolio: { alpha: 0.04, covers_gap: null, redundant_with: [] }
   },
   cand_crew4: {
-    headline: "You already own 3 things that cover the same days.",
+    headline: "Fourth charcoal crewneck — you own 3 already, and they cover the same days.",
     duck_state: "concerned",
     confidence: 0.75,
     speak: true,
     insights: [{ type: "redundancy", stat: { corr_owned: 3 },
-      line: "You already own 3 charcoal crewnecks. This adds nothing new." }],
+      line: "Fourth charcoal crewneck — you own 3 already, and they cover the same days." }],
     portfolio: { alpha: -0.01, covers_gap: null, redundant_with: ["own_crew1", "own_crew2", "own_crew3"] }
   },
   cand_suit: {

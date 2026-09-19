@@ -45,18 +45,75 @@ CANDIDATES = [
 CATALOG = CLOSET + CANDIDATES
 
 # ---- Purchase / return history (planted) ---------------------------------
-# returned=True means the user sent it back. Boots size 8 are a graveyard.
-HISTORY = [
-    {"category": "boots", "size": "8", "hour": 23, "returned": True,  "title": "Suede boots"},
-    {"category": "boots", "size": "8", "hour": 0,  "returned": True,  "title": "Combat boots"},
-    {"category": "boots", "size": "8", "hour": 22, "returned": True,  "title": "Leather boots"},
-    {"category": "boots", "size": "8", "hour": 23, "returned": True,  "title": "Chukka boots"},
-    {"category": "top",   "size": "M", "hour": 14, "returned": False, "title": "Tee"},
-    {"category": "top",   "size": "M", "hour": 23, "returned": True,  "title": "Graphic tee"},
-    {"category": "bottom","size": "32","hour": 15, "returned": False, "title": "Jeans"},
-    {"category": "outer", "size": "M", "hour": 13, "returned": False, "title": "Jacket"},
-    {"category": "top",   "size": "M", "hour": 12, "returned": False, "title": "Polo"},
-    {"category": "shoes", "size": "9", "hour": 23, "returned": True,  "title": "Loafers"},
-    {"category": "shoes", "size": "9", "hour": 11, "returned": False, "title": "Trainers"},
-    {"category": "top",   "size": "M", "hour": 23, "returned": True,  "title": "Henley"},
+# returned=True means the user sent it back.
+#
+# Planted so two things are true AND surprising at the same time:
+#   - boots, size 8: bought 4, returned 4      -> the return_pattern insight
+#   - the late window (21:00-01:00) returns at ~88% against a ~18% lifetime
+#     baseline                                  -> the time_pattern insight
+#
+# The baseline is the whole point of #2. With a mostly-returned history the
+# duck ends up saying "100% of what you buy now comes back" against a 58%
+# baseline, which is noise dressed up as an insight. Most daytime purchases
+# have to be keepers for the late-night number to mean anything.
+
+
+def _h(category, size, hour, returned, title):
+    return {"category": category, "size": size, "hour": hour,
+            "returned": returned, "title": title}
+
+
+# Late-night purchases: where the regret lives. Size-8 boots are a graveyard.
+_LATE = [
+    _h("boots",  "8",  23, True,  "Suede boots"),
+    _h("boots",  "8",  0,  True,  "Combat boots"),
+    _h("boots",  "8",  22, True,  "Leather boots"),
+    _h("boots",  "8",  23, True,  "Chukka boots"),
+    _h("shoes",  "9",  23, True,  "Loafers"),
+    _h("top",    "M",  23, True,  "Graphic tee"),
+    _h("top",    "M",  22, True,  "Henley"),
+    _h("outer",  "M",  21, False, "Flannel overshirt"),
 ]
+
+# Daytime purchases: mostly keepers. Note the size-10 boots that stuck around --
+# the return pattern is specific to size 8, not to boots.
+_DAY_ROWS = [
+    ("top",    "M",  12, False, "Polo"),
+    ("top",    "M",  14, False, "White tee (3-pack)"),
+    ("top",    "M",  11, False, "Oxford shirt"),
+    ("top",    "M",  16, False, "Merino sweater"),
+    ("top",    "M",  10, False, "Flannel shirt"),
+    ("top",    "M",  15, False, "Linen shirt"),
+    ("top",    "M",  13, False, "Striped tee"),
+    ("top",    "M",  14, True,  "Cropped tee"),
+    ("top",    "M",  17, False, "Grey hoodie"),
+    ("top",    "M",  9,  False, "Dri-fit gym tee"),
+    ("top",    "M",  18, False, "Thermal base layer"),
+    ("top",    "M",  12, False, "Rugby shirt"),
+    ("top",    "M",  15, False, "Waffle henley"),
+    ("bottom", "32", 15, False, "Dark wash jeans"),
+    ("bottom", "32", 11, False, "Olive chinos"),
+    ("bottom", "32", 17, False, "Corduroys"),
+    ("bottom", "M",  9,  False, "Running shorts"),
+    ("bottom", "32", 13, False, "Cargo pants"),
+    ("bottom", "32", 10, False, "Track pants"),
+    ("bottom", "32", 16, False, "Swim trunks"),
+    ("bottom", "32", 9,  False, "Sweatpants"),
+    ("outer",  "M",  13, False, "Denim jacket"),
+    ("outer",  "M",  16, False, "Fleece"),
+    ("outer",  "M",  12, False, "Bomber jacket"),
+    ("outer",  "M",  14, False, "Quilted vest"),
+    ("shoes",  "9",  11, False, "Trainers"),
+    ("shoes",  "9",  14, False, "Canvas sneakers"),
+    ("shoes",  "9",  16, False, "Running shoes"),
+    ("shoes",  "9",  10, False, "Slides"),
+    ("boots",  "10", 15, False, "Hiking boots"),
+    ("boots",  "10", 12, False, "Duck boots"),
+    ("acc",    None, 13, False, "Beanie"),
+    ("acc",    None, 15, False, "Socks (6-pack)"),
+    ("acc",    None, 11, False, "Leather belt"),
+    ("acc",    None, 17, False, "Baseball cap"),
+    ("acc",    None, 10, False, "Canvas tote"),
+]
+
+HISTORY = _LATE + [_h(*r) for r in _DAY_ROWS]

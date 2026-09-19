@@ -18,7 +18,7 @@ See [`PRD.md`](./PRD.md) for the full product spec.
 cd brain
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python test_brain.py           # sanity: 5 checks pass
+.venv/bin/python test_brain.py           # sanity: 8 checks pass
 .venv/bin/uvicorn app:app --port 8000     # http://localhost:8000
 ```
 
@@ -46,12 +46,12 @@ Or just run everything: `./run.sh`
 
 ## Demo script (90 seconds)
 1. Open the mock shop on **boots**. Click Checkout.
-   → Duck (concerned): *"Fifth pair of size-8 boots. You returned the other 4. It's late — that's when most of your returns happen."* Click **Skip** → pond fills.
+   → Duck (concerned): *"Fifth pair of size-8 boots. You returned the other 4."* — and behind it, *"it's late: 88% of what you buy this late comes back, against 18% the rest of the day."* Click **Skip** → pond fills.
 2. Switch to **crewneck**. Checkout.
-   → Duck: *"You already own 3 charcoal crewnecks. This adds nothing new."* (redundancy = covariance)
+   → Duck: *"Fourth charcoal crewneck — you own 3 already, and they cover the same days."* (redundancy = covariance)
 3. Switch to **suit**. Checkout.
    → Duck (approving): *"Buy it — you've got nothing for Formal, and this covers it."* → **Buy anyway** → Visa (sandbox) confirms.
-4. Open the **dashboard** (`localhost:5173`): Style Sharpe, the coverage radar (Formal + Rain glowing red as gaps), the rebalance trades, and the duck's public accuracy ledger.
+4. Open the **dashboard** (`localhost:5173`): Style Sharpe, the coverage radar (Formal + Rain glowing red as gaps), the rebalance trades — note the boots sit under **Skip**, quoting the same line the duck just said — and the duck's public accuracy ledger.
 
 Close on the line: **retailers run return-prediction models on you and never tell you. We point that model — plus a portfolio of everything you own — at you.**
 
