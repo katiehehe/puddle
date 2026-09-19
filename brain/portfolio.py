@@ -1,197 +1,237 @@
-"""Portfolio engine: treats a closet as a risk-return portfolio.
+"""The closet as a scenario-based portfolio.
 
-States of the world = occasions. Each item has a payoff in each state.
-Returns, covariance, Sharpe, and the alpha buy-rule are the standard
-Markowitz objects, computed over state-weighted moments.
+Items are assets, occasions are states of the world. An item's "return" in a
+state is how well it serves that occasion; covariance between two items is how
+much they serve the *same* occasions, which is exactly redundancy.
+
+  mu_i     = sum_s p_s a_is
+  Sigma_ij = sum_s p_s (a_is - mu_i)(a_js - mu_j)
+
+Everything below is deliberately transparent: the explanation is the product,
+so a learned payoff function would be a downgrade even if it were available.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import numpy as np
 
-# 8 states of the world. p = life mix (sums to 1). f = required formality (1-5),
-# w = required warmth (1-5), wet = rain/snow.
-STATES = [
-    {"name": "Class (warm)",  "p": 0.24, "f": 2, "w": 2, "wet": False},
-    {"name": "Class (cold)",  "p": 0.20, "f": 2, "w": 4, "wet": False},
-    {"name": "Gym",           "p": 0.12, "f": 1, "w": 2, "wet": False},
-    {"name": "Lounge",        "p": 0.10, "f": 1, "w": 3, "wet": False},
-    {"name": "Night out",     "p": 0.09, "f": 4, "w": 2, "wet": False},
-    {"name": "Date",          "p": 0.06, "f": 4, "w": 3, "wet": False},
-    {"name": "Formal",        "p": 0.06, "f": 5, "w": 3, "wet": False},
-    {"name": "Rain/Snow",     "p": 0.13, "f": 2, "w": 4, "wet": True},
-]
+from .catalog import Item
+from .states import STATES, stake_weighted
 
-P = np.array([s["p"] for s in STATES], dtype=float)
-P = P / P.sum()
-RF = 0.10  # "risk-free" baseline utility (loungewear you always fall back on)
+RISK_AVERSION = 3.0
 
 
-def payoff(item: dict, state: dict) -> float:
-    """How good `item` is in `state`, in [0, 1]. Multiplicative: any hard
-    mismatch (formality, warmth, rain) kills it."""
-    q = float(item.get("q", 0.7))
-    form_match = max(0.0, 1.0 - abs(item["formality"] - state["f"]) / 4.0)
-    warm_match = max(0.0, 1.0 - abs(item["warmth"] - state["w"]) / 4.0)
-    rain = 1.0 if (not state["wet"] or item.get("waterproof")) else 0.3
-    return q * form_match * warm_match * rain
-
-
-def payoff_matrix(items: list[dict]) -> np.ndarray:
-    """Returns A with shape (n_items, n_states)."""
-    return np.array([[payoff(it, s) for s in STATES] for it in items], dtype=float)
-
-
-def w_mean(A: np.ndarray) -> np.ndarray:
-    """State-weighted expected payoff per item -> mu (n,)."""
-    return A @ P
-
-
-def w_cov(A: np.ndarray, mu: np.ndarray | None = None) -> np.ndarray:
-    """State-weighted covariance of item payoffs -> Sigma (n, n)."""
-    if mu is None:
-        mu = w_mean(A)
-    D = A - mu[:, None]              # center each item across states
-    return (D * P) @ D.T             # sum_s p_s (a_i-mu_i)(a_j-mu_j)
-
-
-def _ridge_inv(M: np.ndarray, eps: float = 1e-3) -> np.ndarray:
-    return np.linalg.inv(M + eps * np.eye(M.shape[0]))
-
-
-def tangency_weights(mu: np.ndarray, Sigma: np.ndarray, rf: float = RF) -> np.ndarray:
-    """Max-Sharpe weights, long-only. Closed-form w ~ Sigma^-1 (mu - rf),
-    then clip negatives (no shorting a shirt) and renormalize."""
-    n = len(mu)
-    if n == 0:
-        return np.zeros(0)
-    excess = mu - rf
-    w = _ridge_inv(Sigma) @ excess
-    w = np.clip(w, 0.0, None)
-    s = w.sum()
-    if s <= 1e-9:
-        return np.ones(n) / n
-    return w / s
-
-
-def sharpe(w: np.ndarray, mu: np.ndarray, Sigma: np.ndarray, rf: float = RF) -> float:
-    if len(w) == 0:
-        return 0.0
-    ret = float(w @ mu)
-    var = float(w @ (Sigma + 1e-6 * np.eye(len(w))) @ w)
-    if var <= 0:
-        return 0.0
-    return (ret - rf) / np.sqrt(var)
-
-
-def closet_sharpe(items: list[dict]) -> tuple[float, np.ndarray]:
-    if not items:
-        return 0.0, np.zeros(0)
-    A = payoff_matrix(items)
-    mu = w_mean(A)
-    Sigma = w_cov(A, mu)
-    w = tangency_weights(mu, Sigma)
-    return sharpe(w, mu, Sigma), w
-
-
-def _w_moments_1d(x: np.ndarray) -> tuple[float, float]:
-    m = float(x @ P)
-    v = float(((x - m) ** 2) @ P)
-    return m, v
-
-
-def w_corr(x: np.ndarray, y: np.ndarray) -> float:
-    mx, vx = _w_moments_1d(x)
-    my, vy = _w_moments_1d(y)
-    if vx <= 1e-12 or vy <= 1e-12:
-        return 0.0
-    cov = float(((x - mx) * (y - my)) @ P)
-    return cov / np.sqrt(vx * vy)
-
-
-@dataclass
-class BuyScore:
-    alpha: float
-    beta: float
-    sharpe_before: float
-    sharpe_after: float
-    redundant_with: list[str]
-    covers_gap: str | None
-
-
-def coverage_by_state(closet: list[dict]) -> list[float]:
-    """Best available payoff per state among owned items (0..1)."""
-    if not closet:
-        return [0.0] * len(STATES)
-    A = payoff_matrix(closet)
-    return list(np.max(A, axis=0))
-
-
-def score_candidate(candidate: dict, closet: list[dict],
-                    gap_threshold: float = 0.45) -> BuyScore:
-    """Evaluate a candidate purchase against the current closet.
-
-    alpha > 0 means it delivers payoff the closet cannot already produce
-    (it expands the efficient frontier) -> worth buying.
-    """
-    sb, w = closet_sharpe(closet)
-
-    a_j = payoff_matrix([candidate])[0]           # (m,)
-    mu_j = float(a_j @ P)
-
-    # Closet portfolio payoff across states (the "market" to regress against).
-    redundant_with: list[str] = []
-    if closet:
-        A_owned = payoff_matrix(closet)
-        cp = w @ A_owned                          # (m,) portfolio payoff by state
-        mean_cp, var_cp = _w_moments_1d(cp)
-        cov_jc = float(((a_j - mu_j) * (cp - mean_cp)) @ P)
-        beta = cov_jc / var_cp if var_cp > 1e-12 else 0.0
-        alpha = (mu_j - RF) - beta * (mean_cp - RF)
-        # redundancy: owned items in the SAME category that move with this
-        # candidate (you can't substitute jeans for a crewneck).
-        for it in closet:
-            if it.get("category") != candidate.get("category"):
-                continue
-            a_i = payoff_matrix([it])[0]
-            if w_corr(a_j, a_i) > 0.80:
-                redundant_with.append(it["id"])
+def payoff(item: Item, state) -> float:
+    """a_is in [0,1] -- multiplicative so any hard mismatch zeroes it out."""
+    # Formality: being underdressed is punished hard, overdressed mildly.
+    gap = item.formality - state.formality
+    if gap < 0:
+        formality = max(0.0, 1.0 + gap * 0.45)
     else:
-        beta, alpha = 0.0, mu_j - RF
+        formality = max(0.0, 1.0 - gap * 0.18)
 
-    # sharpe after adding the item to the investable set
-    sa, _ = closet_sharpe(closet + [candidate])
+    # Warmth: too cold is a real failure, too warm is an inconvenience.
+    wgap = item.warmth - state.warmth
+    if wgap < 0:
+        warmth = max(0.0, 1.0 + wgap * 0.35)
+    else:
+        warmth = max(0.0, 1.0 - wgap * 0.12)
 
-    # coverage gap: a state the closet underserves that this item is good at
-    covers_gap = None
-    cov = coverage_by_state(closet)
-    best_state, best_gain = None, 0.0
-    for si, s in enumerate(STATES):
-        if cov[si] < gap_threshold and a_j[si] > 0.5:
-            gain = a_j[si] - cov[si]
-            if gain > best_gain:
-                best_gain, best_state = gain, s["name"]
-    if best_state and alpha > 0:
-        covers_gap = best_state
+    rain = 1.0 if (not state.wet or item.rain_ok or item.warmth >= 4) else 0.35
 
-    return BuyScore(
-        alpha=round(alpha, 4),
-        beta=round(beta, 4),
-        sharpe_before=round(sb, 4),
-        sharpe_after=round(sa, 4),
-        redundant_with=redundant_with,
-        covers_gap=covers_gap,
-    )
+    return float(item.quality * formality * warmth * rain)
 
 
-def herfindahl_overexposure(closet: list[dict]) -> float:
-    """0..1 concentration of the closet's coverage across states.
-    High => overexposed to a few occasions."""
-    cov = np.array(coverage_by_state(closet))
-    if cov.sum() <= 1e-9:
+def payoff_matrix(items: list[Item]) -> np.ndarray:
+    return np.array([[payoff(i, s) for s in STATES] for i in items], dtype=float)
+
+
+def moments(items: list[Item], mix: dict[str, float]) -> tuple[np.ndarray, np.ndarray]:
+    eff = stake_weighted(mix)
+    p = np.array([eff[s.key] for s in STATES], dtype=float)
+    A = payoff_matrix(items)
+    mu = A @ p
+    D = A - mu[:, None]
+    sigma = (D * p) @ D.T
+    return mu, sigma
+
+
+def _project_simplex(v: np.ndarray) -> np.ndarray:
+    """Euclidean projection onto {w >= 0, sum w = 1}."""
+    u = np.sort(v)[::-1]
+    css = np.cumsum(u) - 1.0
+    idx = np.arange(1, len(v) + 1)
+    cond = u - css / idx > 0
+    rho = idx[cond][-1]
+    theta = css[cond][-1] / rho
+    return np.maximum(v - theta, 0.0)
+
+
+def optimal_weights(mu: np.ndarray, sigma: np.ndarray, steps: int = 800) -> np.ndarray:
+    """max w'mu - (lambda/2) w'Sigma w  s.t. w >= 0, sum w = 1.
+
+    Projected gradient ascent. n is tiny (tens of items) so this converges in
+    milliseconds and avoids a solver dependency.
+    """
+    n = len(mu)
+    w = np.full(n, 1.0 / n)
+    scale = float(np.max(np.abs(sigma))) or 1.0
+    lr = 0.5 / (RISK_AVERSION * scale * n)
+    for _ in range(steps):
+        grad = mu - RISK_AVERSION * (sigma @ w)
+        w = _project_simplex(w + lr * grad)
+    return w
+
+
+def weights_with_floor(
+    mu: np.ndarray, sigma: np.ndarray, idx: int, floor: float, steps: int = 800
+) -> np.ndarray:
+    """Same objective, but asset `idx` must carry at least `floor` weight.
+
+    Buying something and never wearing it is not a neutral act, so the
+    frontier after a purchase has to assume you actually wear the thing.
+    Without this the optimiser just assigns a redundant item zero weight and
+    Style Sharpe never moves.
+    """
+    n = len(mu)
+    u = np.full(n, 1.0 / n)
+    scale = float(np.max(np.abs(sigma))) or 1.0
+    lr = 0.5 / (RISK_AVERSION * scale * n)
+    e = np.zeros(n)
+    e[idx] = 1.0
+    for _ in range(steps):
+        w = (1.0 - floor) * u + floor * e
+        grad = (1.0 - floor) * (mu - RISK_AVERSION * (sigma @ w))
+        u = _project_simplex(u + lr * grad)
+    return (1.0 - floor) * u + floor * e
+
+
+def sharpe(w: np.ndarray, mu: np.ndarray, sigma: np.ndarray, rf: float) -> float:
+    var = float(w @ sigma @ w)
+    if var <= 1e-12:
         return 0.0
-    shares = cov / cov.sum()
-    hhi = float((shares ** 2).sum())
-    # normalize: min is 1/m (even), max is 1 (all one state)
-    m = len(STATES)
-    return (hhi - 1 / m) / (1 - 1 / m)
+    return float((w @ mu - rf) / np.sqrt(var))
+
+
+def risk_free(items: list[Item], mix: dict[str, float]) -> float:
+    """The loungewear baseline: what you get by always reaching for the comfy thing."""
+    lounge = [i for i in items if i.formality <= 1]
+    if not lounge:
+        return 0.0
+    mu, _ = moments(lounge, mix)
+    return float(np.mean(mu))
+
+
+class Closet:
+    def __init__(self, items: list[Item], mix: dict[str, float]):
+        self.items = items
+        self.mix = mix
+        self.mu, self.sigma = moments(items, mix)
+        self.w = optimal_weights(self.mu, self.sigma)
+        self.rf = risk_free(items, mix)
+        self.sharpe = sharpe(self.w, self.mu, self.sigma, self.rf)
+        self._A = payoff_matrix(items)
+        eff = stake_weighted(mix)
+        self._p = np.array([eff[s.key] for s in STATES])  # used for all moments
+        self._p_raw = np.array([mix[s.key] for s in STATES])  # how life actually splits
+
+    # --- coverage -----------------------------------------------------------
+    def coverage(self) -> list[dict]:
+        """How well the best available item serves each occasion."""
+        best = self._A.max(axis=0)
+        out = []
+        for j, s in enumerate(STATES):
+            out.append(
+                {
+                    "state": s.key,
+                    "label": s.label,
+                    "p": round(float(self._p_raw[j]), 4),
+                    "p_weighted": round(float(self._p[j]), 4),
+                    "best": round(float(best[j]), 3),
+                    "best_item": self.items[int(self._A[:, j].argmax())].id,
+                    "covered": bool(best[j] >= 0.55),
+                }
+            )
+        return out
+
+    def gaps(self) -> list[dict]:
+        return [c for c in self.coverage() if not c["covered"]]
+
+    def concentration(self) -> dict:
+        """Herfindahl over which occasion each item is *for* (its argmax state)."""
+        share = np.zeros(len(STATES))
+        for row in self._A:
+            share[int(row.argmax())] += 1.0
+        share = share / share.sum()
+        hhi = float((share**2).sum())
+        top = int(share.argmax())
+        return {
+            "hhi": round(hhi, 4),
+            "top_state": STATES[top].key,
+            "top_label": STATES[top].label,
+            "top_share": round(float(share[top]), 3),
+        }
+
+    # --- the buy decision ---------------------------------------------------
+    def evaluate(self, candidate: Item) -> dict:
+        """Does adding this item expand the frontier?
+
+        alpha_j = mu_j - beta_j * mu_p, with beta from the covariance of the
+        candidate against the current optimal wear-allocation. Redundant items
+        have high beta and therefore no alpha.
+        """
+        a_c = np.array([payoff(candidate, s) for s in STATES])
+        mu_c = float(a_c @ self._p)
+
+        port = self._A.T @ self.w  # payoff of the closet-as-held, per state
+        mu_p = float(port @ self._p)
+        dp = port - mu_p
+        var_p = float((dp * dp) @ self._p)
+        cov_cp = float(((a_c - mu_c) * dp) @ self._p)
+        beta = cov_cp / var_p if var_p > 1e-12 else 0.0
+        alpha = mu_c - beta * mu_p
+
+        # Sharpe if you buy it *and wear it*: the new item gets at least its
+        # fair share of wears, the rest of the closet re-optimises around it.
+        items_after = self.items + [candidate]
+        mu_a, sigma_a = moments(items_after, self.mix)
+        floor = 1.0 / len(items_after)
+        w_a = weights_with_floor(mu_a, sigma_a, len(items_after) - 1, floor)
+        sharpe_after = sharpe(w_a, mu_a, sigma_a, risk_free(items_after, self.mix))
+
+        # which owned items does this thing duplicate?
+        dupes = []
+        for idx, item in enumerate(self.items):
+            a_i = self._A[idx]
+            d_i, d_c = a_i - self.mu[idx], a_c - mu_c
+            denom = np.sqrt(((d_i * d_i) @ self._p) * ((d_c * d_c) @ self._p))
+            corr = float(((d_i * d_c) @ self._p) / denom) if denom > 1e-12 else 0.0
+            same_slot = item.category == candidate.category and abs(item.formality - candidate.formality) <= 1
+            if corr > 0.82 and same_slot:
+                dupes.append(
+                    {
+                        "id": item.id,
+                        "title": item.title,
+                        "kind": item.kind,
+                        "corr": round(corr, 3),
+                    }
+                )
+        dupes.sort(key=lambda d: -d["corr"])
+
+        # does it fill a gap we actually have?
+        covers = None
+        for gap in self.gaps():
+            j = next(k for k, s in enumerate(STATES) if s.key == gap["state"])
+            if a_c[j] >= 0.55:
+                covers = {"state": gap["state"], "label": gap["label"], "payoff": round(float(a_c[j]), 3)}
+                break
+
+        return {
+            "style_sharpe_before": round(self.sharpe, 3),
+            "style_sharpe_after": round(sharpe_after, 3),
+            "alpha": round(alpha, 3),
+            "beta": round(beta, 3),
+            "mu": round(mu_c, 3),
+            "redundant_with": dupes[:3],
+            "covers_gap": covers,
+        }

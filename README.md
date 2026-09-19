@@ -15,11 +15,10 @@ See [`PRD.md`](./PRD.md) for the full product spec.
 
 ### 1. Brain (FastAPI + real portfolio math)
 ```bash
-cd brain
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python test_brain.py           # sanity: 5 checks pass
-.venv/bin/uvicorn app:app --port 8000     # http://localhost:8000
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m pytest -q             # 15 checks on the math + the miner
+.venv/bin/uvicorn brain.app:app --port 8000   # http://localhost:8000
 ```
 
 ### 2. Website (React dashboard)
@@ -63,7 +62,8 @@ Close on the line: **retailers run return-prediction models on you and never tel
 | Portfolio math (states → μ, Σ, Style Sharpe, alpha buy-rule) | **Real** (numpy, tested) |
 | History mining (return / time / redundancy / gap / overexposure) | **Real** |
 | Extension → brain → duck overlay + voice | **Real** (voice via Web Speech; swap in ElevenLabs/Deepgram) |
-| Visa checkout | **Interface real, call mocked** — set `VISA_API_KEY` + `VISA_SHARED_SECRET` to go live |
+| Prediction ledger + pond (persisted, shared by duck and dashboard) | **Real** |
+| Visa checkout | **Interface real, call unverified** — with `VISA_API_KEY` + `VISA_SHARED_SECRET` it attempts an X-Pay-Token sandbox call and falls back to mock settlement. Untested against live credentials. |
 | Voice STT/TTS | Web Speech fallback; wire Deepgram (STT) + ElevenLabs (TTS) at marked points |
 
 ## Sponsor tracks
@@ -71,7 +71,8 @@ Visa (primary) · Ramp (pond of saved money) · Deepgram + ElevenLabs (voice) ·
 
 ## Architecture
 ```
-brain/       FastAPI + numpy  — portfolio engine, history miner, seed data, Visa iface
+brain/       FastAPI + numpy  — portfolio engine, history miner, ledger, pond, payments
+tests/       pytest           — the planted patterns and the portfolio invariants
 extension/   MV3 Chrome ext   — content script, shadow-DOM duck, background worker
 mock-shop/   static page      — a controlled checkout to demo the extension on
 web/         Vite + React     — closet-as-portfolio dashboard

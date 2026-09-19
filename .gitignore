@@ -1,4 +1,6 @@
+.venv/
 brain/.venv/
+data/
 web/node_modules/
 web/dist/
 __pycache__/

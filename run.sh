@@ -5,7 +5,9 @@ set -e
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 echo "→ brain on :8000"
-(cd "$ROOT/brain" && [ -d .venv ] || python3 -m venv .venv; .venv/bin/pip install -q -r requirements.txt; .venv/bin/uvicorn app:app --port 8000) &
+[ -d "$ROOT/.venv" ] || python3 -m venv "$ROOT/.venv"
+"$ROOT/.venv/bin/pip" install -q -e "$ROOT[dev]"
+("$ROOT/.venv/bin/uvicorn" brain.app:app --app-dir "$ROOT" --port 8000) &
 BRAIN=$!
 
 echo "→ mock shop on :5500"

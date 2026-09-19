@@ -1,115 +1,215 @@
-"""History miner: turns purchase/return history into the duck's reactive insights.
+"""History miner: turns purchase/return history into typed, cited insights.
 
-Transparent rules (the explanation IS the product), plus the portfolio signals
-from portfolio.py. Emits insights + a confidence that drives the duck's face.
+Every insight carries the statistic it was derived from. The duck's line is a
+rendering of that statistic, never a substitute for it -- if we can't show the
+number behind a sentence, we don't say the sentence.
 """
+
 from __future__ import annotations
 
-from portfolio import score_candidate, herfindahl_overexposure
+from datetime import datetime
+
+from .catalog import Item
+from .history import Purchase
+
+LATE_HOUR = 23
 
 
-def _fmt_pct(x: float) -> str:
-    return f"{round(x * 100)}%"
+def _rate(returned: int, total: int) -> float:
+    return returned / total if total else 0.0
 
 
-def return_stats(history: list[dict], category: str, size: str | None):
-    same = [h for h in history if h["category"] == category and (size is None or h.get("size") == size)]
-    returned = sum(1 for h in same if h["returned"])
-    total = len(same)
-    rate = returned / total if total else 0.0
-    return returned, total, rate
+class Miner:
+    def __init__(self, purchases: list[Purchase], wear_counts: dict[str, int]):
+        self.purchases = purchases
+        self.wear_counts = wear_counts
 
+    # --- aggregates ---------------------------------------------------------
+    def baseline_return_rate(self) -> float:
+        return _rate(sum(p.returned for p in self.purchases), len(self.purchases))
 
-def time_stats(history: list[dict], hour: int, window: int = 2):
-    late = [h for h in history if abs(h["hour"] - hour) <= window or abs(h["hour"] - hour) >= 24 - window]
-    late_rate = (sum(1 for h in late if h["returned"]) / len(late)) if late else 0.0
-    base = (sum(1 for h in history if h["returned"]) / len(history)) if history else 0.0
-    return late_rate, base
+    def by_kind_size(self, kind: str, size: str | None) -> tuple[int, int]:
+        rows = [p for p in self.purchases if p.kind == kind and (size is None or p.size == size)]
+        return sum(p.returned for p in rows), len(rows)
 
+    def by_hour_bucket(self, late: bool) -> tuple[int, int]:
+        rows = [p for p in self.purchases if (p.hour >= LATE_HOUR or p.hour <= 2) == late]
+        return sum(p.returned for p in rows), len(rows)
 
-def build_insights(candidate: dict, closet: list[dict], history: list[dict], now_hour: int = 23):
-    insights: list[dict] = []
-    confidence = 0.0
+    def late_night_share_of_returns(self) -> tuple[int, int]:
+        returns = [p for p in self.purchases if p.returned]
+        late = [p for p in returns if p.hour >= LATE_HOUR or p.hour <= 2]
+        return len(late), len(returns)
 
-    score = score_candidate(candidate, closet)
-
-    # 1) personal return pattern (category + size)
-    size = candidate.get("size")
-    returned, total, rate = return_stats(history, candidate["category"], size)
-    if returned >= 3 and rate >= 0.6:
-        total = returned + 1
-        n_word = {2: "Second", 3: "Third", 4: "Fourth", 5: "Fifth", 6: "Sixth", 7: "Seventh"}.get(total, f"{total}th")
-        sz = f" size-{size}" if size else ""
-        insights.append({
+    # --- insights -----------------------------------------------------------
+    def return_pattern(self, item: Item) -> dict | None:
+        kind = item.kind or item.category
+        returned, total = self.by_kind_size(kind, item.size)
+        if total < 3 or returned == 0:
+            return None
+        rate = _rate(returned, total)
+        if rate < 0.5:
+            return None
+        ordinal = {1: "Second", 2: "Third", 3: "Fourth", 4: "Fifth", 5: "Sixth"}.get(total, f"{total + 1}th")
+        noun = "pair" if item.category in ("shoes", "bottom") else "one"
+        label = kind.replace("_", " ")
+        sized = f"size-{item.size} " if item.size else ""
+        count = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}.get(returned, str(returned))
+        line = (
+            f"{ordinal} {noun} of {sized}{label} you've bought. "
+            f"You returned the other {count}."
+        )
+        return {
             "type": "return_pattern",
-            "stat": {"returned": returned, "total": total, "category": candidate["category"], "size": size},
-            "line": f"{n_word} pair of{sz} {candidate['category']}. You returned the other {returned}.",
-        })
-        confidence = max(confidence, 0.9)
+            "stat": {
+                "returned": returned,
+                "bought": total,
+                "total": total,
+                "kind": kind,
+                "category": item.category,
+                "size": item.size,
+                "rate": round(rate, 3),
+                "baseline": round(self.baseline_return_rate(), 3),
+            },
+            "line": line,
+            "weight": min(1.0, 0.45 + 0.5 * rate),
+        }
 
-    # 2) time-of-day pattern
-    late_rate, base = time_stats(history, now_hour)
-    if late_rate >= 0.5 and late_rate > base + 0.2:
-        insights.append({
+    def time_pattern(self, now: datetime) -> dict | None:
+        late = now.hour >= LATE_HOUR or now.hour <= 2
+        if not late:
+            return None
+        share, total_returns = self.late_night_share_of_returns()
+        returned, bought = self.by_hour_bucket(late=True)
+        if bought < 3 or total_returns == 0:
+            return None
+        rate = _rate(returned, bought)
+        baseline = self.baseline_return_rate()
+        if rate <= baseline * 1.3:
+            return None
+        return {
             "type": "time_pattern",
-            "stat": {"hour": now_hour, "return_rate": round(late_rate, 2), "baseline": round(base, 2)},
-            "line": f"It's late \u2014 {_fmt_pct(late_rate)} of what you buy around now gets returned.",
-        })
-        confidence = max(confidence, 0.7)
+            "stat": {
+                "hour": now.hour,
+                "rate": round(rate, 3),
+                "return_rate": round(rate, 3),
+                "baseline": round(baseline, 3),
+                "share_of_returns": round(share / total_returns, 3),
+                "bought_late": bought,
+            },
+            "line": (
+                f"It's {now.strftime('%-I:%M%p').lower()} — "
+                f"{round(100 * share / total_returns)}% of everything you've returned was bought after 11pm."
+            ),
+            "weight": min(1.0, 0.35 + 0.6 * (rate - baseline)),
+        }
 
-    # 3) redundancy (covariance to owned)
-    if len(score.redundant_with) >= 2 and score.alpha <= 0.02:
-        insights.append({
+    def redundancy(self, item: Item, evaluation: dict) -> dict | None:
+        dupes = evaluation["redundant_with"]
+        if not dupes:
+            return None
+        same_kind = any(d.get("kind") == (item.kind or item.category) for d in dupes)
+        # An item that still carries alpha isn't redundant, however it looks.
+        if evaluation["alpha"] > 0.1 and len(dupes) < 2 and not same_kind:
+            return None
+        worn = sum(self.wear_counts.get(d["id"], 0) for d in dupes)
+        titles = ", ".join(d["title"] for d in dupes[:2])
+        if len(dupes) == 1:
+            line = (
+                f"You already own {titles.lower()} — it covers the same days, "
+                f"and you've worn it {worn} times."
+            )
+        else:
+            line = (
+                f"You own {len(dupes)} of these already ({titles}) — "
+                f"they cover the same days, and you've worn them {worn} times between them."
+            )
+        return {
             "type": "redundancy",
-            "stat": {"corr_owned": len(score.redundant_with), "owned_ids": score.redundant_with},
-            "line": f"You already own {len(score.redundant_with)} things that cover the same days. This adds nothing new.",
-        })
-        confidence = max(confidence, 0.75)
+            "stat": {
+                "owned_similar": len(dupes),
+                "corr": dupes[0]["corr"],
+                "wears_of_similar": worn,
+                "alpha": evaluation["alpha"],
+            },
+            "line": line,
+            "weight": min(1.0, 0.4 + dupes[0]["corr"] * 0.5),
+        }
 
-    # 4) coverage gap green-light
-    if score.covers_gap and score.alpha > 0:
-        insights.append({
+    def coverage_gap(self, evaluation: dict) -> dict | None:
+        covers = evaluation["covers_gap"]
+        if not covers or evaluation["alpha"] <= 0:
+            return None
+        return {
             "type": "coverage_gap",
-            "stat": {"state": score.covers_gap, "alpha": score.alpha},
-            "line": f"Buy it \u2014 you've got nothing for '{score.covers_gap}', and this actually covers it.",
-        })
-        confidence = max(confidence, 0.65)
+            "stat": {
+                "state": covers["label"],
+                "state_key": covers["state"],
+                "payoff": covers["payoff"],
+                "alpha": evaluation["alpha"],
+                "sharpe_before": evaluation["style_sharpe_before"],
+                "sharpe_after": evaluation["style_sharpe_after"],
+            },
+            "line": (
+                f"Get it. You have nothing for \"{covers['label'].lower()}\" — "
+                f"this is the first thing in your closet that would cover it."
+            ),
+            "weight": -min(1.0, 0.5 + evaluation["alpha"]),  # negative weight = green light
+        }
 
-    # 5) overexposure
-    hhi = herfindahl_overexposure(closet)
-    if hhi > 0.45 and score.alpha <= 0.02 and not score.covers_gap:
-        insights.append({
+    def overexposure(self, item: Item, concentration: dict, closet: list[Item]) -> dict | None:
+        if concentration["top_share"] < 0.16:
+            return None
+        same = [i for i in closet if i.category == item.category and abs(i.formality - item.formality) <= 1]
+        if len(same) < 5 or item.formality < 4:
+            return None
+        return {
             "type": "overexposure",
-            "stat": {"concentration": round(hhi, 2)},
-            "line": "Your closet's already piled into a few occasions. More of the same won't help.",
-        })
-        confidence = max(confidence, 0.5)
+            "stat": {
+                "top_state": concentration["top_state"],
+                "share": concentration["top_share"],
+                "hhi": concentration["hhi"],
+                "count": len(same),
+            },
+            "line": (
+                f"You already have {len(same)} of these and nothing for an interview. "
+                f"You're very concentrated in one occasion."
+            ),
+            "weight": 0.35,
+        }
 
-    # duck state
-    positive = any(i["type"] == "coverage_gap" for i in insights)
-    negative = any(i["type"] in ("return_pattern", "redundancy", "overexposure", "time_pattern") for i in insights)
-    if positive and not negative:
-        duck_state = "approving"
-    elif negative:
-        duck_state = "concerned"
-    elif insights:
-        duck_state = "curious"
+
+def rank(insights: list[dict]) -> list[dict]:
+    kept = [i for i in insights if i]
+    # The late-night pattern is context, not a verdict: it only speaks when
+    # something else is already worrying. Otherwise it argues against a
+    # purchase the portfolio just endorsed.
+    if not any(i["weight"] > 0 for i in kept if i["type"] != "time_pattern"):
+        kept = [i for i in kept if i["type"] != "time_pattern"]
+    return sorted(kept, key=lambda i: -abs(i["weight"]))
+
+
+SPEAK_FLOOR = 45.0  # below this the duck stays quiet; nagging is how you get muted
+
+
+def verdict(insights: list[dict], price: float = 1e9) -> tuple[str, float, bool]:
+    """Fold insight weights into a duck face. The number never reaches the user."""
+    if not insights:
+        return "idle", 0.0, False
+    positive = sum(i["weight"] for i in insights if i["weight"] > 0)
+    negative = -sum(i["weight"] for i in insights if i["weight"] < 0)
+    net = positive - negative
+    confidence = max(0.0, min(1.0, abs(net) / 1.6))
+
+    if net <= -0.4:
+        state = "approving"
+    elif net >= 0.85:
+        state = "concerned"
+    elif net >= 0.35:
+        state = "curious"
     else:
-        duck_state = "idle"
+        return "idle", confidence, False
 
-    speak = confidence >= 0.6
-
-    return {
-        "portfolio": {
-            "style_sharpe_before": score.sharpe_before,
-            "style_sharpe_after": score.sharpe_after,
-            "alpha": score.alpha,
-            "beta": score.beta,
-            "redundant_with": score.redundant_with,
-            "covers_gap": score.covers_gap,
-        },
-        "insights": insights,
-        "duck_state": duck_state,
-        "confidence": round(confidence, 2),
-        "speak": speak,
-    }
+    if price < SPEAK_FLOOR and state != "approving":
+        return "curious", confidence, False
+    return state, confidence, True
