@@ -2,28 +2,55 @@
 (function () {
   const PALETTE = {
     ink: "#16191c", muted: "#5d6771", line: "#e4e8ec",
-    duck: "#e8a317", water: "#2a7fb8", good: "#0d7a4a", bad: "#b3261e", surface: "#ffffff"
+    duck: "#f2b431", bill: "#ef7a2c", water: "#2a7fb8", good: "#0d7a4a", bad: "#b3261e", surface: "#ffffff"
   };
 
+  // One duck, four moods. Eyes and brow carry the whole expression.
   const DUCK = (state) => {
-    // simple flat duck; brow/eye changes per state
-    const brow = {
-      idle: "", curious: '<path d="M40 40 l14 -5" stroke="#7a5b12" stroke-width="3" stroke-linecap="round"/>',
-      concerned: '<path d="M38 38 l16 6" stroke="#7a5b12" stroke-width="3" stroke-linecap="round"/>',
-      approving: '<path d="M40 42 q7 -6 14 0" stroke="#0d7a4a" stroke-width="3" fill="none" stroke-linecap="round"/>'
-    }[state] || "";
-    return `<svg width="72" height="72" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="50" cy="86" rx="26" ry="6" fill="#cfe3ef"/>
-      <circle cx="50" cy="52" r="34" fill="${PALETTE.duck}"/>
-      <circle cx="62" cy="44" r="5.5" fill="#fff"/><circle cx="63.5" cy="44" r="2.6" fill="#16191c"/>
-      ${brow}
-      <path d="M78 50 l16 -4 -3 10 z" fill="#e8681c"/>
+    const face = {
+      idle: {
+        eye: '<circle cx="64" cy="46" r="3.1" fill="#16191c"/>',
+        brow: "",
+      },
+      curious: {
+        eye: '<circle cx="65" cy="45" r="3.3" fill="#16191c"/>',
+        brow: '<path d="M58 36 q7 -4 13 -1" stroke="#a97c12" stroke-width="3" fill="none" stroke-linecap="round"/>',
+      },
+      concerned: {
+        eye: '<circle cx="64" cy="47" r="3.4" fill="#16191c"/>',
+        brow: '<path d="M57 34 l13 6" stroke="#a97c12" stroke-width="3" fill="none" stroke-linecap="round"/>',
+      },
+      approving: {
+        eye: '<path d="M60 47 q4.5 -5 9 0" stroke="#16191c" stroke-width="3" fill="none" stroke-linecap="round"/>',
+        brow: "",
+      },
+    }[state] || { eye: '<circle cx="64" cy="46" r="3.1" fill="#16191c"/>', brow: "" };
+
+    return `<svg width="74" height="74" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="55" cy="96" rx="34" ry="7" fill="#dceaf4"/>
+      <ellipse cx="55" cy="93" rx="22" ry="4" fill="#bcdcef"/>
+      <ellipse cx="38" cy="66" rx="17" ry="14" fill="#e3a521"/>
+      <circle cx="56" cy="60" r="30" fill="${PALETTE.duck}"/>
+      <circle cx="62" cy="44" r="21" fill="${PALETTE.duck}"/>
+      <circle cx="52" cy="53" r="5" fill="#f7c95e" opacity=".55"/>
+      <circle cx="73" cy="52" r="4.2" fill="#f08a8a" opacity=".5"/>
+      ${face.brow}
+      ${face.eye}
+      <path d="M80 47 q14 2 13 7 q-1 5 -13 5 z" fill="${PALETTE.bill}"/>
     </svg>`;
   };
 
-  let host = null, shadow = null, lastKey = "";
+  const HEADER = {
+    idle: "Puddle", curious: "Puddle · hmm",
+    concerned: "Puddle · quack", approving: "Puddle · go on then",
+  };
+
+  let host = null, shadow = null, lastKey = "", dismissTimer = null;
 
   function ensureHost() {
+    // A new checkout cancels the previous card's pending dismissal.
+    clearTimeout(dismissTimer);
+    dismissTimer = null;
     if (host) return;
     host = document.createElement("div");
     host.id = "puddle-root";
@@ -35,45 +62,44 @@
   function chip(result) {
     const i = (result.insights || [])[0];
     if (!i) return "";
-    if (i.type === "return_pattern") return `returned ${i.stat.returned}/${i.stat.total}${i.stat.size ? " · size " + i.stat.size : ""}`;
+    const dupes = ((result.portfolio || {}).redundant_with || []).length;
+    if (i.type === "return_pattern") {
+      return `returned ${i.stat.returned}/${i.stat.total}${i.stat.size ? " · size " + i.stat.size : ""}`;
+    }
     if (i.type === "time_pattern") return `${Math.round((i.stat.return_rate || 0) * 100)}% returned this late`;
-    if (i.type === "redundancy") return `${(result.portfolio.redundant_with || []).length} similar owned`;
+    if (i.type === "redundancy") return `${dupes || i.stat.owned_similar} similar owned`;
     if (i.type === "coverage_gap") return `covers ${i.stat.state}`;
-    if (i.type === "overexposure") return `over-concentrated`;
+    if (i.type === "overexposure") return "over-concentrated";
     return "";
   }
 
-  async function getSaved() {
-    return new Promise((res) => chrome.storage.local.get(["saved"], (d) => res(d.saved || 0)));
-  }
-  async function addSaved(amt) {
-    const cur = await getSaved();
-    const next = Math.round((cur + amt) * 100) / 100;
-    return new Promise((res) => chrome.storage.local.set({ saved: next }, () => res(next)));
-  }
+  const send = (msg) => new Promise((res) => chrome.runtime.sendMessage(msg, res));
 
   function speak(text) {
     try {
       // Fallback TTS. Production: ElevenLabs stream (eleven_flash_v2_5).
       const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1.02; u.pitch = 1.1;
+      u.rate = 1.02; u.pitch = 1.15;
       speechSynthesis.cancel(); speechSynthesis.speak(u);
     } catch (e) {}
   }
 
+  const pondPct = (saved) => Math.min(100, (saved / 800) * 100);
+
   async function render(result, item) {
     ensureHost();
-    const concerned = result.duck_state === "concerned";
-    const accent = concerned ? PALETTE.bad : result.duck_state === "approving" ? PALETTE.good : PALETTE.water;
-    const saved = await getSaved();
+    const state = result.duck_state || "idle";
+    const accent = state === "concerned" ? PALETTE.bad : state === "approving" ? PALETTE.good : PALETTE.water;
+    const pond = (await send({ type: "pond" })) || { saved: 0 };
     const c = chip(result);
+    const line = result.headline || (result.insights[0] && result.insights[0].line) || "That one's fine.";
 
     shadow.innerHTML = `
       <style>
         *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-        .card{width:340px;background:${PALETTE.surface};border:1px solid ${PALETTE.line};
-          border-left:4px solid ${accent};border-radius:14px;padding:14px 16px;
-          box-shadow:0 8px 24px rgba(20,25,28,.14);animation:pop .28s ease}
+        .card{width:346px;background:${PALETTE.surface};border:1px solid ${PALETTE.line};
+          border-left:4px solid ${accent};border-radius:16px;padding:14px 16px;
+          box-shadow:0 10px 28px rgba(20,25,28,.16);animation:pop .28s ease}
         @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
         .row{display:flex;gap:12px;align-items:flex-start}
         .bubble{flex:1}
@@ -86,43 +112,54 @@
         .skip{background:${accent};color:#fff;border-color:${accent}}
         .buy{background:#fff;color:${PALETTE.ink}}
         .pond{margin-top:12px;height:8px;border-radius:99px;background:#eaf3f8;overflow:hidden}
-        .fill{height:100%;background:${PALETTE.water};width:${Math.min(100, saved / 5)}%}
+        .fill{height:100%;background:${PALETTE.water};width:${pondPct(pond.saved)}%;transition:width .5s ease}
         .saved{font-size:12px;color:${PALETTE.water};margin-top:5px;font-weight:600}
         .done{font-size:14px;color:${PALETTE.ink}}
       </style>
       <div class="card" id="card">
         <div class="row">
-          <div>${DUCK(result.duck_state)}</div>
+          <div>${DUCK(state)}</div>
           <div class="bubble">
-            <div class="quack">Puddle · quack</div>
-            <div class="line">${result.headline || (result.insights[0] && result.insights[0].line) || "That one's fine."}</div>
+            <div class="quack">${HEADER[state] || "Puddle"}</div>
+            <div class="line">${line}</div>
             ${c ? `<span class="chip">${c}</span>` : ""}
             <div class="btns">
               <button class="buy" id="buy">Buy anyway</button>
-              <button class="skip" id="skip">${concerned ? "Skip it" : "Not now"}</button>
+              <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
             </div>
           </div>
         </div>
         <div class="pond"><div class="fill"></div></div>
-        <div class="saved">🪙 $${saved} saved so far</div>
+        <div class="saved">🪙 $${pond.saved} in the pond</div>
       </div>`;
 
-    if (result.speak) speak(result.headline || result.insights[0]?.line || "");
+    if (result.speak) speak(line);
+
+    const dismiss = (after) => {
+      clearTimeout(dismissTimer);
+      dismissTimer = setTimeout(() => {
+        if (host) host.remove();
+        host = null;
+        dismissTimer = null;
+      }, after);
+    };
 
     shadow.getElementById("skip").onclick = async () => {
-      const total = await addSaved(item.price || 0);
-      shadow.querySelector(".line").textContent = "Good call. I'll remember this one.";
-      shadow.querySelector(".fill").style.width = Math.min(100, total / 5) + "%";
-      shadow.querySelector(".saved").textContent = `🪙 $${total} saved so far`;
-      setTimeout(() => (host.innerHTML = "", host.remove(), host = null), 1600);
+      const next = await send({ type: "skip", item, prediction_id: result.prediction_id });
+      shadow.querySelector(".line").textContent = "Good call. I'll ask in 30 days whether I was right.";
+      shadow.querySelector(".fill").style.width = pondPct(next.saved) + "%";
+      shadow.querySelector(".saved").textContent = `🪙 $${next.saved} in the pond`;
+      shadow.querySelector(".btns").remove();
+      dismiss(2000);
     };
-    shadow.getElementById("buy").onclick = () => {
-      chrome.runtime.sendMessage({ type: "checkout", item }, (res) => {
-        shadow.querySelector(".line").innerHTML =
-          `<span class="done">Done — ${res.network} ${res.mode === "mock" ? "(sandbox)" : ""}. I'll ask in 30 days whether I was wrong.</span>`;
-        shadow.querySelector(".btns").remove();
-        setTimeout(() => (host && host.remove(), host = null), 2600);
-      });
+
+    shadow.getElementById("buy").onclick = async () => {
+      const res = await send({ type: "checkout", item, prediction_id: result.prediction_id });
+      shadow.querySelector(".line").innerHTML =
+        `<span class="done">Done — ${res.network} ${res.mode === "mock" ? "(sandbox)" : ""}. ` +
+        `I'll ask in 30 days whether I was wrong.</span>`;
+      shadow.querySelector(".btns").remove();
+      dismiss(2600);
     };
   }
 
@@ -132,7 +169,7 @@
     let item;
     try { item = JSON.parse(raw); } catch (e) { return; }
     const hour = item.now_hour != null ? item.now_hour : new Date().getHours();
-    chrome.runtime.sendMessage({ type: "score", item, now_hour: hour }, (res) => res && render(res, item));
+    send({ type: "score", item, now_hour: hour }).then((res) => res && render(res, item));
   }
 
   const obs = new MutationObserver(() => trigger(document.body.dataset.puddleCheckout));
