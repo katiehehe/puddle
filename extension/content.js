@@ -45,9 +45,12 @@
     concerned: "Puddle · quack", approving: "Puddle · go on then",
   };
 
-  let host = null, shadow = null, lastKey = "";
+  let host = null, shadow = null, lastKey = "", dismissTimer = null;
 
   function ensureHost() {
+    // A new checkout cancels the previous card's pending dismissal.
+    clearTimeout(dismissTimer);
+    dismissTimer = null;
     if (host) return;
     host = document.createElement("div");
     host.id = "puddle-root";
@@ -132,7 +135,14 @@
 
     if (result.speak) speak(line);
 
-    const dismiss = (after) => setTimeout(() => { if (host) host.remove(); host = null; }, after);
+    const dismiss = (after) => {
+      clearTimeout(dismissTimer);
+      dismissTimer = setTimeout(() => {
+        if (host) host.remove();
+        host = null;
+        dismissTimer = null;
+      }, after);
+    };
 
     shadow.getElementById("skip").onclick = async () => {
       const next = await send({ type: "skip", item, prediction_id: result.prediction_id });
