@@ -31,7 +31,7 @@ npm run dev                                # http://localhost:5173
 To serve the dashboard from the brain itself (one origin, so it works over a
 tunnel or any host), build it instead of running the dev server:
 ```bash
-VITE_BRAIN= npx vite build --base=/dashboard/   # then http://localhost:8000/dashboard/
+npm run build                                # then http://localhost:8000/dashboard/
 ```
 
 ### 3. Mock shop (to demo the extension)
