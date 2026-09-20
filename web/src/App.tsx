@@ -209,7 +209,7 @@ const when = (iso: string) =>
 
 const REVEAL_MS = 200;
 
-function RevealNumber({ value }: { value: string }) {
+function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   const chars = [...value];
   const [shown, setShown] = useState(chars.length);
   const timer = useRef<number | null>(null);
@@ -241,21 +241,15 @@ function RevealNumber({ value }: { value: string }) {
   };
 
   return (
-    <span className="reveal" onMouseEnter={play} onMouseLeave={reset}>
-      {chars.map((c, i) => (
-        <span key={i} style={{ visibility: i < shown ? "visible" : "hidden" }}>
-          {c}
-        </span>
-      ))}
-    </span>
-  );
-}
-
-function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
-  return (
-    <div className="stat">
+    <div className="stat" onMouseEnter={play} onMouseLeave={reset}>
       <span>{label}</span>
-      <b><RevealNumber value={value} /></b>
+      <b>
+        {chars.map((c, i) => (
+          <span key={i} className={i < shown ? "on" : undefined}>
+            {c}
+          </span>
+        ))}
+      </b>
       {note && <em>{note}</em>}
     </div>
   );
