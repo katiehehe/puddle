@@ -52,9 +52,21 @@ Drop in this order. Each rung costs you less than the one below it.
 Both are read at request time, so set them and the next call picks them up.
 
 ```bash
-cp .env.example .env     # then add DEEPGRAM_API_KEY
+cp .env.example .env     # then add DEEPGRAM_API_KEY, ELEVENLABS_API_KEY
 export VISA_API_KEY=... VISA_SHARED_SECRET=...
 ```
+
+The Visa sandbox project issues four PEM files as well, so on a machine that
+never ran the enrolment, restore them from the saved `PUDDLE_VISA_BUNDLE`
+secret instead of re-enrolling:
+
+```bash
+export PUDDLE_VISA_BUNDLE=...            # the saved secret, one long base64 line
+source scripts/restore_visa_creds.sh     # writes ~/.puddle-visa, exports every VISA_ var
+```
+
+Source it in the same shell that starts the brain — uvicorn only sees what it
+inherits.
 
 Without them: push-to-talk is disabled entirely, and checkout runs through
 `MockProvider`. Neither fails silently — `/health` and `/voice/status` say so,
