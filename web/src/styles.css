@@ -127,19 +127,21 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .duckhead { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
 
 /* --- home sections ------------------------------------------------------ */
-/* Landing copy pops up from below, one line after another. */
-.home .hero > div > *, .home .steps h2, .home .step, .home .tells h2, .home .tell, .home .install > div > * {
-  animation: popup .7s cubic-bezier(.2, .8, .2, 1) both;
+/* Landing content stays hidden until an IntersectionObserver marks it .in
+   as it scrolls into view — then it pops up from below. Removing .in hides
+   instantly (no out-transition), which is what the replay relies on. */
+.home .hero > div > *, .home .hero > .mock, .home .steps h2, .home .step,
+.home .tells h2, .home .tell, .home .install > div > * {
+  opacity: 0; transform: translateY(28px);
 }
-.home .hero > div > :nth-child(2) { animation-delay: .12s; }
-.home .hero > div > :nth-child(3) { animation-delay: .24s; }
-.home .hero > div > :nth-child(4) { animation-delay: .36s; }
-.home .steps h2, .home .tells h2, .home .install > div > :nth-child(1) { animation-delay: .5s; }
-.home .step:nth-child(1), .home .tell:nth-child(1), .home .install > div > :nth-child(2) { animation-delay: .62s; }
-.home .step:nth-child(2), .home .tell:nth-child(2), .home .install > div > :nth-child(3) { animation-delay: .74s; }
-.home .step:nth-child(3), .home .tell:nth-child(3) { animation-delay: .86s; }
-.home .tell:nth-child(4) { animation-delay: .98s; }
-.home .tell:nth-child(n+5) { animation-delay: 1.1s; }
+.home .in { animation: popup .7s cubic-bezier(.2, .8, .2, 1) both; }
+/* Small staggers once a section reveals. */
+.home .hero > div > :nth-child(2) { animation-delay: .1s; }
+.home .hero > div > :nth-child(3) { animation-delay: .2s; }
+.home .hero > div > :nth-child(4) { animation-delay: .3s; }
+.home .step:nth-child(2), .home .tell:nth-child(2), .home .install > div > :nth-child(2) { animation-delay: .08s; }
+.home .step:nth-child(3), .home .tell:nth-child(3), .home .install > div > :nth-child(3) { animation-delay: .16s; }
+.home .tell:nth-child(n+4) { animation-delay: .24s; }
 
 @keyframes popup {
   from { opacity: 0; transform: translateY(28px); }
