@@ -12,7 +12,8 @@
   .brand { font-weight:800; letter-spacing:.18em; }
   .cart { color:var(--muted); font-size:14px; }
   .wrap { max-width:900px; margin:36px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px; padding:0 24px; }
-  .photo { background:#eef1f4; border-radius:12px; aspect-ratio:1; display:flex; align-items:flex-end; padding:20px; color:#9aa4ae; font-size:13px; letter-spacing:.14em; text-transform:uppercase; }
+  .photo { background:#eef1f4; border-radius:12px; aspect-ratio:1; display:flex; align-items:center; justify-content:center; }
+  .photo svg { width:62%; height:auto; display:block; }
   h1 { font-size:26px; margin:6px 0; }
   .price { font-size:22px; font-weight:700; margin:10px 0 18px; }
   .muted { color:var(--muted); font-size:14px; }
@@ -33,7 +34,7 @@
   </header>
 
   <div class="wrap">
-    <div class="photo" id="photo">Product image</div>
+    <div class="photo" id="photo"></div>
     <div>
       <div class="muted">Demo item</div>
       <div class="seg" id="seg"></div>
@@ -50,12 +51,20 @@
   <div class="hint">Load the <b>Puddle</b> extension (chrome://extensions → Load unpacked → <code>extension/</code>) and start the brain (<code>uvicorn brain.app:app --port 8000</code>). Then click Checkout.</div>
 
 <script>
+  // The garment silhouettes the dashboard draws (web/src/Garment.tsx): one
+  // shape per category, one fill per colour, no image hosting.
+  const SHAPES = {
+    top: "M22 16 L34 10 h20 l12 6 -6 12 -6 -3 v35 h-20 v-35 l-6 3 z",
+    outer: "M20 16 L34 9 v10 l6 6 6 -6 V9 l14 7 -4 14 v34 h-32 v-34 z",
+    shoes: "M14 44 h14 l10 6 h16 c8 0 14 3 14 8 v6 h-54 z",
+    boots: "M28 10 h22 v26 c5 3 11 6 15 11 l7 7 c3 4 1 10 -5 10 H28 z",
+  };
   const ITEMS = {
-    boots: { desc:"Full-grain leather. Runs narrow.",
+    boots: { desc:"Full-grain leather. Runs narrow.", shape:"boots", fill:"#8a6244",
       item:{ id:"cand_boots", title:"Chelsea boots", category:"boots", formality:3, warmth:3, price:128, q:0.6, waterproof:false, size:"8", now_hour:23 } },
-    crewneck: { desc:"Heavyweight charcoal crewneck.",
+    crewneck: { desc:"Heavyweight charcoal crewneck.", shape:"top", fill:"#3f4550",
       item:{ id:"cand_crew4", title:"Charcoal crewneck", category:"top", formality:2, warmth:3, price:68, q:0.7 } },
-    suit: { desc:"Charcoal wool. Two-button.",
+    suit: { desc:"Charcoal wool. Two-button.", shape:"outer", fill:"#3f4550",
       item:{ id:"cand_suit", title:"Charcoal wool suit", category:"formal", formality:5, warmth:3, price:320, q:0.85 } },
   };
   let current = "boots";
@@ -71,6 +80,8 @@
 
   function paint() {
     const it = ITEMS[current].item;
+    document.getElementById("photo").innerHTML =
+      `<svg viewBox="0 0 88 72" role="img" aria-label="${it.title}"><path d="${SHAPES[ITEMS[current].shape]}" fill="${ITEMS[current].fill}"/></svg>`;
     document.getElementById("title").textContent = it.title;
     document.getElementById("price").textContent = "$" + it.price.toFixed(2);
     document.getElementById("desc").textContent = ITEMS[current].desc;
