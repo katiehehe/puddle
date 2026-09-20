@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RefObject } from "react";
 import {
   BRAIN,
   addPurchase,
@@ -53,6 +54,38 @@ function Duck({ size = 40 }: { size?: number }) {
 
 /* ------------------------------------------------------------------ home */
 
+// Elements on the landing page that hide until scrolled into view.
+const REVEAL =
+  ".hero > div > *, .hero > .mock, .steps h2, .step, .tells h2, .tell, .install > div > *";
+// Same on the dashboard — .piece and .cartline individually, so each purchase
+// pops in separately as you scroll the closet.
+const DASH_REVEAL =
+  ".dashhead h1, .dashhead > p, .statrow, .tabs, .tabbody > *, .piece, .cartline, .note";
+
+// Scroll-triggered reveal both ways: .in while on screen, off again once it
+// leaves. Re-scans after every render so async content and tab swaps get
+// watched too; observing an already-watched node is a no-op.
+function useReveal(ref: RefObject<HTMLElement | null>, selector: string) {
+  const ioRef = useRef<IntersectionObserver | null>(null);
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) e.target.classList.toggle("in", e.isIntersecting);
+      },
+      { threshold: 0.1 },
+    );
+    ioRef.current = io;
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    const io = ioRef.current;
+    const root = ref.current;
+    if (!io || !root) return;
+    root.querySelectorAll(selector).forEach((n) => io.observe(n));
+  });
+  return ioRef;
+}
+
 function CheckoutMock() {
   const [url, setUrl] = useState("northwick.com/shoes/chelsea-boots");
   useEffect(() => {
@@ -97,16 +130,42 @@ function Home() {
     // Landing on plain #/home always starts at the top of the page.
     window.scrollTo(0, 0);
   }, [hash]);
+  const homeRef = useRef<HTMLDivElement>(null);
+  const ioRef = useReveal(homeRef, REVEAL);
+  // Clicking the brand or Add to Chrome while already here: hide everything
+  // instantly, then force a fresh observation so it pops back in as the
+  // scroll lands. (Re-observing is a no-op unless we unobserve first.)
+  const replay = () => {
+    const els = homeRef.current?.querySelectorAll(REVEAL);
+    const io = ioRef.current;
+    if (!els || !io) return;
+    els.forEach((n) => {
+      n.classList.remove("in");
+      io.unobserve(n);
+    });
+    setTimeout(() => els.forEach((n) => io.observe(n)), 420);
+  };
+  const goInstall = () => {
+    document.getElementById("install")?.scrollIntoView({ behavior: "smooth" });
+    replay();
+  };
   return (
-    <div className="home">
+    <div className="home" ref={homeRef}>
       <nav className="nav">
-        <a className="brand" href="#/home" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+        <a
+          className="brand"
+          href="#/home"
+          onClick={() => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            replay();
+          }}
+        >
           <Duck size={54} />
           <span>Puddle</span>
         </a>
         <div className="navlinks">
           <a href="#/closet">My closet</a>
-          <a className="cta small" href="#/home?install">
+          <a className="cta small" href="#/home?install" onClick={goInstall}>
             Add to Chrome
           </a>
         </div>
@@ -121,7 +180,7 @@ function Home() {
             purchase through with you at checkout.
           </p>
           <div className="herobtns">
-            <a className="cta" href="#install">
+            <a className="cta" href="#/home?install" onClick={goInstall}>
               Add to Chrome, free
             </a>
           </div>
@@ -247,8 +306,11 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 }
 
 function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string) => void }) {
-  // Optimistic: a wear tap has to feel free, or nobody logs the fifth one.
-  const [extra, setExtra] = useState(0);
+  // Optimistic: a wear tap has to feel free, or nobody logs the fifth one. The
+  // tap is forgotten the moment the server's own count moves, so the two never
+  // add up to one wear twice.
+  const [tapped, setTapped] = useState({ counted: piece.wears, extra: 0 });
+  const extra = tapped.counted === piece.wears ? tapped.extra : 0;
   const wears = piece.wears + extra;
   const perWear = wears > 0 ? piece.paid / wears : null;
   return (
@@ -282,7 +344,7 @@ function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string)
       <button
         className="worebtn"
         onClick={() => {
-          setExtra((n) => n + 1);
+          setTapped({ counted: piece.wears, extra: extra + 1 });
           onWear(piece.id);
         }}
       >
@@ -1144,6 +1206,9 @@ function Dashboard() {
     [reload],
   );
 
+  const shellRef = useRef<HTMLDivElement>(null);
+  useReveal(shellRef, DASH_REVEAL);
+
   const summary = useMemo(() => {
     if (!me) return null;
     return [
@@ -1166,7 +1231,7 @@ function Dashboard() {
   if (!me || !summary) return <div className="shell"><p className="hint">Loading your closet…</p></div>;
 
   return (
-    <div className="shell">
+    <div className="shell" ref={shellRef}>
       <nav className="nav">
         <a className="brand" href="#/home" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <Duck size={54} />
