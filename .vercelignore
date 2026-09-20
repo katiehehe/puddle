@@ -1,0 +1,8 @@
+.venv
+.env
+tests
+web/node_modules
+data/puddle.sqlite3
+__pycache__
+*.pyc
+.git
