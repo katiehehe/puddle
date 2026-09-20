@@ -49,7 +49,7 @@
     if (!i) return "";
     const dupes = ((result.portfolio || {}).redundant_with || []).length;
     if (i.type === "return_pattern") {
-      return `returned ${i.stat.returned}/${i.stat.total}${i.stat.size ? " · size " + i.stat.size : ""}`;
+      return `returned ${i.stat.returned}/${i.stat.total}${i.stat.size ? ", size " + i.stat.size : ""}`;
     }
     if (i.type === "time_pattern") return `${Math.round((i.stat.return_rate || 0) * 100)}% returned this late`;
     if (i.type === "redundancy") return `${dupes || i.stat.owned_similar} similar owned`;
@@ -155,7 +155,7 @@
       try { next = await send({ type: "skip", item, prediction_id: result.prediction_id, event_id: skipEvent }); }
       catch (error) { shadow.querySelector(".line").textContent = error.message; return; }
       if (version !== renderVersion) return;
-      shadow.querySelector(".line").textContent = "Skipped.";
+      shadow.querySelector(".line").textContent = "Skipped. Added to the pond.";
       shadow.querySelector(".fill").style.width = pondPct(next.saved) + "%";
       shadow.querySelector(".saved").textContent = `$${next.saved} in the pond`;
       shadow.querySelector(".btns").remove();
@@ -171,7 +171,7 @@
       shadow.querySelector(".line").innerHTML = declined
         ? `<span class="done">Payment ${esc(res.status || "failed")}: nothing was recorded.</span>`
         : `<span class="done">Done: ${esc(res.network)} ${res.mode === "mock" ? "(simulated)" : ""}. ` +
-          `Your wardrobe has been updated.</span>`;
+          `Added to your closet.</span>`;
       shadow.querySelector(".btns").remove();
       dismiss(2600);
     };
