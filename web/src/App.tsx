@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RefObject } from "react";
 import {
   BRAIN,
   addPurchase,
@@ -56,6 +57,34 @@ function Duck({ size = 40 }: { size?: number }) {
 // Elements on the landing page that hide until scrolled into view.
 const REVEAL =
   ".hero > div > *, .hero > .mock, .steps h2, .step, .tells h2, .tell, .install > div > *";
+// Same on the dashboard — .piece and .cartline individually, so each purchase
+// pops in separately as you scroll the closet.
+const DASH_REVEAL =
+  ".dashhead h1, .dashhead > p, .statrow, .tabs, .tabbody > *, .piece, .cartline, .note";
+
+// Scroll-triggered reveal both ways: .in while on screen, off again once it
+// leaves. Re-scans after every render so async content and tab swaps get
+// watched too; observing an already-watched node is a no-op.
+function useReveal(ref: RefObject<HTMLElement | null>, selector: string) {
+  const ioRef = useRef<IntersectionObserver | null>(null);
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) e.target.classList.toggle("in", e.isIntersecting);
+      },
+      { threshold: 0.1 },
+    );
+    ioRef.current = io;
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    const io = ioRef.current;
+    const root = ref.current;
+    if (!io || !root) return;
+    root.querySelectorAll(selector).forEach((n) => io.observe(n));
+  });
+  return ioRef;
+}
 
 function CheckoutMock() {
   const [url, setUrl] = useState("northwick.com/shoes/chelsea-boots");
@@ -102,22 +131,7 @@ function Home() {
     window.scrollTo(0, 0);
   }, [hash]);
   const homeRef = useRef<HTMLDivElement>(null);
-  const ioRef = useRef<IntersectionObserver | null>(null);
-  // Scroll-triggered reveal both ways: .in while on screen, off again once it
-  // leaves — so scrolling back replays the pop-up each time.
-  useEffect(() => {
-    const root = homeRef.current;
-    if (!root) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) e.target.classList.toggle("in", e.isIntersecting);
-      },
-      { threshold: 0.1 },
-    );
-    ioRef.current = io;
-    root.querySelectorAll(REVEAL).forEach((n) => io.observe(n));
-    return () => io.disconnect();
-  }, []);
+  const ioRef = useReveal(homeRef, REVEAL);
   // Clicking the brand or Add to Chrome while already here: hide everything
   // instantly, then force a fresh observation so it pops back in as the
   // scroll lands. (Re-observing is a no-op unless we unobserve first.)
@@ -1192,6 +1206,9 @@ function Dashboard() {
     [reload],
   );
 
+  const shellRef = useRef<HTMLDivElement>(null);
+  useReveal(shellRef, DASH_REVEAL);
+
   const summary = useMemo(() => {
     if (!me) return null;
     return [
@@ -1214,7 +1231,7 @@ function Dashboard() {
   if (!me || !summary) return <div className="shell"><p className="hint">Loading your closet…</p></div>;
 
   return (
-    <div className="shell">
+    <div className="shell" ref={shellRef}>
       <nav className="nav">
         <a className="brand" href="#/home" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <Duck size={54} />
