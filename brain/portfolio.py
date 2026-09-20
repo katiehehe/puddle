@@ -235,12 +235,14 @@ class Closet:
             d_i, d_c = a_i - self.mu[idx], a_c - mu_c
             denom = np.sqrt(((d_i * d_i) @ self._p) * ((d_c * d_c) @ self._p))
             corr = float(((d_i * d_c) @ self._p) / denom) if denom > 1e-12 else 0.0
-            # Same slot means genuinely substitutable. Two layers can trace
+            # Same slot means genuinely substitutable. Two garments can trace
             # near-identical payoff curves and still not stand in for each
-            # other: a rain shell and a puffer differ in what they protect
-            # against, not in how often they get worn.
+            # other, so correlation alone is not enough: substitution is a
+            # claim about what the things *are*. Kind carries that; category
+            # is too coarse (a sports bra and a ribbed tank are both "top"),
+            # and the remaining guards catch variation inside one kind.
             same_slot = (
-                item.category == candidate.category
+                item.kind == candidate.kind
                 and abs(item.formality - candidate.formality) <= 1
                 and item.rain_ok == candidate.rain_ok
                 and abs(item.warmth - candidate.warmth) <= 1

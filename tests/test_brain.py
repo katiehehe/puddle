@@ -257,3 +257,44 @@ def test_portfolio_donate_panel_is_coverage_safe():
     safe = set(closet.donatable())
     for d in board["rebalance"]["donate"]:
         assert d["id"] in safe, f"dashboard suggests donating {d['title']}, which opens a gap"
+
+
+def test_seeded_catalog_declares_a_real_kind():
+    """Item.kind falls back to category for scraped items, which is fine for
+    something pulled off a page but wrong for a seed: substitutability keys on
+    kind, so a blank one quietly makes an item interchangeable with everything
+    else in its category."""
+    from brain.catalog import STOREFRONT
+
+    lazy = [i.title for i in list(CLOSET) + list(STOREFRONT) if i.kind == i.category]
+    assert not lazy, f"seeded items leaning on the category fallback: {lazy}"
+
+
+def test_different_garments_in_one_category_are_not_substitutes():
+    """A sports bra and a ribbed tank are both 'top' and both minimal and warm-
+    weather, so payoff correlation cannot separate them. Kind can."""
+    closet = _closet()
+    from brain.catalog import STOREFRONT
+
+    tank = next(i for i in STOREFRONT if i.title == "Ribbed tank")
+    bra = next(i for i in CLOSET if i.title == "Sports bra")
+    assert tank.category == bra.category, "fixture changed; this test is meaningless now"
+    assert tank.kind != bra.kind
+    dupes = {d["id"] for d in closet.evaluate(tank)["redundant_with"]}
+    assert bra.id not in dupes
+
+
+def test_every_flagged_duplicate_pair_shares_a_kind():
+    """The whole closet at once, so a future catalog edit that reintroduces a
+    cross-garment pair fails here rather than on stage."""
+    closet = _closet()
+    by_id = {i.id: i for i in closet.items}
+    for item in closet.items:
+        for d in closet.evaluate(item)["redundant_with"]:
+            if d["id"] == item.id:
+                continue
+            other = by_id[d["id"]]
+            assert other.kind == item.kind, (
+                f"{item.title} ({item.kind}) flagged as a duplicate of "
+                f"{other.title} ({other.kind})"
+            )
