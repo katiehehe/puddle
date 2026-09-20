@@ -22,6 +22,8 @@ def connect():
             item_id TEXT NOT NULL, variant TEXT NOT NULL, action TEXT NOT NULL,
             amount_cents INTEGER NOT NULL, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS purchases (variant TEXT PRIMARY KEY, data TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS closet_log (
+            id TEXT PRIMARY KEY, created_at TEXT NOT NULL, data TEXT NOT NULL);
     """)
     try:
         yield db
@@ -95,6 +97,31 @@ def grade(pid, correct):
 def owned():
     with connect() as db:
         return [json.loads(r[0]) for r in db.execute("SELECT data FROM purchases")]
+
+
+def closet_log():
+    """Items the wearer added by hand, newest first."""
+    with connect() as db:
+        rows = db.execute("SELECT data FROM closet_log ORDER BY created_at DESC, rowid DESC")
+        return [json.loads(r[0]) for r in rows]
+
+
+def add_to_closet(entry):
+    """Save one logged item and hand back what was stored."""
+    record_id = entry.get("id") or "log_" + uuid.uuid4().hex[:10]
+    saved = {**entry, "id": record_id, "created_at": entry.get("created_at") or now()}
+    with connect() as db:
+        db.execute(
+            "INSERT OR REPLACE INTO closet_log (id, created_at, data) VALUES (?,?,?)",
+            (record_id, saved["created_at"], json.dumps(saved)),
+        )
+    return saved
+
+
+def remove_from_closet(record_id):
+    with connect() as db:
+        cur = db.execute("DELETE FROM closet_log WHERE id=?", (record_id,))
+        return cur.rowcount > 0
 
 
 def actions():

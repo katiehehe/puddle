@@ -84,3 +84,60 @@ export async function getStatus(): Promise<Status | null> {
 export async function gradePrediction(id: string, correct: boolean): Promise<void> {
   await call(`/predict/${encodeURIComponent(id)}/grade?correct=${correct}`, { method: "POST" });
 }
+
+export type Understood = {
+  category: string; kind: string; formality: number; warmth: number; rain_ok: boolean;
+};
+
+export type ClosetEntry = {
+  id: string;
+  title: string;
+  price: number | null;
+  wears: number;
+  note: string | null;
+  link: string | null;
+  image: string | null;
+  size: string | null;
+  color: string | null;
+  created_at: string;
+  understood: Understood | null;
+};
+
+export async function getClosetLog(): Promise<ClosetEntry[]> {
+  try {
+    const d = await call<{ entries: ClosetEntry[] }>("/closet/log");
+    return d.entries;
+  } catch {
+    return [];
+  }
+}
+
+/** Adds one item. Throws with the server's own sentence so the form can show it. */
+export async function addClosetEntry(entry: Record<string, unknown>): Promise<ClosetEntry> {
+  const r = await fetch(`${BRAIN}/closet/log`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(entry),
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : "That did not save.");
+  return body.entry;
+}
+
+export async function removeClosetEntry(id: string): Promise<void> {
+  await fetch(`${BRAIN}/closet/log/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export type ClosetItem = {
+  id: string; title: string; category: string; price: number;
+  wears: number; expected_payoff: number;
+};
+
+export async function getCloset(): Promise<ClosetItem[]> {
+  try {
+    const d = await call<{ closet: ClosetItem[] }>("/closet");
+    return d.closet;
+  } catch {
+    return [];
+  }
+}

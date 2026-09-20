@@ -103,7 +103,7 @@ class Miner:
             # The contrast is the insight. A late-night return rate on its own
             # says nothing unless you know what the rest of the day looks like.
             "line": (
-                f"It's {now.strftime('%I:%M%p').lstrip('0').lower()} — {round(100 * rate)}% of what you buy "
+                f"It's {now.strftime('%I:%M%p').lstrip('0').lower()} and {round(100 * rate)}% of what you buy "
                 f"this late comes back, against {round(100 * baseline)}% the rest of the day."
             ),
             "weight": min(1.0, 0.35 + 0.6 * (rate - baseline)),
@@ -121,13 +121,13 @@ class Miner:
         titles = ", ".join(d["title"] for d in dupes[:2])
         if len(dupes) == 1:
             line = (
-                f"You already own {titles.lower()} — it covers the same days, "
-                f"and you've worn it {worn} times."
+                f"You already own {titles.lower()}, which covers the same days. "
+                f"You've worn it {worn} times."
             )
         else:
             line = (
-                f"You own {len(dupes)} of these already ({titles}) — "
-                f"they cover the same days, and you've worn them {worn} times between them."
+                f"You own {len(dupes)} of these already ({titles}). "
+                f"They cover the same days, and you've worn them {worn} times between them."
             )
         return {
             "type": "redundancy",
@@ -156,8 +156,8 @@ class Miner:
                 "sharpe_after": evaluation["style_sharpe_after"],
             },
             "line": (
-                f"Get it. You have nothing for \"{covers['label'].lower()}\" — "
-                f"this is the first thing in your closet that would cover it."
+                f"Get it. You have nothing for {covers['label'].lower()}, and this is the "
+                f"first thing in your closet that would cover it."
             ),
             "weight": -min(1.0, 0.5 + evaluation["alpha"]),  # negative weight = green light
         }

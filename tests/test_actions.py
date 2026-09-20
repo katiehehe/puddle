@@ -161,3 +161,46 @@ def test_legacy_skip_retries():
     body = {"item_id": "cand_boots"}
     assert client.post("/skip", json=body).json()["pond"]["saved"] == 128
     assert client.post("/skip", json=body).json()["duplicate"] is True
+
+
+# --- the closet journal ----------------------------------------------------
+
+
+def test_logging_an_item_infers_what_it_is():
+    r = client.post("/closet/log", json={"title": "Cropped denim jacket", "price": 89, "wears": 4})
+    assert r.status_code == 200, r.text
+    entry = r.json()["entry"]
+    assert entry["understood"]["kind"] == "light_jacket"
+    assert entry["id"].startswith("log_")
+
+
+def test_an_unrecognisable_item_is_refused_with_a_usable_message():
+    r = client.post("/closet/log", json={"title": "Zorblatt"})
+    assert r.status_code == 422
+    detail = r.json()["detail"]
+    assert "Zorblatt" in detail and "crewneck" in detail
+
+
+def test_a_link_has_to_look_like_a_link():
+    r = client.post("/closet/log", json={"title": "Rain jacket", "link": "javascript:alert(1)"})
+    assert r.status_code == 422
+
+
+def test_entries_come_back_newest_first_and_can_be_removed():
+    first = client.post("/closet/log", json={"title": "Charcoal crewneck"}).json()["entry"]
+    second = client.post("/closet/log", json={"title": "Rain jacket"}).json()["entry"]
+    listed = client.get("/closet/log").json()["entries"]
+    assert [e["id"] for e in listed][:2] == [second["id"], first["id"]]
+
+    assert client.delete(f"/closet/log/{first['id']}").status_code == 200
+    assert first["id"] not in [e["id"] for e in client.get("/closet/log").json()["entries"]]
+    assert client.delete(f"/closet/log/{first['id']}").status_code == 404
+
+
+def test_a_logged_item_keeps_its_note_and_photo():
+    tiny = "data:image/gif;base64,R0lGODlhAQABAAAAACw="
+    r = client.post("/closet/log", json={
+        "title": "Rain jacket", "note": "Bought after getting soaked.", "image": tiny})
+    entry = r.json()["entry"]
+    assert entry["note"] == "Bought after getting soaked."
+    assert entry["image"] == tiny

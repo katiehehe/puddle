@@ -2,7 +2,7 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
-  // docs/theme.md — Flat Pond palette, kept in sync with web/src/styles.css.
+  // docs/theme.md, Flat Pond palette, kept in sync with web/src/styles.css.
   const PALETTE = {
     ink: "#111827", muted: "#6b7280", line: "#e5e7eb",
     duck: "#f2b431", duckDeep: "#92600a", bill: "#ef7a2c",

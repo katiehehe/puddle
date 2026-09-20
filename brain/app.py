@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from . import history, ledger, payments, pond, storage, voice
 from .catalog import CLOSET, STOREFRONT, Item, coerce_item
+from .infer import infer
 from .miner import Miner, rank, verdict
 from .portfolio import Closet
 from .states import life_mix
@@ -307,6 +308,55 @@ def closet_items() -> dict:
             for i, item in enumerate(closet.items)
         ]
     }
+
+
+class ClosetEntry(BaseModel):
+    """One item somebody logged by hand. Only a title is required: everything
+    the engine needs is inferred from it, and anything stated wins."""
+
+    title: str = Field(min_length=1, max_length=120)
+    price: float | None = Field(default=None, ge=0, le=100000)
+    wears: int = Field(default=0, ge=0, le=10000)
+    note: str | None = Field(default=None, max_length=600)
+    link: str | None = Field(default=None, max_length=600)
+    image: str | None = Field(default=None, max_length=2_000_000)
+    size: str | None = Field(default=None, max_length=20)
+    color: str | None = Field(default=None, max_length=40)
+    category: str | None = Field(default=None, max_length=40)
+
+
+@app.get("/closet/log")
+def closet_log() -> dict:
+    """Everything logged by hand, with what we understood each item to be."""
+    entries = []
+    for row in storage.closet_log():
+        guessed = infer(row["title"], row.get("category")) or {}
+        entries.append({**row, "understood": guessed or None})
+    return {"entries": entries}
+
+
+@app.post("/closet/log")
+def add_closet_entry(entry: ClosetEntry) -> dict:
+    guessed = infer(entry.title, entry.category)
+    if guessed is None:
+        raise HTTPException(
+            422,
+            f'We could not work out what "{entry.title}" is. Try naming the garment, '
+            f"for example charcoal crewneck, rain jacket, or chelsea boots.",
+        )
+    if entry.link and not entry.link.startswith(("http://", "https://")):
+        raise HTTPException(422, "A link needs to start with http:// or https://")
+    if entry.image and not entry.image.startswith(("data:image/", "http://", "https://")):
+        raise HTTPException(422, "That image could not be read.")
+    saved = storage.add_to_closet(entry.model_dump())
+    return {"entry": {**saved, "understood": guessed}}
+
+
+@app.delete("/closet/log/{record_id}")
+def delete_closet_entry(record_id: str) -> dict:
+    if not storage.remove_from_closet(record_id):
+        raise HTTPException(404, "That item is not in your closet.")
+    return {"removed": record_id}
 
 
 @app.get("/pond")
