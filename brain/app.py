@@ -15,6 +15,8 @@ from typing import Literal
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import history, ledger, payments, pond, storage, voice
@@ -23,12 +25,30 @@ from .miner import Miner, rank, verdict
 from .portfolio import Closet
 from .states import life_mix
 
-load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
+# The dashboard is a planning surface, not a 2am checkout. Scoring it at the
+# wall-clock hour let the late-night signal leak into every recommendation.
+DASHBOARD_HOUR = 14
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env", override=False)
 
-BUDGET = 400.0
+DEFAULT_BUDGET = 500.0
 
 app = FastAPI(title="Puddle Brain", version="0.3.0")
 app.include_router(voice.router)
+app.mount("/demo-assets", StaticFiles(directory=PROJECT_ROOT / "extension"), name="demo-assets")
+
+
+@app.get("/demo", response_class=HTMLResponse)
+def voice_demo():
+    page = (PROJECT_ROOT / "mock-shop" / "index.html").read_text()
+    page = page.replace("<body>", '<body data-puddle-mode="web">')
+    # Same shop, duck and voice controller as the extension. Only transport differs.
+    scripts = '<script src="/demo-assets/transport.js"></script>'
+    scripts += '<script src="/demo-assets/voice.js"></script>'
+    scripts += '<script src="/demo-assets/content.js"></script>'
+    return page.replace("</body>", scripts + "</body>")
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -187,12 +207,12 @@ def skip(req: SkipRequest) -> dict:
 
 # --- the dashboard ----------------------------------------------------------
 @app.get("/portfolio")
-def portfolio(now_hour: int | None = None) -> dict:
+def portfolio(now_hour: int | None = None, budget: float = DEFAULT_BUDGET) -> dict:
     if now_hour is not None and not 0 <= now_hour <= 23:
         raise HTTPException(422, "now_hour must be between 0 and 23")
-    now = datetime.now()
-    if now_hour is not None:
-        now = now.replace(hour=now_hour, minute=40)
+    if not math.isfinite(budget) or budget <= 0:
+        raise HTTPException(422, "budget must be a positive number")
+    now = datetime.now().replace(hour=DASHBOARD_HOUR if now_hour is None else now_hour, minute=40)
     closet, miner, counts = _context()
 
     holdings = []
@@ -228,17 +248,21 @@ def portfolio(now_hour: int | None = None) -> dict:
             "price": candidate.price,
             "alpha": ev["alpha"],
             "sharpe_after": ev["style_sharpe_after"],
+            # PRD 3.2 ranks by marginal Sharpe per dollar, not raw alpha: a
+            # $320 coat with big alpha should not crowd out two cheap fixes.
+            "sharpe_per_dollar": round((ev["style_sharpe_after"] - ev["style_sharpe_before"]) / candidate.price, 6),
             "covers_gap": ev["covers_gap"]["label"] if ev["covers_gap"] else None,
             "redundant_with": [d["id"] for d in ev["redundant_with"]],
         }
         {"buy": buys, "skip": skips, "neutral": neutral}[result["decision"]].append(rec)
-    buys.sort(key=lambda r: -r["alpha"])
+    buys.sort(key=lambda r: -r["sharpe_per_dollar"])
 
     spent, picked = 0.0, []
     for b in buys:
-        if spent + b["price"] <= BUDGET:
-            picked.append(b)
-            spent += b["price"]
+        if b["sharpe_per_dollar"] <= 0 or spent + b["price"] > budget:
+            continue
+        picked.append(b)
+        spent += b["price"]
 
     return {
         "style_sharpe": round(closet.sharpe, 3),
@@ -253,7 +277,7 @@ def portfolio(now_hour: int | None = None) -> dict:
             "skip": skips,
             "neutral": neutral,
             "donate": sorted(holdings, key=lambda h: h["expected_payoff"])[:2],
-            "budget": BUDGET,
+            "budget": budget,
             "spent": round(spent, 2),
         },
         "overexposure": closet.concentration(),

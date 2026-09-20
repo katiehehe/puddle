@@ -77,6 +77,28 @@ def test_time_pattern_only_fires_late():
     assert miner.time_pattern(datetime(2026, 3, 1, 23, 40)) is not None
 
 
+def test_baseline_is_low_enough_for_the_late_signal_to_mean_something():
+    miner = Miner(history.purchases(), history.wear_counts())
+    baseline = miner.baseline_return_rate()
+    assert baseline < 0.25  # PRD 7 assumes ~18%
+    returned_late, bought_late = miner.by_hour_bucket(late=True)
+    assert returned_late / bought_late > 3 * baseline
+
+
+def test_size10_boots_are_not_part_of_the_graveyard():
+    miner = Miner(history.purchases(), history.wear_counts())
+    assert miner.by_kind_size("boots", "10") == (0, 2)
+    assert miner.by_kind_size("boots", "8") == (4, 4)
+
+
+def test_portfolio_ranks_marginal_sharpe_per_dollar_under_budget():
+    view = portfolio()
+    assert [b["id"] for b in view["rebalance"]["buy"]] == ["sku_999", "sku_993"]
+    assert view["rebalance"]["spent"] == 485
+    tight = portfolio(budget=200)
+    assert [b["id"] for b in tight["rebalance"]["buy"]] == ["sku_993"]
+
+
 def test_time_pattern_is_dropped_when_nothing_else_is_wrong():
     miner = Miner(history.purchases(), history.wear_counts())
     c = _closet()

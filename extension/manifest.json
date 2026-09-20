@@ -17,6 +17,7 @@
         "http://127.0.0.1/*"
       ],
       "js": [
+        "transport.js",
         "voice.js",
         "content.js"
       ],

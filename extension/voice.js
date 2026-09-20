@@ -1,7 +1,7 @@
 /* Push-to-talk lives in the content script on the controlled localhost shop.
    MediaRecorder never runs in the MV3 service worker. */
 (() => {
-  function attach(shadow, item, onSaved) {
+  function attach(shadow, item, onSaved, predictionId) {
     const panel = document.createElement("section");
     panel.className = "voice-panel";
     panel.innerHTML = `
@@ -43,13 +43,7 @@
     let disposed = false, configured = false, busy = false, muted = false;
     let recorder = null, stream = null, timer = null, chunks = [], cancelled = false;
     let pendingMic = false, generation = 0, skipEvent = null;
-    const send = msg => new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(msg, response => {
-        if (chrome.runtime.lastError) reject(new Error("Puddle could not connect. Reload the page and try again."));
-        else if (!response || response.error) reject(new Error(response?.error || "Puddle did not respond."));
-        else resolve(response);
-      });
-    });
+    const send = msg => globalThis.PuddleSend(msg);
     function setBusy(value) {
       busy = value;
       ask.disabled = value;
@@ -187,7 +181,7 @@
       if (busy || !skipEvent) return;
       setBusy(true); confirm.disabled = true;
       try {
-        const result = await send({ type: "record_skip", item, event_id: skipEvent });
+        const result = await send({ type: "record_skip", item, event_id: skipEvent, prediction_id: predictionId });
         if (disposed) return;
         onSaved(result.pond.saved);
         confirm.hidden = true;

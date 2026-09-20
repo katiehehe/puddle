@@ -6,6 +6,17 @@ Nova-3 transcribes the clip; Puddle answers using the same wardrobe and purchase
 history as checkout. Browser speech reads the answer aloud. **Mute replies**
 silences responses, and **Cancel recording** discards an unfinished clip.
 
+## Fastest demo path
+
+With the backend running, open **http://localhost:8000/demo** in Chrome or the
+in-app browser. This serves the actual mock shop with the same duck and voice
+controller used by the extension. No extension installation is required for
+this route. Click Checkout, then Talk to Puddle. The microphone permission is
+for localhost:8000. Keep the page open while recording.
+
+The Chrome extension remains a separate demo mode on localhost:5500. It ignores
+the explicitly embedded /demo page so two duck panels cannot appear.
+
 ## Setup
 
 From the repository root:

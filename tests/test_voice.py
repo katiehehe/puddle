@@ -126,3 +126,15 @@ def test_empty_audio_channels(monkeypatch):
 def test_transcription_punctuation_does_not_hide_supported_commands():
     assert question("Skip this.").json()["pending_action"] == "skip"
     assert question("Buy it.").json()["intent"] == "buy"
+
+
+def test_integrated_demo_serves_shared_voice_assets_only():
+    page = client.get("/demo")
+    assert page.status_code == 200
+    assert 'data-puddle-mode="web"' in page.text
+    assert "/demo-assets/transport.js" in page.text
+    assert "/demo-assets/voice.js" in page.text
+    assert "/demo-assets/content.js" in page.text
+    for filename in ["transport.js", "voice.js", "content.js"]:
+        assert client.get("/demo-assets/" + filename).status_code == 200
+    assert client.get("/demo-assets/.env").status_code == 404

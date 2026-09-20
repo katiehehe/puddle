@@ -189,5 +189,5 @@ def respond(req: VoiceQuestion):
         )
     else:
         response["answer"] = "Ask why I recommend this item, what about size nine, or what to get instead."
-    response["answer"] = response["answer"].replace("\u2014", ",")
+    response["answer"] = response["answer"].replace(" \u2014 ", ", ")
     return response

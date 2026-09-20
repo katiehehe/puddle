@@ -54,11 +54,14 @@ class Miner:
         noun = "pair" if item.category in ("shoes", "bottom") else "one"
         label = kind.replace("_", " ")
         sized = f"size-{item.size} " if item.size else ""
-        count = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}.get(returned, str(returned))
-        line = (
-            f"{ordinal} {noun} of {sized}{label} you've bought. "
-            f"You returned {count} of the previous {total}."
+        words = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}
+        count = words.get(returned, str(returned))
+        tail = (
+            f"You returned every one of the other {count}."
+            if returned == total
+            else f"You returned {count} of the previous {words.get(total, total)}."
         )
+        line = f"{ordinal} {noun} of {sized}{label} you've bought. {tail}"
         return {
             "type": "return_pattern",
             "stat": {
@@ -97,9 +100,11 @@ class Miner:
                 "share_of_returns": round(share / total_returns, 3),
                 "bought_late": bought,
             },
+            # The contrast is the insight. A late-night return rate on its own
+            # says nothing unless you know what the rest of the day looks like.
             "line": (
-                f"It's {now.strftime('%-I:%M%p').lower()} — "
-                f"{round(100 * share / total_returns)}% of everything you've returned was bought after 11pm."
+                f"It's {now.strftime('%I:%M%p').lstrip('0').lower()} — {round(100 * rate)}% of what you buy "
+                f"this late comes back, against {round(100 * baseline)}% the rest of the day."
             ),
             "weight": min(1.0, 0.35 + 0.6 * (rate - baseline)),
         }

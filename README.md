@@ -15,8 +15,8 @@ See [`PRD.md`](./PRD.md) for the full product spec.
 
 ### 1. Brain (FastAPI + real portfolio math)
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
+python3 -m venv .venv                     # Windows: python -m venv .venv
+.venv/bin/pip install -e ".[dev]"         # Windows: .venv/Scripts/pip
 .venv/bin/python -m pytest -q             # backend math, API and persistence checks
 .venv/bin/uvicorn brain.app:app --port 8000   # http://localhost:8000
 ```
@@ -45,12 +45,12 @@ Or just run everything: `./run.sh`
 
 ## Demo script (90 seconds)
 1. Open the mock shop on **boots**. Click Checkout.
-   → Duck (concerned): *"Fifth pair of size-8 boots. You returned the other 4. It's late: that's when most of your returns happen."* Click **Skip** → pond fills.
+   → Duck (concerned): *"Fifth pair of size-8 boots you've bought. You returned four of the previous 4."* and *"88% of everything you've returned was bought after 11pm."* Click **Skip** → pond fills.
 2. Switch to **crewneck**. Checkout.
-   → Duck: *"You already own 3 charcoal crewnecks. This adds nothing new."* (redundancy = covariance)
+   → Duck: *"You own 3 of these already: they cover the same days, and you've worn them 32 times between them."* (redundancy = covariance)
 3. Switch to **suit**. Checkout.
-   → Duck (approving): *"Buy it: you've got nothing for Formal, and this covers it."* → **Buy anyway** → simulated checkout confirms (`mode: mock` by default).
-4. Open the **dashboard** (`localhost:5173`): Style Sharpe, the coverage radar (Formal + Rain glowing red as gaps), the rebalance trades, and the duck's public accuracy ledger.
+   → Duck (approving): *"Get it. You have nothing for 'formal / interview': this is the first thing that covers it."* → **Buy anyway** → simulated checkout confirms (`mode: mock` by default).
+4. Open the **dashboard** (`localhost:5173`): Style Sharpe, the coverage radar (Formal + Rain glowing red as gaps), the rebalance trades (suit + blazer under the $500 budget), and the duck's public accuracy ledger.
 
 Close on the line: **retailers run return-prediction models on you and never tell you. We point that model: plus a portfolio of everything you own: at you.**
 
@@ -62,7 +62,7 @@ Close on the line: **retailers run return-prediction models on you and never tel
 | Portfolio math (states → μ, Σ, Style Sharpe, alpha buy-rule) | **Real** (numpy, tested) |
 | History mining (return / time / redundancy / gap / overexposure) | **Real** |
 | Extension → brain → duck overlay + voice | **Real** (voice via Web Speech; swap in ElevenLabs/Deepgram) |
-| Prediction ledger + pond | **Backend persists state in SQLite.** Extension action wiring and dashboard refresh remain to be integrated. |
+| Prediction ledger + pond | **Real.** SQLite-persisted; extension records skips/buys with idempotent `event_id`s, dashboard reads the same state. |
 | Visa checkout | **Interface real, call unverified**: with `VISA_API_KEY` + `VISA_SHARED_SECRET` it attempts an X-Pay-Token sandbox call. Failures are reported without successful mock fallback. Untested against live credentials. |
 | Voice STT/TTS | Web Speech fallback; wire Deepgram (STT) + ElevenLabs (TTS) at marked points |
 
@@ -85,9 +85,9 @@ requests, SQLite persistence, payment status, and frontend integration steps.
 Savings and prediction accuracy start empty; purchases and skips persist across
 restarts.
 
-## Talk to Puddle
+## Voice demo
 
-The checkout duck supports short microphone questions through Deepgram Nova-3,
-plus typed questions and browser-spoken answers. Add `DEEPGRAM_API_KEY` to a
-local `.env`, restart the backend, and reload the Chrome extension. It works in
-typed-question mode without a key. See [voice setup and testing](docs/voice.md).
+Open [Puddle's integrated demo](http://localhost:8000/demo) with the backend running.
+Click Checkout, then Talk to Puddle. Deepgram transcribes the question and the
+duck answers from the current item and wardrobe history. The same controls work
+in the Chrome extension. See [voice setup](docs/voice.md).

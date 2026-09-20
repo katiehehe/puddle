@@ -48,6 +48,7 @@ function harness({ configured = false, getUserMedia } = {}) {
     SpeechSynthesisUtterance: class { constructor(text) { this.text = text; } },
     speechSynthesis: { cancel() {}, speak() {} }
   };
+  context.PuddleSend = msg => new Promise(resolve => context.chrome.runtime.sendMessage(msg, resolve));
   vm.runInNewContext(code, context);
   let saved;
   const dispose = context.PuddleVoice.attach({ querySelector: () => ({ appendChild() {} }) },
