@@ -148,7 +148,14 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .stat {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 18px 20px; box-shadow: var(--shadow);
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
 }
+.stat:hover {
+  transform: translateY(-3px);
+  border-color: #cfc9bb;
+  box-shadow: 0 10px 24px rgba(44, 42, 36, .12);
+}
+.stat:active { transform: translateY(-1px); }
 .stat > span { display: block; font-size: 13px; color: var(--muted); }
 .stat b { display: block; font-size: 26px; letter-spacing: -.03em; margin-top: 4px; }
 .stat b span {
