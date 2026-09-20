@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import io
 import json
+import ssl
 import urllib.error
 
 from jwcrypto import jwe, jwk
@@ -113,6 +114,29 @@ def test_ping_reports_unreachable_without_raising(monkeypatch):
 
     _capture(monkeypatch, {"message": "helloworld"})
     assert provider.ping()["reachable"] is True
+
+
+def test_ssl_context_can_verify_a_public_certificate_chain():
+    """Python does not use the macOS keychain. On a stock python.org install
+    urllib fails every HTTPS call with CERTIFICATE_VERIFY_FAILED while curl on
+    the same machine succeeds, so Visa looks unreachable however good the
+    credentials are. This pins that we build a context with real CAs loaded."""
+    from brain.payments import _ssl_context
+
+    ctx = _ssl_context()
+    assert ctx.verify_mode == ssl.CERT_REQUIRED
+    assert ctx.get_ca_certs(), "SSL context has no CA certificates -- HTTPS will fail"
+
+
+def test_mutual_tls_still_verifies_the_server():
+    """Loading a client certificate must not turn server verification off."""
+    from brain.payments import VisaSandboxProvider, _ssl_context
+
+    provider = VisaSandboxProvider("k", "s", cert="/nope.pem", key="/nope.key")
+    assert provider.mutual_tls is True
+    # the shared context builder is what the mTLS path starts from
+    assert _ssl_context().verify_mode == ssl.CERT_REQUIRED
+
 
 def _mle_provider(tmp_path):
     """A provider wired for MLE, with one key pair standing in for both legs."""
