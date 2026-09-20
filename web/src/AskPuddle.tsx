@@ -15,7 +15,6 @@ const SUGGESTIONS = [
   "What do I own for rain?",
   "What do I never wear?",
   "How much have I spent?",
-  "How often are you right?",
 ];
 
 type Turn = { question: string; answer: string; intent: string };
@@ -151,7 +150,6 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
     <aside className="askpanel" aria-label="Ask Puddle">
       <header>
         <b>Ask Puddle</b>
-        <span>about everything you own</span>
         <button className="askclose" onClick={onClose} aria-label="Close">
           ×
         </button>
