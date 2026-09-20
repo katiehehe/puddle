@@ -119,13 +119,18 @@ class Miner:
             return None
         worn = sum(self.wear_counts.get(d["id"], 0) for d in dupes)
         titles = ", ".join(d["title"] for d in dupes[:2])
-        # Inventory language: what matters is the units on the shelf, not the
-        # shopping trips that put them there.
+        # Said the way somebody would say it out loud. "You hold 3 units of
+        # this" is how a trading desk talks about inventory, and the person
+        # being spoken to is standing at a checkout deciding about a jumper.
         if len(dupes) == 1:
-            line = f"You hold one of these already ({titles.lower()}), same days, {worn} wears."
+            line = (
+                f"You already own {titles.lower()}, which covers the same days. "
+                f"You've worn it {worn} times."
+            )
         else:
             line = (
-                f"You hold {len(dupes)} units of this ({titles}), same days, {worn} wears between them."
+                f"You already own {len(dupes)} of these ({titles}). They cover the same days, "
+                f"and you've worn them {worn} times between them."
             )
         return {
             "type": "redundancy",

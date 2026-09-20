@@ -86,14 +86,17 @@ const TELLS = [
 function Home() {
   const hash = useHash();
   useEffect(() => {
-    if (!hash.includes("install")) return;
-    const t = setTimeout(() => document.getElementById("install")?.scrollIntoView(), 60);
-    return () => clearTimeout(t);
+    if (hash.includes("install")) {
+      const t = setTimeout(() => document.getElementById("install")?.scrollIntoView(), 60);
+      return () => clearTimeout(t);
+    }
+    // Landing on plain #/home always starts at the top of the page.
+    window.scrollTo(0, 0);
   }, [hash]);
   return (
     <div className="home">
       <nav className="nav">
-        <a className="brand" href="#/home">
+        <a className="brand" href="#/home" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <Duck size={54} />
           <span>Puddle</span>
         </a>
@@ -115,12 +118,15 @@ function Home() {
           </p>
           <div className="herobtns">
             <a className="cta" href="#/home?install">
-              Add to Chrome — free
+              Add to Chrome, free
             </a>
           </div>
         </div>
-        <CheckoutMock />
       </header>
+
+      <section className="demosec">
+        <CheckoutMock />
+      </section>
 
       <section className="steps" id="how">
         <h2>It gets better the more you wear</h2>
@@ -138,7 +144,7 @@ function Home() {
           <div className="step">
             <span>3</span>
             <h3>Get a straight answer</h3>
-            <p>At checkout: probably worth it, maybe, or probably skip — and why. You still decide.</p>
+            <p>At checkout it tells you whether something is worth it, and why. You still decide.</p>
           </div>
         </div>
       </section>
@@ -176,7 +182,7 @@ function Home() {
 
       <footer className="foot">
         <Duck size={22} />
-        <span>Puddle — built at HackMIT.</span>
+        <span>Puddle, built at HackMIT.</span>
       </footer>
     </div>
   );
@@ -399,7 +405,7 @@ function AddPurchase({ onAdded }: { onAdded: () => void }) {
   const look = () => {
     guessItem(form.title, form.source_url).then((g) => {
       if (!g) return setGuess("");
-      if (!g.recognised) return setGuess("Not sure what that is yet — pick a category below.");
+      if (!g.recognised) return setGuess("Not sure what that is yet. Pick a category below.");
       const brand = g.brand && !form.brand ? ` · ${g.brand}` : "";
       if (g.brand && !form.brand) set("brand", g.brand);
       setGuess(`Looks like a ${(g.kind ?? g.category ?? "").replace(/_/g, " ")}${brand}.`);
@@ -689,7 +695,7 @@ function DressTab({ me, usage }: { me: Me; usage: Usage }) {
       <p className="hint">
         {usage.enough_data
           ? `Based on ${usage.total_wears} recorded wears.`
-          : "Counts, not percentages — there isn't enough recorded wear to put a number on it yet."}
+          : "These are counts rather than percentages, because there isn't enough recorded wear to put a number on it yet."}
       </p>
       <h3 className="sub2">What Puddle has noticed about your shopping</h3>
       <div className="notes">
@@ -804,7 +810,7 @@ function WorthIt({ items }: { items: CatalogItem[] }) {
           <select value={itemId} onChange={(e) => setItemId(e.target.value)}>
             {items.map((i) => (
               <option key={i.id} value={i.id}>
-                {i.title} — {round(i.price)}
+                {i.title}, {round(i.price)}
               </option>
             ))}
           </select>
@@ -880,7 +886,7 @@ function WorthIt({ items }: { items: CatalogItem[] }) {
 
         <div className="askrow">
           <input
-            placeholder="Ask about it — “will I actually wear these?”"
+            placeholder="Ask about it, for example “will I actually wear these?”"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => {
@@ -910,7 +916,7 @@ function WorthIt({ items }: { items: CatalogItem[] }) {
         </button>
         {details && (
           <>
-            <p className="quackhead">Quant Quack — the working behind the advice</p>
+            <p className="quackhead">Quant Quack, the working behind the advice</p>
             <div className="details">
               <div>
                 <span>Expected value of buying</span>
@@ -924,7 +930,7 @@ function WorthIt({ items }: { items: CatalogItem[] }) {
               </div>
               <div>
                 <span>Resale estimate</span>
-                <b>{advice.numbers.resale === null ? "—" : round(advice.numbers.resale)}</b>
+                <b>{advice.numbers.resale === null ? "not known" : round(advice.numbers.resale)}</b>
                 <em>roughly what it'd fetch secondhand, unworn</em>
               </div>
               <div>
@@ -961,7 +967,7 @@ function StageForm({ onStaged }: { onStaged: () => void }) {
   const look = () => {
     guessItem(form.title, form.source_url).then((g) => {
       if (!g) return setGuess("");
-      if (!g.recognised) return setGuess("Not sure what that is yet — plainer words help, like \"grey wool sweater\".");
+      if (!g.recognised) return setGuess("Not sure what that is yet. Plainer words help, like \"grey wool sweater\".");
       setGuess(`Looks like a ${(g.kind ?? g.category ?? "").replace(/_/g, " ")}${g.brand ? ` from ${g.brand}` : ""}.`);
     });
   };
@@ -1111,6 +1117,7 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     reload();
     getStorefront().then(setItems);
   }, [reload]);
@@ -1148,7 +1155,7 @@ function Dashboard() {
   return (
     <div className="shell">
       <nav className="nav">
-        <a className="brand" href="#/home">
+        <a className="brand" href="#/home" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <Duck size={54} />
           <span>Puddle</span>
         </a>
@@ -1206,7 +1213,7 @@ function Dashboard() {
 
       <footer className="foot">
         <Duck size={22} />
-        <span>Puddle — built at HackMIT.</span>
+        <span>Puddle, built at HackMIT.</span>
       </footer>
 
       <button className="askfab" onClick={() => setAsking(!asking)} aria-expanded={asking}>
