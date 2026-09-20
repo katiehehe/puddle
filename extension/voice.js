@@ -6,23 +6,21 @@
     panel.className = "voice-panel";
     panel.innerHTML = `
       <style>
-        .voice-panel{border-top:1px solid #b8d4e4;margin-top:14px;padding-top:14px;color:#332f3a}
+        .voice-panel{border-top:2px solid #e5e7eb;margin-top:14px;padding-top:14px;color:#111827}
         .voice-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-        .voice-controls button{background:#fff;color:#332f3a;border-radius:14px;
-          box-shadow:6px 6px 12px rgba(96,140,170,.25),-4px -4px 8px rgba(255,255,255,.9),
-            inset 2px 2px 4px rgba(255,255,255,.8),inset -2px -2px 4px rgba(14,165,233,.08)}
-        .voice-controls button[aria-pressed="true"]{color:#be123c}
-        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:3px solid #0ea5e9;outline-offset:3px}
+        .voice-controls button{background:#f3f4f6;color:#111827;border-radius:6px}
+        .voice-controls button:hover{background:#e5e7eb}
+        .voice-controls button[aria-pressed="true"]{background:#dc2626;color:#fff}
+        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:3px solid #3b82f6;outline-offset:2px}
         .voice-panel button:disabled{opacity:.55;cursor:default}
-        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#635f69;margin:8px 0}
+        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#6b7280;margin:8px 0}
         .voice-answer{font-size:14px;line-height:1.5;margin:8px 0;overflow-wrap:anywhere}
         .voice-form{display:flex;gap:8px;margin-top:10px}
-        .voice-form input{width:0;flex:1;min-width:0;border:none;border-radius:14px;
-          padding:10px 12px;font-size:13px;background:#e2edf5;color:#332f3a;
-          box-shadow:inset 6px 6px 12px #cddcea,inset -6px -6px 12px #ffffff}
-        .voice-form input:focus{background:#fff}
-        .voice-form input::placeholder{color:#635f69}
-        .voice-label{display:block;font-size:12px;margin-top:12px;color:#635f69;font-weight:600}
+        .voice-form input{width:0;flex:1;min-width:0;border:2px solid transparent;border-radius:6px;
+          padding:10px 12px;font-size:13px;background:#f3f4f6;color:#111827}
+        .voice-form input:focus{background:#fff;border-color:#3b82f6}
+        .voice-form input::placeholder{color:#6b7280}
+        .voice-label{display:block;font-size:12px;margin-top:12px;color:#6b7280;font-weight:600}
         .voice-panel [hidden]{display:none!important}
         @media(prefers-reduced-motion:reduce){.card{animation:none!important}}
       </style>
@@ -57,11 +55,8 @@
       mic.disabled = value || !configured;
     }
     function say(text) {
-      if (muted || disposed || !globalThis.speechSynthesis || !globalThis.SpeechSynthesisUtterance) return;
-      globalThis.speechSynthesis?.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.02;
-      speechSynthesis.speak(utterance);
+      if (muted || disposed) return;
+      globalThis.PuddleSpeech?.speak(text);
     }
     function releaseMic() {
       clearTimeout(timer);
@@ -85,7 +80,7 @@
     }
     function beginQuestion() {
       generation += 1;
-      globalThis.speechSynthesis?.cancel();
+      globalThis.PuddleSpeech?.cancel();
       confirm.hidden = true;
       answer.hidden = true;
       heard.hidden = true;
@@ -106,7 +101,7 @@
       muted = !muted;
       mute.setAttribute("aria-pressed", String(muted));
       mute.textContent = muted ? "Unmute replies" : "Mute replies";
-      if (muted) globalThis.speechSynthesis?.cancel();
+      if (muted) globalThis.PuddleSpeech?.cancel();
     };
     function stopRecording(discard) {
       cancelled = discard;
@@ -208,7 +203,7 @@
     }).catch(error => { if (!disposed) status.textContent = error.message; });
     return () => {
       disposed = true; generation += 1; pendingMic = false;
-      stopRecording(true); globalThis.speechSynthesis?.cancel(); panel.remove();
+      stopRecording(true); globalThis.PuddleSpeech?.cancel(); panel.remove();
     };
   }
   globalThis.PuddleVoice = { attach };

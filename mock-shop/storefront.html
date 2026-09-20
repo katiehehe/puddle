@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WESTRIDGE — Suede Chelsea Boots</title>
+
+<!-- This page does NOT set data-puddle-checkout, and loads no Puddle script.
+     It is an ordinary product page: the only way the duck can appear here is
+     if the extension notices the button and reads the product off the DOM.
+     If the duck shows up, extraction works. If not, it does not. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org/",
+  "@type": "Product",
+  "name": "Suede Chelsea Boots",
+  "brand": { "@type": "Brand", "name": "Westridge" },
+  "description": "Full-grain suede, leather sole.",
+  "offers": {
+    "@type": "Offer",
+    "price": "128.00",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  }
+}
+</script>
+<style>
+  :root { --ink:#16191c; --muted:#5d6771; --line:#e4e8ec; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;
+         color:var(--ink); background:#fff; }
+  header { border-bottom:1px solid var(--line); padding:18px 28px; display:flex;
+           justify-content:space-between; align-items:center; }
+  .brand { font-weight:800; letter-spacing:.22em; font-size:14px; }
+  .wrap { max-width:940px; margin:40px auto; display:grid; grid-template-columns:1fr 1fr;
+          gap:48px; padding:0 24px; }
+  .photo { background:#f2f0ed; border-radius:20px; aspect-ratio:1; display:flex;
+           align-items:center; justify-content:center; font-size:130px; }
+  h1 { font-size:30px; margin:4px 0 6px; letter-spacing:-.02em; }
+  .price__current { font-size:22px; font-weight:700; margin:12px 0 20px; display:block; }
+  .muted { color:var(--muted); font-size:14px; line-height:1.6; }
+  .row { display:flex; gap:10px; align-items:center; margin:20px 0; }
+  select { padding:9px 12px; border-radius:9px; border:1px solid var(--line); font-size:14px; }
+  .buy { width:100%; background:#16191c; color:#fff; border:0; border-radius:12px;
+         padding:16px; font-size:16px; font-weight:700; cursor:pointer; }
+  .note { max-width:940px; margin:0 auto 40px; padding:16px 24px; color:var(--muted);
+          font-size:13px; border-top:1px solid var(--line); }
+  .note code { background:#f4f6f8; padding:1px 5px; border-radius:4px; }
+  @media (max-width:760px){ .wrap{grid-template-columns:1fr; gap:28px;} }
+</style>
+</head>
+<body>
+  <header>
+    <div class="brand">WESTRIDGE</div>
+    <div class="muted">Bag (1)</div>
+  </header>
+
+  <div class="wrap">
+    <div class="photo">🥾</div>
+    <div>
+      <div class="muted">Footwear / Boots</div>
+      <h1 class="product__title">Suede Chelsea Boots</h1>
+      <span class="price__current">$128.00</span>
+      <p class="muted">Full-grain suede with a leather sole. Goes with everything you own,
+         which is rather the point.</p>
+
+      <div class="row">
+        <span class="muted">Size</span>
+        <select name="size" id="size">
+          <option>Size 7</option>
+          <option selected>Size 8</option>
+          <option>Size 9</option>
+        </select>
+      </div>
+
+      <button class="buy" name="checkout">Place your order</button>
+    </div>
+  </div>
+
+  <div class="note">
+    No <code>data-puddle-checkout</code> anywhere on this page, and no Puddle script tag.
+    If the duck appears when you click <b>Place your order</b>, the extension found the
+    button itself and read the product out of the page's JSON-LD — which is what it would
+    have to do on a shop that never heard of us.
+  </div>
+</body>
+</html>

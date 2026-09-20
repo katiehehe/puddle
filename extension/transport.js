@@ -21,6 +21,7 @@
         body = { item: msg.item, prediction_id: msg.prediction_id, event_id: msg.event_id, action: "skip" }; break;
       case "checkout": path = "/checkout";
         body = { item: msg.item, prediction_id: msg.prediction_id, event_id: msg.event_id }; break;
+      case "voice_speak": path = "/voice/speak"; body = { text: msg.text }; break;
       case "voice_transcribe":
         if (typeof msg.audio !== "string" || msg.audio.length > 2800000) throw new Error("Recording is too large.");
         path = "/voice/transcribe";

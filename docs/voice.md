@@ -3,7 +3,8 @@
 Click **Talk to Puddle**, allow microphone access, ask a short question, then
 click **Stop and ask**. Recording stops automatically at 20 seconds. Deepgram
 Nova-3 transcribes the clip; Puddle answers using the same wardrobe and purchase
-history as checkout. Browser speech reads the answer aloud. **Mute replies**
+history as checkout. ElevenLabs reads the answer aloud when the backend has a
+key, and browser speech reads it otherwise. **Mute replies**
 silences responses, and **Cancel recording** discards an unfinished clip.
 
 ## Fastest demo path
@@ -31,7 +32,13 @@ Edit `.env` locally:
 
 ```dotenv
 DEEPGRAM_API_KEY=your_key_here
+ELEVENLABS_API_KEY=your_key_here
+ELEVENLABS_VOICE_ID=optional_voice_id
 ```
+
+Both keys are optional and independent: transcription needs Deepgram, spoken
+replies need ElevenLabs. Neither key reaches the extension — the backend is the
+only caller of either provider.
 
 The server loads the root `.env` automatically. Environment variables take
 precedence. Restart the server after changing the file. `.env` is ignored by
@@ -63,6 +70,11 @@ There is no fake transcription or substituted recording. `GET /voice/status`
 reports `configured: true` when a non-empty key is loaded; this reports presence,
 not validity. Actual transcription checks the credentials with Deepgram.
 
+Without an ElevenLabs key, `speech` is `browser` and the duck uses the browser's
+own voice. The extension also falls back to browser speech if a `POST
+/voice/speak` call fails, so a rate limit or a dropped network never leaves the
+duck silent.
+
 ## Supported questions
 
 - “Why should I skip these?” explains the current item.
@@ -80,9 +92,14 @@ existing Skip button now uses the same API so the two entry points agree.
 
 ## API
 
-- `GET /voice/status`: provider, configuration presence, model and recording limits.
+- `GET /voice/status`: provider, configuration presence, speech provider
+  (`elevenlabs` or `browser`), model and recording limits.
 - `POST /voice/transcribe`: raw audio body with an audio Content-Type. Supported:
   WebM, Ogg, WAV, MP4, MP3. Limit: 2 MiB. Returns `{transcript, provider}`.
+- `POST /voice/speak`: `{text}` (600 characters max). Returns
+  `{audio, mime, provider}` with base64 MP3 from ElevenLabs
+  `eleven_flash_v2_5`. 503 when no key is configured, which callers treat as
+  "use browser speech".
 - `POST /voice/respond`: `{transcript, item_id}` or `{transcript, item}`;
   optional `now_hour`. Returns answer, intent, decision, item, pending_action,
   alternatives, and evaluated_item for a size question.
@@ -104,13 +121,15 @@ navigating away or replacing the checkout panel also releases them.
 
 ```sh
 .venv/bin/python -m pytest -q
-node --test tests/voice-ui.test.cjs
+node --test tests/voice-ui.test.cjs tests/speech.test.cjs
 node --check extension/voice.js
+node --check extension/speech.js
 ```
 
 Tests cover missing keys, transcription transport, bad credentials, timeouts,
 empty recordings, intent handling, size questions, non-mutating speech,
 record/stop/cancel lifecycle, and permission acquisition after panel disposal.
 Microphone hardware, OS permissions and a loaded Chrome extension should also
-be checked manually on the demo machine. Browser speech voices depend on the OS;
-ElevenLabs and live streaming are not part of this version.
+be checked manually on the demo machine. Browser speech voices depend on the OS.
+Speech tests cover hosted rendering, credential and rate-limit fallback,
+cancellation and empty replies; live streaming is not part of this version.
