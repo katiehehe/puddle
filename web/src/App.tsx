@@ -256,49 +256,50 @@ const today = () => new Date().toISOString().slice(0, 10);
 const when = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
-const REVEAL_MS = 200;
+const ROLL_MS = 1100;
+
+/* Rolls the number up from zero once, the first time it renders, then stays put.
+ * Non-numeric parts ("$", ",", "%") are kept; the digits are what count up. */
+function rollFrom(value: string, t: number): string {
+  const m = value.match(/^([^\d]*)([\d,]*\.?\d*)(.*)$/);
+  if (!m || !m[2]) return value;
+  const [, pre, num, post] = m;
+  const decimals = (num.split(".")[1] ?? "").length;
+  const target = Number(num.replace(/,/g, ""));
+  if (!Number.isFinite(target)) return value;
+  const eased = 1 - Math.pow(1 - t, 3);
+  const text = (target * eased).toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return `${pre}${text}${post}`;
+}
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
-  const chars = [...value];
-  const [shown, setShown] = useState(chars.length);
-  const timer = useRef<number | null>(null);
+  const rolled = useRef(false);
+  const [text, setText] = useState(() => rollFrom(value, 0));
 
-  const stop = useCallback(() => {
-    if (timer.current !== null) {
-      window.clearInterval(timer.current);
-      timer.current = null;
+  useEffect(() => {
+    if (rolled.current) {
+      setText(value);
+      return;
     }
-  }, []);
-
-  useEffect(() => stop, [stop]);
-  useEffect(() => setShown(value.length), [value]);
-
-  const play = () => {
-    stop();
-    setShown(1);
-    timer.current = window.setInterval(() => {
-      setShown((n) => {
-        if (n + 1 >= chars.length) stop();
-        return Math.min(n + 1, chars.length);
-      });
-    }, REVEAL_MS);
-  };
-
-  const reset = () => {
-    stop();
-    setShown(chars.length);
-  };
+    rolled.current = true;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / ROLL_MS);
+      setText(t >= 1 ? value : rollFrom(value, t));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
 
   return (
-    <div className="stat" onMouseEnter={play} onMouseLeave={reset}>
+    <div className="stat">
       <span>{label}</span>
-      <b>
-        {chars.map((c, i) => (
-          <span key={i} className={i < shown ? "on" : undefined}>
-            {c}
-          </span>
-        ))}
-      </b>
+      <b>{text}</b>
       {note && <em>{note}</em>}
     </div>
   );
