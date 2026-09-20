@@ -2,14 +2,14 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
-  // web/src/styles.css — light cards on warm paper: ink text, duck-yellow accents.
+  // web/src/styles.css, light cards on warm paper: ink text, duck-yellow accents.
   const PALETTE = {
     ink: "#1d2026", muted: "#6b7280", line: "#e7e3da", track: "#eceadf",
     duck: "#ffd166", beak: "#f1893b",
     good: "#2f8f5b", bad: "#c8493f",
   };
 
-  // The same mascot the app draws — a yellow circle duck, not an emoji.
+  // The same mascot the app draws: a yellow circle duck, not an emoji.
   const DUCK = `<svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true">
     <circle cx="32" cy="34" r="20" fill="${PALETTE.duck}"/>
     <circle cx="44" cy="20" r="12" fill="${PALETTE.duck}"/>
@@ -21,7 +21,6 @@
     + "/dashboard/?item=";
 
   let host = null, shadow = null, lastKey = "", dismissTimer = null, voiceCleanup = null, renderVersion = 0, scoreVersion = 0;
-  let lastCheckoutEl = null;
 
   function ensureHost() {
     // A new checkout cancels the previous card's pending dismissal.
@@ -43,7 +42,7 @@
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
   ));
 
-  // Escaped text with the numbers that matter picked out — prices and
+  // Escaped text with the numbers that matter picked out, meaning prices and
   // percentages get a duck-yellow underline.
   const emph = (text) => esc(text).replace(
     /(\$\d[\d,]*(?:\.\d+)?|\b\d+(?:\.\d+)?%)/g,
@@ -98,32 +97,6 @@
   }
 
   const pondPct = (saved) => Math.min(100, (saved / 800) * 100);
-
-  /* Open beside the checkout control rather than over it when there's room:
-   * right of the button, then left, then above, then below. If none fit
-   * unclipped the card keeps its default corner. */
-  function placeCard(anchor) {
-    if (!(anchor instanceof Element) || !anchor.isConnected || !host) return;
-    const rect = anchor.getBoundingClientRect();
-    const w = host.offsetWidth, h = host.offsetHeight;
-    if (!w || !h) return;
-    const gap = 12;
-    const spots = [
-      { left: rect.right + gap, top: rect.top + rect.height / 2 - h / 2 },
-      { left: rect.left - w - gap, top: rect.top + rect.height / 2 - h / 2 },
-      { left: rect.left + rect.width / 2 - w / 2, top: rect.top - h - gap },
-      { left: rect.left + rect.width / 2 - w / 2, top: rect.bottom + gap },
-    ];
-    for (const s of spots) {
-      if (s.left >= 0 && s.left + w <= innerWidth && s.top >= 0 && s.top + h <= innerHeight) {
-        host.style.left = s.left + "px";
-        host.style.top = s.top + "px";
-        host.style.right = "auto";
-        host.style.bottom = "auto";
-        return;
-      }
-    }
-  }
 
   async function render(result, item) {
     const version = ++renderVersion;
@@ -274,8 +247,6 @@
       };
     }
 
-    placeCard(lastCheckoutEl);
-
     const more = shadow.getElementById("more");
     if (more) {
       more.onclick = () => {
@@ -291,7 +262,7 @@
     }, result.prediction_id);
     if (result.speak) speak(line);
 
-    // The voice panel starts tucked away — "Ask the duck" opens it.
+    // The voice panel starts tucked away until "Ask the duck" opens it.
     const slot = shadow.getElementById("voiceslot");
     const panelEl = shadow.querySelector(".voice-panel");
     if (slot && panelEl) slot.appendChild(panelEl);
@@ -477,11 +448,11 @@
   const BUY_WORDS =
     /\b(check ?out|buy|add to (bag|cart|basket)|place (your )?order|complete (your )?(order|purchase)|pay now|purchase)\b/i;
 
-  function checkoutControl(element) {
+  function looksLikeCheckout(element) {
     const control = element.closest?.(
       "button, a, input[type='submit'], [role='button'], [class*='checkout' i], [id*='checkout' i]"
     );
-    if (!control) return null;
+    if (!control) return false;
     const label = [
       control.getAttribute?.("aria-label"),
       control.value,
@@ -490,15 +461,11 @@
       control.id,
       control.className,
     ].filter(Boolean).join(" ");
-    return BUY_WORDS.test(label) ? control : null;
+    return BUY_WORDS.test(label);
   }
 
   document.addEventListener("click", (event) => {
-    const control = checkoutControl(event.target);
-    if (!control) return;
-    // Remember where checkout was pressed so the card opens beside it.
-    lastCheckoutEl = control;
-    if (!event.isTrusted) return;
+    if (!event.isTrusted || !looksLikeCheckout(event.target)) return;
     // Capture runs before the page's own handler, so a shop that sets the
     // attribute has not set it yet. Yield once and let it: an opted-in shop
     // describes its product better than we can infer it, and scoring both
