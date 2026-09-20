@@ -115,13 +115,13 @@ function LiveScorer({ items }: { items: CatalogItem[] }) {
     <section className="card">
       <h2>Ask the duck</h2>
       <p className="muted">
-        The same call the extension makes at checkout. Move the hour past 23:00 and the
-        late-night pattern appears: it never outranks what the item itself is.
+        This is the same call the extension makes at checkout. Drag the hour past 23:00
+        and the late-night pattern shows up. It never overrides what the item itself is.
       </p>
 
       <div className="controls">
         <select value={id} onChange={(e) => { setId(e.target.value); run(e.target.value, hour); }}>
-          {items.map((i) => <option key={i.id} value={i.id}>{i.title} · ${i.price}</option>)}
+          {items.map((i) => <option key={i.id} value={i.id}>{i.title} (${i.price})</option>)}
           {!items.length && <option value="">brain offline</option>}
         </select>
         <label className="hourlab">
@@ -142,7 +142,7 @@ function LiveScorer({ items }: { items: CatalogItem[] }) {
             <span className={"face " + res.duck_state}>{DUCK_FACE[res.duck_state] ?? res.duck_state}</span>
             <span className={"call " + res.decision}>{res.decision}</span>
             <span className="muted">
-              {res.speak ? "speaks out loud" : "stays silent"} · confidence {(res.confidence * 100).toFixed(0)}%
+              {res.speak ? "speaks out loud" : "stays silent"}, confidence {(res.confidence * 100).toFixed(0)}%
             </span>
           </div>
           <p className="headline">“{res.headline}”</p>
@@ -220,20 +220,20 @@ export default function App() {
         <div className="hero-main">
           <DuckLogo />
           <div>
-            <div className="tag">PUDDLE · YOUR CLOSET PORTFOLIO</div>
+            <div className="tag">PUDDLE</div>
             <h1>Your wardrobe, as an <span>investment portfolio</span></h1>
-            <p className="sub">Everything you own, priced by how much use it actually returns: and the trades to improve it.</p>
+            <p className="sub">Everything you own, priced by how much you actually wear it. Plus what to buy next and what to let go.</p>
           </div>
         </div>
         <div className="badges">
-          <div className={"badge " + (live ? "on" : "off")}>{live ? "live · brain connected" : "offline · demo data"}</div>
+          <div className={"badge " + (live ? "on" : "off")}>{live ? "brain connected" : "demo data"}</div>
           {status && (
             <>
               <div className={"badge " + (status.payments === "mock" ? "off" : "on")}>
-                Visa · {status.payments === "mock" ? "simulated" : status.payments}
+                Visa: {status.payments === "mock" ? "simulated" : status.payments}
               </div>
               <div className={"badge " + (status.voice.configured ? "on" : "off")}>
-                Voice · {status.voice.configured ? status.voice.provider : "no key"}
+                Voice: {status.voice.configured ? status.voice.provider : "no key"}
               </div>
             </>
           )}
@@ -244,10 +244,10 @@ export default function App() {
         <div className="stat big">
           <div className="lbl">Style Sharpe</div>
           <div className="val">{p.style_sharpe.toFixed(2)}</div>
-          <div className="hint">risk-adjusted usefulness, over a loungewear baseline of {p.risk_free}</div>
+          <div className="hint">return per unit of risk, against a loungewear baseline of {p.risk_free}</div>
         </div>
         <div className="stat">
-          <div className="lbl">Pond · saved from regret buys</div>
+          <div className="lbl">Saved from regret buys</div>
           <div className="val water">${p.pond.saved}</div>
           <div className="pond"><div className="fill" style={{ width: pondPct + "%" }} /></div>
           <div className="hint">{p.pond.skips} skip{p.pond.skips === 1 ? "" : "s"} recorded</div>
@@ -287,8 +287,8 @@ export default function App() {
 
       <section className="grid2">
         <div className="card">
-          <h2>Coverage across your life</h2>
-          <p className="muted">Red points are gaps: occasions your closet underserves.</p>
+          <h2>What your closet covers</h2>
+          <p className="muted">Red points are gaps. You own nothing good for those days.</p>
           <div className="radarwrap"><CoverageRadar coverage={p.coverage} /></div>
           <h3>Life mix</h3>
           <p className="muted">Derived from recorded wears, not a table someone typed.</p>
@@ -298,7 +298,7 @@ export default function App() {
         <div className="card">
           <h2>Rebalance</h2>
           <p className="muted">Ranked by marginal Sharpe per dollar, then picked greedily under budget.</p>
-          <h3 className="good">Buy · ${p.rebalance.spent} of ${p.rebalance.budget}</h3>
+          <h3 className="good">Buy (${p.rebalance.spent} of ${p.rebalance.budget})</h3>
           {p.rebalance.buy.map((b) => (
             <div className="rec" key={b.id}>
               <div>
@@ -378,8 +378,7 @@ export default function App() {
       <section className="card">
         <h2>Prediction ledger</h2>
         <p className="muted">
-          Every call, with what the duck actually said. Admitting when it is wrong is what earns
-          the right to interrupt: grade one and the score above moves.
+          Every call the duck has made, in its own words. Grade one and the score above moves.
         </p>
         <div className="ledger">
           {p.ledger.predictions.map((pr) => (
@@ -409,8 +408,7 @@ export default function App() {
       </section>
 
       <footer className="foot">
-        <span className="prints">❋ ❋ ❋</span>
-        Puddle · HackMIT 2026 · brain: FastAPI + numpy · surfaces: extension + dashboard
+        Puddle. Built at HackMIT 2026 on FastAPI and numpy.
       </footer>
     </div>
   );
