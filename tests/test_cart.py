@@ -45,8 +45,20 @@ def test_removing_takes_it_off_the_rail():
     assert staged["id"] not in [i["id"] for i in client.get("/cart").json()["items"]]
 
 
-def test_the_rail_is_empty_until_you_park_something():
-    assert client.get("/cart").json()["items"] == []
+def test_the_rail_opens_with_the_shop_on_it():
+    """An empty cart and a form is a worse first screen than a cart with the
+    shop's own things in it, each already reviewed."""
+    items = client.get("/cart").json()["items"]
+    assert items, "the rail should be seeded from the storefront"
+    assert all(i["review"]["verdict"] for i in items)
+
+
+def test_taking_a_seeded_thing_off_the_rail_keeps_it_off():
+    """Seeding is guarded by a marker, not by "is the rail empty": clearing
+    the rail is a decision, and it has to survive the next page load."""
+    first = client.get("/cart").json()["items"][0]
+    assert client.delete(f"/cart/{first['id']}").status_code == 200
+    assert first["id"] not in [i["id"] for i in client.get("/cart").json()["items"]]
 
 
 def test_unnameable_things_get_refused_like_purchases():

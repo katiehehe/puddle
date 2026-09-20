@@ -1403,7 +1403,7 @@ function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => vo
   return (
     <>
       <h2>Your cart</h2>
-      <p className="hint">
+      <p className="hint tight">
         Everything you are thinking about buying, with what Puddle makes of each one. Click a
         thing to see the full case for or against it.
       </p>

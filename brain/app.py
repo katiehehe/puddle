@@ -670,7 +670,12 @@ def _review(item: Item, closet, miner, counts, now, brand, brands, coverage, usa
 
 @app.get("/cart")
 def cart_items() -> dict:
-    """The staging rail: things you're thinking about, each already reviewed."""
+    """The staging rail: things you're thinking about, each already reviewed.
+
+    The shop's own items are seeded onto it once, so the cart opens with
+    something in it rather than an empty page and a form.
+    """
+    closet_store.seed_rail(STOREFRONT)
     closet, miner, counts = _context()
     now = datetime.now()
     coverage = occasions.coverage(closet)

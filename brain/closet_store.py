@@ -65,6 +65,7 @@ def _schema(db) -> None:
         CREATE TABLE IF NOT EXISTS wear_log (
             id TEXT PRIMARY KEY, item_id TEXT NOT NULL, worn_at TEXT NOT NULL);
         CREATE INDEX IF NOT EXISTS wear_log_item ON wear_log(item_id);
+        CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     """)
 
 
@@ -180,6 +181,42 @@ def stage(row: dict) -> dict:
         _schema(db)
         db.execute("INSERT INTO staging VALUES (?, ?, ?)", (entry["id"], entry["created_at"], json.dumps(entry)))
     return entry
+
+
+def seed_rail(items) -> None:
+    """Put the shop's own items on the rail once, so the cart has something in
+    it the first time it is opened.
+
+    Guarded by a marker rather than by "is the rail empty", because clearing
+    the rail is a decision: things you took off should stay off.
+    """
+    with connect() as db:
+        _schema(db)
+        if db.execute("SELECT 1 FROM meta WHERE key='rail_seeded'").fetchone():
+            return
+        db.execute("INSERT INTO meta VALUES ('rail_seeded', ?)", (_now(),))
+        for item in items:
+            if db.execute("SELECT 1 FROM staging WHERE id=?", (item.id,)).fetchone():
+                continue
+            entry = {
+                "id": item.id,
+                "title": item.title,
+                "price": item.price,
+                "brand": "",
+                "category": item.category,
+                "kind": item.kind,
+                "formality": item.formality,
+                "warmth": item.warmth,
+                "rain_ok": item.rain_ok,
+                "size": item.size,
+                "color": item.color,
+                "source_url": "",
+                "photo": "",
+                "notes": "",
+                "staged_at": _now(),
+                "created_at": _now(),
+            }
+            db.execute("INSERT INTO staging VALUES (?, ?, ?)", (item.id, entry["created_at"], json.dumps(entry)))
 
 
 def staged() -> list[dict]:

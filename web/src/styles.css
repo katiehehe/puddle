@@ -223,6 +223,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .tabs button.on, .chips button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
 .hint { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+/* Directly above a list that carries its own spacing. */
+.hint.tight { margin-bottom: 10px; }
 .sub2 { font-size: 18px; margin: 30px 0 14px; }
 
 /* closet */
@@ -423,7 +425,9 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   font: inherit; font-size: 13px; font-weight: 700; color: var(--muted);
   padding: 8px 14px; cursor: pointer;
 }
-.railgap { margin-top: 40px; }
+/* The gap before a following section. 40px on top of the hint's own 18px
+   left a hole you could park a car in when the rail was short. */
+.railgap { margin-top: 26px; }
 
 /* purchase cards */
 .buycard {
