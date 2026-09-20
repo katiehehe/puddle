@@ -93,7 +93,7 @@ function Home() {
   return (
     <div className="home">
       <nav className="nav">
-        <a className="brand" href="#/home">
+        <a className="brand" href="#/home" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <Duck size={54} />
           <span>Puddle</span>
         </a>
@@ -1145,7 +1145,7 @@ function Dashboard() {
   return (
     <div className="shell">
       <nav className="nav">
-        <a className="brand" href="#/home">
+        <a className="brand" href="#/home" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <Duck size={54} />
           <span>Puddle</span>
         </a>
