@@ -95,7 +95,8 @@ const SHAPES: Record<string, { d: string; det?: string; lite?: string }> = {
   },
   blazer: {
     d: "M34 14 h20 l13 7 -6 12 -7 -4 v29 h-20 v-29 l-7 4 -6 -12 z",
-    det: "M40 14 l4 15 -7 5 9 1 -2 -18 z M48 14 l-4 15 7 5 -9 1 2 -18 z",
+    det: "M34 14 h6 l4 16 -10 -4 z M54 14 h-6 l-4 16 10 -4 z M44 42 a2 2 0 1 1 0 4 a2 2 0 1 1 0 -4 z",
+    lite: "M40 14 h8 l-4 16 z",
   },
   sneakers: {
     d: "M14 40 v-6 c0 -4 3 -6 7 -6 h5 c5 0 10 2 14 6 l9 8 h14 c8 0 12 4 12 9 v6 h-61 z",
@@ -196,8 +197,9 @@ export function Garment({ category, colour, kind, size = 88 }: { category: strin
   return (
     <svg viewBox="0 0 88 72" width={size} height={(size * 72) / 88} role="img" aria-label={kind || category}>
       <path d={shape.d} fill={colourOf(colour)} />
-      {shape.det && <path d={shape.det} fill="#000" opacity="0.16" />}
-      {shape.lite && <path d={shape.lite} fill="#fff" opacity="0.55" />}
+      <path d={shape.d} fill="none" stroke="#2c2a24" strokeOpacity="0.22" strokeWidth="1.5" strokeLinejoin="round" />
+      {shape.det && <path d={shape.det} fill="#000" opacity="0.2" />}
+      {shape.lite && <path d={shape.lite} fill="#fff" opacity="0.6" />}
     </svg>
   );
 }
