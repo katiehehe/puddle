@@ -233,9 +233,6 @@ function Home() {
             <a className="cta" href="https://github.com/katiehehe/puddle">
               Get the extension
             </a>
-            <a className="ghost" href="#/closet">
-              See my closet
-            </a>
           </div>
         </div>
       </section>

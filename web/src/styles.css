@@ -168,7 +168,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .install > div {
   background: var(--duck); border-radius: 24px; padding: 44px;
 }
-.install p { max-width: 34em; margin: 0 0 22px; }
+.install p { max-width: none; margin: 0 0 22px; }
+.install .herobtns { justify-content: flex-end; }
 .install code { background: rgba(255, 255, 255, .55); }
 
 .foot {
