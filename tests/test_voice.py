@@ -249,3 +249,21 @@ def test_card_questions_answer_from_the_shopper_s_own_numbers():
     wear = question("Will I wear it?").json()
     assert wear["intent"] == "per_wear"
     assert "wears" in wear["answer"]
+
+
+def test_ownership_questions_about_the_closet_are_not_duplicate_checks():
+    """"What do I already own for rain" asks about rain, not about the boots."""
+    rain = question("What do I already own for rain?").json()
+    assert rain["intent"] != "duplicates"
+    assert "rain" in rain["answer"].lower()
+
+
+def test_a_price_question_judges_the_price_it_names():
+    named = question("Is $100 a good price?").json()
+    assert named["intent"] == "price"
+    assert "$100" in named["answer"]
+    assert named["item"]["price"] != 100 or "$100" in named["answer"]
+
+    unnamed = question("Is this a good price?").json()
+    assert unnamed["intent"] == "price"
+    assert f"${unnamed['item']['price']:,.0f}" in unnamed["answer"]

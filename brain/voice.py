@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import math
 import os
 import re
 from dataclasses import replace
@@ -182,20 +183,37 @@ def intent(text):
         r"\bwill i (?:actually |really )?(?:wear|use) (?:it|them|this|these)\b", clean
     ):
         return "per_wear", None
+    # Only ownership questions about the thing on the page: "what do I already
+    # own for rain" is a closet question and belongs to the wardrobe answers.
     if re.search(r"\b(similar|duplicates?)\b", clean) or re.search(
-        r"\b(?:already (?:own|have)|own (?:one|any)|have (?:one|any))\b", clean
+        r"\b(?:already )?(?:own|have|got)\s+(?:one|any|some|something|anything)?\s*"
+        r"(?:of\s+)?(?:like\s+)?(?:this|these|it|them|that)\b",
+        clean,
     ):
         return "duplicates", None
     if re.search(r"\b(?:good|fair|bad|right|decent) (?:price|deal)\b", clean) or re.search(
         r"\b(?:overpaying|too expensive|cheap for)\b", clean
     ):
-        return "price", None
+        # A question may name its own amount: "is 100 a good price?"
+        named = re.search(r"\b(\d[\d,]*(?:\.\d+)?)\b", clean)
+        return "price", named[1].replace(",", "") if named else None
     if re.search(r"\b(why|explain|should|recommend|worth)\b", clean) or clean in {
         "what about this",
         "what about this one",
     }:
         return "explain", None
     return "unknown", None
+
+
+def _amount(spoken: str | None) -> float | None:
+    """The price a question names, when it names one worth pricing."""
+    if spoken is None:
+        return None
+    try:
+        value = float(spoken)
+    except ValueError:
+        return None
+    return value if math.isfinite(value) and 0 < value < 1_000_000 else None
 
 
 @router.post("/respond")
@@ -307,15 +325,17 @@ def respond(req: VoiceQuestion):
         from . import market
         from .app import _purchases
 
-        read = market.deal(item, _purchases())
+        asked = _amount(size)
+        priced = item if asked is None else replace(item, price=asked)
+        read = market.deal(priced, _purchases())
         if read["typical_price"] is None:
             response["answer"] = (
-                f"I cannot price ${item.price:,.0f} against your own buying yet: "
+                f"I cannot price ${priced.price:,.0f} against your own buying yet: "
                 "you have not bought enough of this kind of thing for a comparison."
             )
         else:
             response["answer"] = (
-                f"${item.price:,.0f} is {read['verdict']}: the median across {read['basis']} "
+                f"${priced.price:,.0f} is {read['verdict']}: the median across {read['basis']} "
                 f"is ${read['typical_price']:,.0f}."
             )
         response["deal"] = read
