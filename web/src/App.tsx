@@ -7,23 +7,17 @@ import {
   editPurchase,
   editStaged,
   getMe,
-  getQuote,
-  getStorefront,
   buyStaged,
   getCart,
   guessItem,
   logWears,
-  scoreItem,
   stageItem,
   unstageItem,
-  CatalogItem,
   StagedItem,
   ClosetPiece,
   Coverage,
   Me,
   PurchaseRow,
-  Quote,
-  Score,
   Usage,
 } from "./api";
 import { AskPuddle } from "./AskPuddle";
@@ -899,198 +893,6 @@ function ValueTab({ me, onWear, onChange }: { me: Me; onWear: (id: string) => vo
   );
 }
 
-function WorthIt({ items }: { items: CatalogItem[] }) {
-  const [itemId, setItemId] = useState(items[0]?.id ?? "");
-  const [hour, setHour] = useState(23);
-  const [quote, setQuote] = useState<Quote | null>(null);
-  const [score, setScore] = useState<Score | null>(null);
-  const [wears, setWears] = useState(20);
-  const [details, setDetails] = useState(false);
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [asking, setAsking] = useState(false);
-
-  useEffect(() => {
-    if (!itemId) return;
-    let live = true;
-    Promise.all([getQuote(itemId, hour), scoreItem(itemId, hour)])
-      .then(([q, s]) => {
-        if (!live) return;
-        setQuote(q);
-        setScore(s);
-        setWears(Math.max(5, Math.round(q.expected_wears)));
-        setAnswer("");
-      })
-      .catch(() => live && setQuote(null));
-    return () => {
-      live = false;
-    };
-  }, [itemId, hour]);
-
-  if (!quote || !score) return <p className="hint">Asking Puddle…</p>;
-
-  const ask = quote.ask;
-  const advice = score.advice;
-  const perWear = ask / Math.max(wears, 1);
-  const good = perWear <= quote.your_cost_per_wear;
-  const ladder = Object.keys(advice.per_wear)
-    .map(Number)
-    .sort((a, b) => a - b);
-
-  return (
-    <div className="worth">
-      <div className="pickrow">
-        <label>
-          Thinking about
-          <select value={itemId} onChange={(e) => setItemId(e.target.value)}>
-            {items.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.title}, {round(i.price)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          at
-          <input type="range" min={0} max={23} value={hour} onChange={(e) => setHour(+e.target.value)} />
-          <b>{String(hour).padStart(2, "0")}:40</b>
-        </label>
-      </div>
-
-      <div className="verdictcard">
-        <div className="duckhead">
-          <Duck size={34} />
-          <b>Worth it?</b>
-        </div>
-        <p className={`say ${advice.stance}`}>{advice.verdict}</p>
-        <p className="subhead">{advice.subhead}</p>
-
-        <ul className="reasons">
-          {advice.reasons.map((r) => (
-            <li className={r.tone} key={r.kind + r.text}>
-              {r.text}
-            </li>
-          ))}
-        </ul>
-
-        <div className="ladder">
-          {ladder.map((n) => (
-            <button key={n} className={wears === n ? "on" : ""} onClick={() => setWears(n)}>
-              <span>{n} wears</span>
-              <b>{money(advice.per_wear[String(n)])}</b>
-            </button>
-          ))}
-        </div>
-
-        <div className="wearslider">
-          <label>
-            If you wear it <b>{wears}</b> times
-            <input type="range" min={1} max={60} value={wears} onChange={(e) => setWears(+e.target.value)} />
-          </label>
-          <div className={`perwear${good ? " good" : " bad"}`}>
-            {money(perWear)} a wear
-            <em>
-              {good
-                ? `cheaper than the ${money(quote.your_cost_per_wear)} a wear you normally get`
-                : `your closet averages ${money(quote.your_cost_per_wear)} a wear`}
-            </em>
-          </div>
-        </div>
-        <p className="honest">
-          Going on how you wear things, about <b>{Math.round(advice.expected_wears)}</b> wears is realistic.
-          {advice.resale ? ` Similar things resell for around ${round(advice.resale)}.` : ""} It's advice from
-          your own history, not a guarantee.
-        </p>
-
-        <div className="quickasks">
-          {advice.questions.map((q) => (
-            <button
-              key={q}
-              onClick={() => {
-                setQuestion(q);
-                setAsking(true);
-                askDuck(itemId, q, hour)
-                  .then(setAnswer)
-                  .finally(() => setAsking(false));
-              }}
-            >
-              {q}
-            </button>
-          ))}
-        </div>
-
-        <div className="askrow">
-          <input
-            placeholder="Ask about it, for example “will I actually wear these?”"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter" || !question.trim()) return;
-              setAsking(true);
-              askDuck(itemId, question, hour)
-                .then(setAnswer)
-                .finally(() => setAsking(false));
-            }}
-          />
-          <button
-            disabled={!question.trim() || asking}
-            onClick={() => {
-              setAsking(true);
-              askDuck(itemId, question, hour)
-                .then(setAnswer)
-                .finally(() => setAsking(false));
-            }}
-          >
-            Ask
-          </button>
-        </div>
-        {answer && <p className="answer">{answer}</p>}
-
-        <button className="detailtoggle" onClick={() => setDetails(!details)}>
-          {details ? "Hide the numbers" : "View numbers"}
-        </button>
-        {details && (
-          <>
-            <p className="quackhead">Quant Quack, the working behind the advice</p>
-            <div className="details">
-              <div>
-                <span>Expected value of buying</span>
-                <b>{quote.ev >= 0 ? `+${money(quote.ev)}` : `-${money(-quote.ev)}`}</b>
-                <em>what it's worth on average once returns are priced in</em>
-              </div>
-              <div>
-                <span>Most it's worth paying</span>
-                <b>{quote.no_price ? "nothing" : round(quote.fair_bid)}</b>
-                <em>above this you're paying for wears you won't get</em>
-              </div>
-              <div>
-                <span>Resale estimate</span>
-                <b>{advice.numbers.resale === null ? "not known" : round(advice.numbers.resale)}</b>
-                <em>roughly what it'd fetch secondhand, unworn</em>
-              </div>
-              <div>
-                <span>Similar things you own</span>
-                <b>{advice.numbers.similar_owned}</b>
-                <em>averaging {advice.numbers.similar_wears} wears each</em>
-              </div>
-              <div>
-                <span>You send back</span>
-                <b>{Math.round(advice.numbers.return_prob * 100)}%</b>
-                <em>of things like this ({quote.return_evidence})</em>
-              </div>
-              <div>
-                <span>What it adds to your closet</span>
-                <b>{advice.numbers.alpha >= 0 ? `+${advice.numbers.alpha.toFixed(2)}` : advice.numbers.alpha.toFixed(2)}</b>
-                <em>above zero means it covers days nothing else does</em>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* ---------------------------------- the staging rail: considered, not owned */
 
 function StageForm({ onStaged }: { onStaged: () => void }) {
@@ -1401,7 +1203,7 @@ function CartDetail({
   );
 }
 
-function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => void }) {
+function CartTab({ onChange }: { onChange: () => void }) {
   const [cart, setCart] = useState<StagedItem[] | null>(null);
   const [open, setOpen] = useState<number | null>(null);
   const reload = useCallback(() => {
@@ -1430,6 +1232,9 @@ function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => vo
         thing to see the full case for or against it.
       </p>
 
+      <h2 className="railgap">Add something you are considering</h2>
+      <StageForm onStaged={reload} />
+
       {lines.length > 0 ? (
         <div className="buys">
           {lines.map((i, idx) => (
@@ -1453,7 +1258,7 @@ function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => vo
       ) : (
         cart && (
           <p className="hint">
-            Your cart is empty. Add something below, or let the extension put things here from the
+            Your cart is empty. Add something above, or let the extension put things here from the
             shops you visit.
           </p>
         )
@@ -1470,16 +1275,6 @@ function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => vo
           onRemoved={() => { setOpen(null); changed(); }}
         />
       )}
-
-      <h2 className="railgap">Add something you are considering</h2>
-      <StageForm onStaged={reload} />
-
-      {items.length > 0 && (
-        <>
-          <h2 className="railgap">Or check something from the shop</h2>
-          <WorthIt items={items} />
-        </>
-      )}
     </>
   );
 }
@@ -1489,7 +1284,6 @@ function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => vo
 
 function Dashboard() {
   const [me, setMe] = useState<Me | null>(null);
-  const [items, setItems] = useState<CatalogItem[]>([]);
   const [tab, setTab] = useState<Tab>("Closet");
   const [failed, setFailed] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -1501,7 +1295,6 @@ function Dashboard() {
   useEffect(() => {
     window.scrollTo(0, 0);
     reload();
-    getStorefront().then(setItems);
   }, [reload]);
 
   // A wear is fire-and-forget on screen; the refresh only catches the
@@ -1575,7 +1368,7 @@ function Dashboard() {
         {tab === "Purchases" && <PurchasesTab me={me} onChange={reload} />}
         {tab === "How you dress" && <DressTab me={me} usage={me.usage} />}
         {tab === "Value" && <ValueTab me={me} onWear={wear} onChange={reload} />}
-        {tab === "Cart" && <CartTab items={items} onChange={reload} />}
+        {tab === "Cart" && <CartTab onChange={reload} />}
       </main>
 
       <footer className="foot">
