@@ -56,16 +56,36 @@ function CoverageRadar({ coverage }: { coverage: Portfolio["coverage"] }) {
   );
 }
 
+// The argument in order: what you own, the days you dress for, what it returns,
+// the trade. Shown one step at a time so the quant half lands after the closet.
+const STEPS = [
+  { n: "1", tab: "Your closet", say: "Everything you own, and how often you wear it." },
+  { n: "2", tab: "Your days", say: "The occasions they have to cover. Red is uncovered." },
+  { n: "3", tab: "The return", say: "Price each item by the use it returns, and the closet gets a Sharpe ratio." },
+  { n: "4", tab: "The trade", say: "Buy what covers a gap. Skip what you already own." },
+];
+
 export default function App() {
   const [p, setP] = useState<Portfolio>(FIXTURE);
   const [live, setLive] = useState(false);
+  const [step, setStep] = useState(0);
 
   useEffect(() => {
     getPortfolio().then(({ data, live }) => { setP(data); setLive(live); });
   }, []);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") setStep((s) => Math.min(STEPS.length - 1, s + 1));
+      if (e.key === "ArrowLeft") setStep((s) => Math.max(0, s - 1));
+    };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, []);
+
   // Same $800 pond scale as the duck card and popup.
   const pondPct = Math.min(100, (p.pond.saved / 800) * 100);
+  const shown = (i: number) => (i <= step ? "" : " hidden-step");
 
   return (
     <div className="page">
@@ -75,20 +95,53 @@ export default function App() {
           <div>
             <div className="tag">PUDDLE · YOUR CLOSET PORTFOLIO</div>
             <h1>Your wardrobe, as an <span>investment portfolio</span></h1>
-            <p className="sub">Everything you own, priced by how much use it actually returns: and the trades to improve it.</p>
+            <p className="sub">{STEPS[step].say}</p>
           </div>
         </div>
         <div className={"badge " + (live ? "on" : "off")}>{live ? "live · brain connected" : "offline · demo data"}</div>
       </header>
 
-      <section className="stats">
+      <nav className="steps">
+        {STEPS.map((s, i) => (
+          <button key={s.n} className={"stepbtn" + (i === step ? " on" : i < step ? " done" : "")}
+            onClick={() => setStep(i)}>
+            <span className="stepn">{s.n}</span>{s.tab}
+          </button>
+        ))}
+        <button className="stepnext" onClick={() => setStep(Math.min(STEPS.length - 1, step + 1))}
+          disabled={step === STEPS.length - 1}>Next →</button>
+      </nav>
+
+      <section className={"card" + shown(0)}>
+        <h2>Holdings</h2>
+        <table>
+          <thead><tr><th>Item</th><th>Category</th><th>Wears</th><th>Cost / wear</th><th>Expected payoff</th><th>Flag</th></tr></thead>
+          <tbody>
+            {p.holdings.map((h) => (
+              <tr key={h.id}>
+                <td>{h.title}</td><td className="muted">{h.category}</td><td>{h.wears}</td>
+                <td>${h.cost_per_wear}</td><td>{h.expected_payoff}</td>
+                <td>{h.redundant_with.length ? <span className="pill bad">{h.redundant_with.length} dupes</span> : ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className={"card" + shown(1)}>
+        <h2>Coverage across your life</h2>
+        <p className="muted">Red points are gaps.</p>
+        <div className="radarwrap"><CoverageRadar coverage={p.coverage} /></div>
+      </section>
+
+      <section className={"stats" + shown(2)}>
         <div className="stat big">
           <div className="lbl">Style Sharpe</div>
           <div className="val">{p.style_sharpe.toFixed(2)}</div>
-          <div className="hint">risk-adjusted usefulness of your closet</div>
+          <div className="hint">risk-adjusted usefulness</div>
         </div>
         <div className="stat">
-          <div className="lbl">Pond · saved from regret buys</div>
+          <div className="lbl">Pond · saved</div>
           <div className="val water">${p.pond.saved}</div>
           <div className="pond"><div className="fill" style={{ width: pondPct + "%" }} /></div>
         </div>
@@ -99,16 +152,10 @@ export default function App() {
         </div>
       </section>
 
-      <section className="grid2">
-        <div className="card">
-          <h2>Coverage across your life</h2>
-          <p className="muted">Red points are gaps: occasions your closet underserves.</p>
-          <div className="radarwrap"><CoverageRadar coverage={p.coverage} /></div>
-        </div>
-
+      <section className={"grid2" + shown(3)}>
         <div className="card">
           <h2>Rebalance</h2>
-          <p className="muted">Buy what expands the frontier (positive alpha). Skip redundancy.</p>
+          <p className="muted">Positive alpha expands the frontier.</p>
           <h3 className="good">Buy · ${p.rebalance.spent} of ${p.rebalance.budget}</h3>
           {p.rebalance.buy.map((b) => (
             <div className="rec" key={b.id}>
@@ -131,41 +178,25 @@ export default function App() {
             <div className="rec" key={d.id}><div><b>{d.title}</b></div><div className="why muted">low return</div></div>
           ))}
         </div>
-      </section>
 
-      <section className="card">
-        <h2>Holdings</h2>
-        <table>
-          <thead><tr><th>Item</th><th>Category</th><th>Wears</th><th>Cost / wear</th><th>Expected payoff</th><th>Flag</th></tr></thead>
-          <tbody>
-            {p.holdings.map((h) => (
-              <tr key={h.id}>
-                <td>{h.title}</td><td className="muted">{h.category}</td><td>{h.wears}</td>
-                <td>${h.cost_per_wear}</td><td>{h.expected_payoff}</td>
-                <td>{h.redundant_with.length ? <span className="pill bad">{h.redundant_with.length} dupes</span> : ""}</td>
-              </tr>
+        <div className="card">
+          <h2>Prediction ledger</h2>
+          <p className="muted">The duck keeps score in public.</p>
+          <div className="ledger">
+            {p.ledger.predictions.map((pr) => (
+              <div className={"lrow " + (pr.correct ? "ok" : pr.graded ? "no" : "pending")} key={pr.id}>
+                <span>{pr.item}</span>
+                <span className="muted">{pr.call}</span>
+                <span>{pr.graded ? (pr.correct ? "✓ right" : "✗ wrong") : "…pending"}</span>
+              </div>
             ))}
-          </tbody>
-        </table>
-      </section>
-
-      <section className="card">
-        <h2>Prediction ledger</h2>
-        <p className="muted">The duck keeps score in public. Admitting when it's wrong earns the right to interrupt.</p>
-        <div className="ledger">
-          {p.ledger.predictions.map((pr) => (
-            <div className={"lrow " + (pr.correct ? "ok" : pr.graded ? "no" : "pending")} key={pr.id}>
-              <span>{pr.item}</span>
-              <span className="muted">{pr.call}</span>
-              <span>{pr.graded ? (pr.correct ? "✓ right" : "✗ wrong") : "…pending"}</span>
-            </div>
-          ))}
+          </div>
         </div>
       </section>
 
       <footer className="foot">
         <span className="prints">❋ ❋ ❋</span>
-        Puddle · HackMIT 2026 · brain: FastAPI + numpy · surfaces: extension + dashboard
+        Puddle · HackMIT 2026 · FastAPI + numpy · extension + dashboard
       </footer>
     </div>
   );

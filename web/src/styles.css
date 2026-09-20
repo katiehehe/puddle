@@ -39,6 +39,24 @@ body { margin: 0; color: var(--ink); background: var(--page);
 .badge.on { color: var(--reed-dark); }
 .badge.off { color: var(--muted); }
 
+/* Stepper: the argument is revealed one beat at a time. */
+.steps { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 18px 0; }
+.stepbtn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  border: 2px solid var(--line); background: var(--surface); color: var(--muted);
+  border-radius: 99px; padding: 8px 16px; font: inherit; font-size: 13px; font-weight: 600; }
+.stepbtn .stepn { width: 20px; height: 20px; border-radius: 50%; background: var(--block);
+  color: var(--ink); display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; }
+.stepbtn.done { color: var(--ink); border-color: var(--duck); }
+.stepbtn.done .stepn { background: var(--duck); }
+.stepbtn.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.stepbtn.on .stepn { background: var(--duck); color: var(--ink); }
+.stepnext { margin-left: auto; cursor: pointer; border: 0; border-radius: 99px;
+  background: var(--water); color: #fff; padding: 9px 18px; font: inherit; font-size: 13px;
+  font-weight: 700; }
+.stepnext:disabled { background: var(--line); color: var(--muted); cursor: default; }
+.hidden-step { display: none; }
+
 /* Stats: multi-color numbers on soft tint blocks — flat, no shadow. */
 .stats { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 16px; margin: 18px 0; }
 .stat { border-radius: 8px; padding: 20px; transition: transform .2s; }

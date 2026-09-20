@@ -155,7 +155,7 @@
       try { next = await send({ type: "skip", item, prediction_id: result.prediction_id, event_id: skipEvent }); }
       catch (error) { shadow.querySelector(".line").textContent = error.message; return; }
       if (version !== renderVersion) return;
-      shadow.querySelector(".line").textContent = "Skipped. Your saved total has been updated.";
+      shadow.querySelector(".line").textContent = "Skipped.";
       shadow.querySelector(".fill").style.width = pondPct(next.saved) + "%";
       shadow.querySelector(".saved").textContent = `🪙 $${next.saved} in the pond`;
       shadow.querySelector(".btns").remove();

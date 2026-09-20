@@ -121,13 +121,11 @@ class Miner:
         titles = ", ".join(d["title"] for d in dupes[:2])
         if len(dupes) == 1:
             line = (
-                f"You already own {titles.lower()} — it covers the same days, "
-                f"and you've worn it {worn} times."
+                f"You already own {titles.lower()} — same days, worn {worn} times."
             )
         else:
             line = (
-                f"You own {len(dupes)} of these already ({titles}) — "
-                f"they cover the same days, and you've worn them {worn} times between them."
+                f"You own {len(dupes)} already ({titles}) — same days, {worn} wears between them."
             )
         return {
             "type": "redundancy",
@@ -199,8 +197,7 @@ class Miner:
             },
             "line": (
                 f"You have {n} things for {concentration['top_label'].lower()} "
-                f"and nothing for {gap['label'].lower()}. "
-                f"This is more of what you already own most."
+                f"and nothing for {gap['label'].lower()}."
             ),
             "weight": 0.35,
         }
