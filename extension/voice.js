@@ -6,23 +6,25 @@
     panel.className = "voice-panel";
     panel.innerHTML = `
       <style>
-        .voice-panel{border-top:1px solid #2c2a24;margin-top:14px;padding-top:14px;color:#2c2a24}
+        .voice-panel{border-top:1px solid #3a3e47;margin-top:14px;padding-top:14px;color:#e7e6e2}
         .voice-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-        .voice-controls button{background:transparent;color:#2c2a24;border:1px solid #2c2a24;
-          padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
-        .voice-controls button:hover{background:#ece4cf}
-        .voice-controls button[aria-pressed="true"]{background:#a63d2f;border-color:#a63d2f;color:#fff}
-        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:2px solid #3e6b8e;outline-offset:2px}
+        .voice-controls button{background:transparent;color:#cfcec9;border:1px solid #3a3e47;
+          border-radius:9px;padding:8px 12px;font-size:11px;font-weight:700}
+        .voice-controls button:hover{background:#33373f}
+        .voice-controls button[aria-pressed="true"]{background:#c8493f;border-color:#c8493f;color:#fff}
+        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:2px solid #ffd166;outline-offset:2px}
         .voice-panel button:disabled{opacity:.55;cursor:default}
-        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#8a8270;margin:8px 0}
-        .voice-answer{font-family:Georgia,"Times New Roman",serif;font-size:14px;line-height:1.5;
-          margin:8px 0;overflow-wrap:anywhere;font-style:italic}
+        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#9aa0a8;margin:8px 0}
+        .voice-answer{font-size:14px;line-height:1.5;color:#e7e6e2;
+          margin:8px 0;overflow-wrap:anywhere}
         .voice-form{display:flex;gap:8px;margin-top:10px}
-        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #2c2a24;
-          padding:10px 12px;font-size:13px;background:#f6f1e3;color:#2c2a24}
-        .voice-form input:focus{background:#fbf8ee;border-color:#3e6b8e}
-        .voice-form input::placeholder{color:#8a8270}
-        .voice-label{display:block;font-size:10px;margin-top:12px;color:#8a8270;font-weight:700;
+        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #3a3e47;border-radius:9px;
+          padding:10px 12px;font-size:13px;background:#262a31;color:#fff}
+        .voice-form input:focus{border-color:#ffd166}
+        .voice-form input::placeholder{color:#9aa0a8}
+        .voice-form button,.voice-confirm{background:#ffd166;color:#1d2026;border:0;border-radius:9px;
+          padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer}
+        .voice-label{display:block;font-size:10px;margin-top:12px;color:#9aa0a8;font-weight:700;
           text-transform:uppercase;letter-spacing:.12em}
         .voice-panel [hidden]{display:none!important}
         @media(prefers-reduced-motion:reduce){.card{animation:none!important}}
