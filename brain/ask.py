@@ -17,7 +17,7 @@ import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from . import insights, ledger, market, pond
+from . import closet_store, insights, ledger, market, pond
 from .catalog import CLOSET, STOREFRONT, Item
 from .miner import Miner
 from .portfolio import Closet
@@ -185,15 +185,15 @@ def _stems(word: str) -> set[str]:
     return forms
 
 
-def _stranger(word: str) -> bool:
+def _stranger(word: str, spoken: frozenset[str] = frozenset()) -> bool:
     """A word this closet has no reading of: Tesla, Mars, Bitcoin, Taylor."""
     plain = word.replace("'", "").lower()
     if len(plain) <= 2 or plain.isdigit():
         return False
-    return not _stems(plain) & (_GENERIC | _VOCABULARY)
+    return not _stems(plain) & (_GENERIC | _VOCABULARY | spoken)
 
 
-def _known(text: str) -> bool:
+def _known(text: str, spoken: frozenset[str] = frozenset()) -> bool:
     """False as soon as the question names something the closet has never seen.
 
     Only the noun slots are read. A stranger is a stranger where a subject goes
@@ -201,14 +201,14 @@ def _known(text: str) -> bool:
     jackets", "crewnecks rihanna owns", "for rain, paris". Everywhere else the
     shopper may say what they like, because English is larger than any list.
     """
-    if any(_stranger(word) for word in _SUBJECT.findall(text)):
+    if any(_stranger(word, spoken) for word in _SUBJECT.findall(text)):
         return False
     words = text.split()
     for i, word in enumerate(words):
-        if not _stems(word) & _VOCABULARY:
+        if not _stems(word) & (_VOCABULARY | spoken):
             continue
         neighbours = words[max(i - 1, 0) : i] + words[i + 1 : i + 2]
-        if any(_stranger(other) for other in neighbours):
+        if any(_stranger(other, spoken) for other in neighbours):
             return False
     return True
 
@@ -252,9 +252,26 @@ class Wardrobe:
         self.counts = counts
         self.items = closet.items
         self.purchases = miner.purchases
+        # Brands are only ever the ones on this shopper's own labels. That is
+        # what keeps "how many Gap tops" from fighting "what are my gaps": Gap
+        # is a brand here only for someone who owns something from Gap.
+        self.brands = {
+            row["id"]: row["brand"].strip()
+            for row in closet_store.rows()
+            if row.get("in_closet") and not row.get("archived") and (row.get("brand") or "").strip()
+        }
 
     def wears(self, item: Item) -> int:
         return self.counts.get(item.id, 0)
+
+    def words(self) -> frozenset[str]:
+        """Brand words the shopper can name because they hang in their closet."""
+        return frozenset(word for brand in self.brands.values() for word in brand.lower().split())
+
+    def brand_in(self, text: str) -> str | None:
+        """The owned brand this question names, longest name first."""
+        names = sorted(set(self.brands.values()), key=len, reverse=True)
+        return next((n for n in names if re.search(rf"\b{re.escape(n.lower())}\b", text)), None)
 
     def matching(self, text: str) -> tuple[str, list[str], list[Item]] | None:
         """Items the question names, by kind, category, colour or title word.
@@ -266,6 +283,11 @@ class Wardrobe:
         if found is None:
             return None
         subject, items, _ = found
+        brand = self.brand_in(text)
+        named_brand: list[str] = []
+        if brand is not None and brand not in subject:
+            items = [i for i in items if self.brands.get(i.id, "").lower() == brand.lower()]
+            named_brand = [brand]
         qualities = [q for q in self._qualities(text) if q not in subject.split()]
         refused = [q for q in qualities if self._denied(text, q)]
         wanted = [q for q in qualities if q not in refused]
@@ -284,7 +306,7 @@ class Wardrobe:
             items = [i for i in items if quality in (i.color, i.material)]
         for quality in refused:
             items = [i for i in items if quality not in (i.color, i.material)]
-        return subject, spoken + wanted + [f"non-{q}" for q in refused], items
+        return subject, named_brand + spoken + wanted + [f"non-{q}" for q in refused], items
 
     @staticmethod
     def _denied(text: str, quality: str) -> bool:
@@ -336,6 +358,13 @@ class Wardrobe:
         for category, words in CATEGORY_WORDS.items():
             if any(re.search(rf"\b{word}(?:s|es)?\b", text) for word in (category, *words)):
                 return words[0], [i for i in self.items if i.category == category], True
+        brand = self.brand_in(text)
+        if brand is not None:
+            return (
+                f"{brand} piece",
+                [i for i in self.items if self.brands.get(i.id, "").lower() == brand.lower()],
+                True,
+            )
         for colour in {i.color for i in self.items}:
             if re.search(rf"\b{re.escape(colour)}\b", text):
                 return f"{colour} piece", [i for i in self.items if i.color == colour], False
@@ -665,9 +694,11 @@ EXAMPLES = [
 def answer(question: str, closet: Closet, miner: Miner, counts: dict[str, int]) -> dict | None:
     """The best-supported wardrobe answer, or None if nothing here fits."""
     text = re.sub(r"[^\w\s']", " ", question.lower()).strip()
-    if not text or not _known(text):
+    if not text:
         return None
     wardrobe = Wardrobe(closet, miner, counts)
+    if not _known(text, wardrobe.words()):
+        return None
     # "How many tops are not black" leaves the owner unsaid; counting a rail of
     # this closet is about this closet, and a stranger in it was refused above.
     if not _MINE.search(text) and not _counting(text, wardrobe):
