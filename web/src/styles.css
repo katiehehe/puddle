@@ -75,8 +75,22 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 
 /* --- hero --------------------------------------------------------------- */
 .hero {
-  text-align: center;
-  padding: 56px 0 48px;
+  display: grid; grid-template-columns: 1fr; gap: 40px;
+  padding: 40px 0 80px;
+}
+/* Normal windows: the demo sits to the right of the copy, like before. */
+@media (min-width: 900px) and (max-width: 1399px) {
+  .hero { grid-template-columns: 1fr 1.05fr; gap: 56px; align-items: center; }
+}
+/* Big screens: copy centered, demo drops to its own row spanning the screen. */
+@media (min-width: 1400px) {
+  .hero { text-align: center; padding: 56px 0 64px; }
+  .hero > div > p { margin: 0 auto 28px; }
+  .herobtns { justify-content: center; }
+  .hero .mock {
+    width: min(1600px, calc(100vw - 48px));
+    position: relative; left: 50%; transform: translateX(-50%);
+  }
 }
 .pill {
   display: inline-block; background: var(--duck); color: var(--ink);
@@ -84,13 +98,13 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   border-radius: 99px; padding: 5px 12px; margin-bottom: 18px;
 }
 .hero h1 { font-size: 66px; line-height: 1.05; margin-bottom: 18px; }
-.hero > div > p { font-size: 19px; color: var(--muted); margin: 0 auto 28px; max-width: 30em; }
-.herobtns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.hero > div > p { font-size: 19px; color: var(--muted); margin: 0 0 28px; max-width: 30em; }
+.herobtns { display: flex; gap: 12px; flex-wrap: wrap; }
 
 /* --- the live demo frame ------------------------------------------------- */
 .mock {
   background: #fff; border-radius: 18px; box-shadow: var(--shadow);
-  border: 1px solid var(--line); overflow: hidden;
+  border: 1px solid var(--line); overflow: hidden; min-width: 0;
 }
 .mockbar {
   display: flex; align-items: center; gap: 6px; padding: 12px 14px;
@@ -103,12 +117,6 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .demoframe { display: block; width: 100%; height: 600px; border: 0; }
-/* The demo gets its own row and can span the whole screen. */
-.demosec {
-  width: 100vw; position: relative; left: 50%; transform: translateX(-50%);
-  padding: 0 24px 80px;
-}
-.demosec .mock { max-width: 1600px; margin: 0 auto; }
 .duckhead { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
 
 /* --- home sections ------------------------------------------------------ */

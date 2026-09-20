@@ -122,11 +122,8 @@ function Home() {
             </a>
           </div>
         </div>
-      </header>
-
-      <section className="demosec">
         <CheckoutMock />
-      </section>
+      </header>
 
       <section className="steps" id="how">
         <h2>It gets better the more you wear</h2>
