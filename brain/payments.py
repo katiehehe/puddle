@@ -43,6 +43,24 @@ SENDER_ACCOUNT = "4653459515756154"
 RECIPIENT_ACCOUNT = "4957030420210496"
 
 
+def _ssl_context() -> ssl.SSLContext:
+    """A context that can actually verify sandbox.api.visa.com.
+
+    Python does not use the macOS keychain, so on a stock python.org install
+    urllib fails every HTTPS call with CERTIFICATE_VERIFY_FAILED while curl on
+    the same machine succeeds. Visa then looks unreachable no matter how good
+    the credentials are. certifi ships the CA bundle and arrives with httpx,
+    which is already a dependency; falling back to the default context keeps
+    this working on a system Python that has its own store wired up.
+    """
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:  # noqa: BLE001 - a usable default beats no request at all
+        return ssl.create_default_context()
+
+
 @dataclass
 class PaymentResult:
     mode: str
@@ -160,9 +178,8 @@ class VisaSandboxProvider:
             headers=headers,
             method="POST" if body is not None else "GET",
         )
-        context = None
+        context = _ssl_context()
         if self.mutual_tls:
-            context = ssl.create_default_context()
             context.load_cert_chain(certfile=self.cert, keyfile=self.key)
         with urllib.request.urlopen(request, timeout=8, context=context) as response:
             return json.loads(response.read() or b"{}")

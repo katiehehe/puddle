@@ -76,3 +76,38 @@ carry a fourth insight the 2pm run does not show. Score at the demo hour:
 ```bash
 python3 scripts/demo_check.py --hour 14
 ```
+
+## Visa keys, when you get them at the booth
+
+Create the project at developer.visa.com, enable **Visa Direct**, and copy the
+API key and Shared Secret. Then, in the terminal running the brain:
+
+```bash
+export VISA_API_KEY=...
+export VISA_SHARED_SECRET=...
+# restart the brain so uvicorn inherits them, then:
+python3 scripts/demo_check.py
+```
+
+The check calls Visa's Hello World endpoint and tells you which of three
+situations you are in:
+
+| What it says | What it means |
+|---|---|
+| `Visa live and answering` | Done. Checkout is real. |
+| `Visa rejected the credentials (HTTP 4xx)` | The call reached Visa. Key or secret is wrong. |
+| `Visa unreachable (...)` | You never got there — network or certificates. No key fixes this. |
+
+That third row exists because of a real failure on this machine. Python does
+not use the macOS keychain, so a stock python.org install fails every HTTPS
+call with `CERTIFICATE_VERIFY_FAILED` while `curl` on the same machine
+succeeds. Visa then looks unreachable no matter how good the credentials are.
+`payments.py` now builds its SSL context from certifi's CA bundle, which
+arrives with httpx, already a dependency.
+
+If two-way SSL was issued instead of an X-Pay-Token project, set
+`VISA_CERT_PATH`, `VISA_KEY_PATH`, `VISA_USER_ID` and `VISA_PASSWORD` — the
+provider switches to mutual TLS on its own, and still verifies the server.
+
+**Payments are capped at $500** (`BUDGET_CAP`), so the $320 suit goes through
+and nothing catastrophic can.

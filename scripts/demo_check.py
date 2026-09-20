@@ -104,11 +104,22 @@ def main() -> int:
 
     # --- keys -------------------------------------------------------------
     print("\nIntegrations")
-    health = get("/health")
+    health = get("/health?check_payments=true")
     if health.get("payments") == "mock":
         warn("Visa in MOCK mode — checkout will say '(simulated)'. Set VISA_API_KEY + VISA_SHARED_SECRET")
     else:
-        ok(f"Visa live ({health['payments']})")
+        check = health.get("payments_check") or {}
+        if check.get("reachable"):
+            ok(f"Visa live and answering ({health['payments']}: {check.get('detail')})")
+        else:
+            # Distinguish "Visa said no" from "we never got there". A 4xx means
+            # the credentials are wrong; anything else means the network or the
+            # TLS trust store is, and no key will fix that.
+            detail = str(check.get("detail", "?"))
+            if detail.startswith("HTTP 4"):
+                bad(f"Visa rejected the credentials ({detail}) — check VISA_API_KEY / VISA_SHARED_SECRET")
+            else:
+                bad(f"Visa unreachable ({detail}) — network or certificate problem, not a key problem")
     voice = get("/voice/status")
     if voice.get("configured"):
         ok(f"voice configured ({voice.get('provider')}/{voice.get('model')})")
