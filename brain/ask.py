@@ -38,6 +38,16 @@ STATE_WORDS: dict[str, tuple[str, ...]] = {
     "casual_warm": ("casual", "class", "everyday"),
 }
 
+# What the shopper calls a whole rail of the closet. The catalogue's category
+# names are filing labels; nobody asks how many "outers" they own.
+CATEGORY_WORDS = {
+    "outer": ("jacket", "coat", "outerwear"),
+    "top": ("top", "shirt", "sweater"),
+    "bottom": ("bottom", "pant", "trouser"),
+    "shoes": ("shoe", "footwear"),
+    "dress": ("dress",),
+}
+
 _QUANTITY = re.compile(
     r"\b(how many|how much|do i own|do i have|what do i own|what do i have|own any|have any|"
     r"count|number of)\b"
@@ -58,7 +68,8 @@ _MINE = re.compile(
 _SUBJECT = re.compile(
     r"\b(?:on|in|at|for|about|to|from|with|by|near|among|between|versus|than|like|"
     r"into|onto|off|out|via|during|before|after|inside|outside|around|"
-    r"my|your|a|an|the|this|that|more|another|other|new|some|any|does|\w+ing|"
+    r"my|your|a|an|the|this|that|more|another|other|new|some|any|\w+ing|"
+    r"do|does|did|is|are|was|were|has|have|had|"
     r"buy|bought|own|owns|wear|spend|spent)\s+(?=(\w+))"
 )
 
@@ -170,14 +181,24 @@ class Wardrobe:
 
     def matching(self, text: str) -> tuple[str, list[Item]] | None:
         """Items the question names, by kind, category, colour or title word."""
+        found = self._named(text)
+        if found is None:
+            return None
+        subject, items = found
+        for colour in {i.color for i in items}:
+            if colour != subject and re.search(rf"\b{re.escape(colour)}\b", text):
+                return f"{colour} {subject}", [i for i in items if i.color == colour]
+        return subject, items
+
+    def _named(self, text: str) -> tuple[str, list[Item]] | None:
         for item in self.items:
             kind = (item.kind or item.category).replace("_", " ")
             if kind and re.search(rf"\b{re.escape(kind)}s?\b", text):
                 matched = [i for i in self.items if (i.kind or i.category) == item.kind]
                 return kind, matched
-        for category in {i.category for i in self.items}:
-            if re.search(rf"\b{re.escape(category)}s?\b", text):
-                return category, [i for i in self.items if i.category == category]
+        for category, words in CATEGORY_WORDS.items():
+            if any(re.search(rf"\b{word}s?\b", text) for word in (category, *words)):
+                return words[0], [i for i in self.items if i.category == category]
         for colour in {i.color for i in self.items}:
             if re.search(rf"\b{re.escape(colour)}\b", text):
                 return colour, [i for i in self.items if i.color == colour]
@@ -427,9 +448,19 @@ def _count(text: str, w: Wardrobe):
         return None
     worn = sum(w.wears(i) for i in items)
     paid = round(sum(i.price for i in items))
+    if len(items) == 1:
+        return (
+            f"One: {items[0].title}. {money(paid)}, {worn} wears.",
+            {"subject": subject, "count": 1, "wears": worn, "paid": paid},
+        )
+    colours = {i.color for i in w.items}
+    colour, _, base = subject.partition(" ")
+    label = insights.kind_label((base if colour in colours else subject).replace(" ", "_"), len(items))
+    if colour in colours and base:
+        label = label.replace(" ", f" {colour} ", 1)
     return (
-        f"{insights.kind_label(subject.replace(' ', '_'), len(items)).capitalize()}: "
-        f"{_listing([i.title for i in items])}. {money(paid)} of them, {worn} wears between them.",
+        f"{label.capitalize()}: {_listing([i.title for i in items])}. "
+        f"{money(paid)} of them, {worn} wears between them.",
         {"subject": subject, "count": len(items), "wears": worn, "paid": paid},
     )
 

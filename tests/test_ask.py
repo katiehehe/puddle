@@ -88,6 +88,8 @@ def test_wardrobe_words_in_another_subject_are_not_an_answer():
         "What do I own for rain near Mars?",
         "What is my best value among Tesla stocks?",
         "What did I spend at Zara?",
+        "how many crewnecks did taylor swift buy?",
+        "HOW MANY CREWNECKS DID TAYLOR SWIFT BUY?",
     ):
         assert ask(question)["intent"] == "unknown", question
 
@@ -112,6 +114,16 @@ def test_the_questions_it_does_answer_survive_that_guard():
     }
     for question, intent in answerable.items():
         assert ask(question)["intent"] == intent, question
+
+
+def test_a_count_follows_the_words_the_question_used():
+    jackets = ask("How many jackets do I own?")
+    assert jackets["facts"]["count"] == 3
+    assert "Rain shell" in jackets["answer"]
+    black = ask("How many black jeans do I own?")
+    assert black["facts"]["count"] == 1
+    assert black["answer"].startswith("One: Black jeans.")
+    assert ask("How many black tops do I own?")["answer"].startswith("4 black tops")
 
 
 def test_item_questions_still_go_to_the_checkout_handler():
