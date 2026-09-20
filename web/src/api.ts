@@ -388,15 +388,19 @@ export type WardrobeAnswer = {
   scope?: string;
   facts?: Record<string, unknown>;
   examples?: string[];
+  followups?: string[];
+  source?: "chat" | "rules";
 };
+
+export type AskTurn = { question: string; answer: string };
 
 /** The duck, answering across the whole closet rather than one item. Same
  *  deterministic brain as checkout: every line is a statistic it can show. */
-export async function askPuddle(question: string): Promise<WardrobeAnswer> {
+export async function askPuddle(question: string, history: AskTurn[] = []): Promise<WardrobeAnswer> {
   return call<WardrobeAnswer>("/ask", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history }),
   });
 }
 
