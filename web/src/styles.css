@@ -82,15 +82,11 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 @media (min-width: 900px) and (max-width: 1399px) {
   .hero { grid-template-columns: 1fr 1.05fr; gap: 56px; align-items: center; }
 }
-/* Big screens: copy centered, demo drops to its own row spanning the screen. */
+/* Big screens: copy centered, demo drops to its own row at the page width. */
 @media (min-width: 1400px) {
   .hero { text-align: center; padding: 56px 0 64px; }
   .hero > div > p { margin: 0 auto 28px; }
   .herobtns { justify-content: center; }
-  .hero .mock {
-    width: min(1600px, calc(100vw - 48px));
-    position: relative; left: 50%; transform: translateX(-50%);
-  }
 }
 .pill {
   display: inline-block; background: var(--duck); color: var(--ink);
