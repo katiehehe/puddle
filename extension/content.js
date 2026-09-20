@@ -2,11 +2,11 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
-  // web/src/styles.css — the dark card the hero mock uses: ink card, duck yellow.
+  // web/src/styles.css — light cards on warm paper: ink text, duck-yellow accents.
   const PALETTE = {
-    ink: "#1d2026", duck: "#ffd166", beak: "#f1893b",
-    text: "#e7e6e2", muted: "#9aa0a8", line: "#3a3e47", fill: "#33373f",
-    good: "#8fce9f", bad: "#ee9a92",
+    ink: "#1d2026", muted: "#6b7280", line: "#e7e3da", track: "#eceadf",
+    duck: "#ffd166", beak: "#f1893b",
+    good: "#2f8f5b", bad: "#c8493f",
   };
 
   // The same mascot the app draws — a yellow circle duck, not an emoji.
@@ -105,8 +105,8 @@
     const plain = advice ? advice.reasons.map(r => r.text) : facts(money);
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
     const verdictTone = advice
-      ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.duck
-      : PALETTE.duck;
+      ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.ink
+      : PALETTE.ink;
     // One event_id per intentional action; the brain dedupes retries on it.
     const skipEvent = crypto.randomUUID(), buyEvent = crypto.randomUUID();
 
@@ -114,44 +114,44 @@
       <style>
         *{box-sizing:border-box;font-family:"Outfit",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
         .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
-          background:${PALETTE.ink};color:${PALETTE.text};border-radius:16px;
-          padding:16px 18px;animation:pop .2s ease;
-          box-shadow:0 18px 40px rgba(29,32,38,.28)}
+          background:#fff;color:${PALETTE.ink};border-radius:20px;
+          border:1px solid ${PALETTE.line};
+          padding:20px 22px;animation:pop .2s ease;
+          box-shadow:0 1px 2px rgba(29,32,38,.05),0 12px 32px rgba(29,32,38,.12)}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
         .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px}
-        .duckhead b{color:#fff}
-        .verdict{font-size:17px;font-weight:800;color:${verdictTone};margin:0 0 6px}
-        .line{font-size:14px;line-height:1.5;color:${PALETTE.text};margin:0 0 10px}
-        .line b{color:#fff}
+        .duckhead b{color:${PALETTE.muted};font-weight:700}
+        .verdict{font-size:20px;font-weight:800;color:${verdictTone};margin:0 0 6px}
+        .line{font-size:14px;line-height:1.5;color:${PALETTE.ink};margin:0 0 10px}
         .chip{display:inline-block;border:1px solid ${PALETTE.line};
           padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
           color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:99px}
         .btns{display:flex;gap:8px}
-        .btns button{flex:1;padding:8px 0;font-size:13px;font-weight:700;cursor:pointer;
-          border:0;border-radius:9px;transition:all .15s}
+        .btns button{flex:1;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;
+          border-radius:9px;transition:all .15s}
         button:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
-        .skip{background:${PALETTE.duck};color:${PALETTE.ink}}
+        .skip{background:${PALETTE.duck};color:${PALETTE.ink};border:0}
         .skip:hover{transform:translateY(-1px)}
-        .buy{background:${PALETTE.fill};color:#cfcec9}
-        .buy:hover{background:#3d4149}
-        .pond{margin-top:14px;height:6px;background:${PALETTE.fill};
+        .buy{background:#fff;color:${PALETTE.ink};border:1px solid ${PALETTE.line}}
+        .buy:hover{background:#f7f5ef}
+        .pond{margin-top:14px;height:6px;background:${PALETTE.track};
           border-radius:99px;overflow:hidden}
         .fill{height:100%;background:${PALETTE.duck};
           width:${pondPct(pond.saved)}%;transition:width .3s ease}
         @media(prefers-reduced-motion:reduce){.card{animation:none}}
         .saved{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
           color:${PALETTE.muted};margin-top:6px;font-weight:700}
-        .ask{font-size:13px;font-weight:700;color:#fff;margin:12px 0 10px}
-        .done{font-size:14px;color:${PALETTE.text}}
+        .ask{font-size:13px;font-weight:700;color:${PALETTE.ink};margin:12px 0 10px}
+        .done{font-size:14px;color:${PALETTE.ink}}
         .facts{margin:0 0 10px;padding:0;list-style:none}
-        .facts li{font-size:13px;line-height:1.5;color:#cfcec9;margin-bottom:4px}
+        .facts li{font-size:13px;line-height:1.5;color:${PALETTE.muted};margin-bottom:4px}
         .more,.why{font-size:12px;font-weight:600;color:${PALETTE.muted};
           text-decoration:underline;text-underline-offset:2px}
         .more{display:block;background:none;border:none;padding:0 0 10px;cursor:pointer}
         .why{display:inline-block;margin-bottom:10px}
         .nums{display:none;font-size:12px;color:${PALETTE.muted};margin-bottom:10px;line-height:1.6}
         .nums.open{display:block}
-        .nums b{color:#fff}
+        .nums b{color:${PALETTE.ink}}
       </style>
       <div class="card" id="card">
         <div class="duckhead">${DUCK}<b>Puddle</b></div>
