@@ -122,14 +122,17 @@ const TELLS = [
 function Home() {
   const hash = useHash();
   useEffect(() => {
-    if (!hash.includes("install")) return;
-    const t = setTimeout(() => document.getElementById("install")?.scrollIntoView(), 60);
-    return () => clearTimeout(t);
+    if (hash.includes("install")) {
+      const t = setTimeout(() => document.getElementById("install")?.scrollIntoView(), 60);
+      return () => clearTimeout(t);
+    }
+    // Landing on plain #/home always starts at the top of the page.
+    window.scrollTo(0, 0);
   }, [hash]);
   return (
     <div className="home">
       <nav className="nav">
-        <a className="brand" href="#/home">
+        <a className="brand" href="#/home" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <Duck size={54} />
           <span>Puddle</span>
         </a>
@@ -1144,6 +1147,7 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     reload();
     getStorefront().then(setItems);
   }, [reload]);
@@ -1181,7 +1185,7 @@ function Dashboard() {
   return (
     <div className="shell">
       <nav className="nav">
-        <a className="brand" href="#/home">
+        <a className="brand" href="#/home" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <Duck size={54} />
           <span>Puddle</span>
         </a>
