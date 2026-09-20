@@ -131,10 +131,12 @@
           padding:16px 18px;animation:pop .2s ease;
           box-shadow:0 1px 2px rgba(29,32,38,.05),0 12px 32px rgba(29,32,38,.12)}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-        .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px}
+        .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;
+          cursor:grab;user-select:none;touch-action:none}
+        .duckhead:active{cursor:grabbing}
         .duckhead b{color:${PALETTE.muted};font-weight:700}
         .x{margin-left:auto;background:none;border:0;color:${PALETTE.muted};
-          font-size:15px;line-height:1;padding:4px;cursor:pointer;border-radius:6px}
+          font-size:15px;line-height:1;padding:4px;cursor:pointer;border-radius:6px;touch-action:auto}
         .x:hover{color:${PALETTE.ink};background:#f4f1ea}
         .hl{font-weight:700;text-decoration:underline;text-decoration-color:${PALETTE.duck};
           text-decoration-thickness:2.5px;text-underline-offset:2px}
@@ -250,6 +252,29 @@
       host = null;
     };
     shadow.getElementById("close").onclick = close;
+
+    // The card is draggable by its header; it keeps whatever spot it lands on.
+    const dragHandle = shadow.querySelector(".duckhead");
+    let drag = null;
+    dragHandle.addEventListener("pointerdown", (event) => {
+      if (event.target.closest("button")) return;
+      const rect = host.getBoundingClientRect();
+      drag = { dx: event.clientX - rect.left, dy: event.clientY - rect.top };
+      host.style.left = rect.left + "px";
+      host.style.top = rect.top + "px";
+      host.style.right = "auto";
+      host.style.bottom = "auto";
+      dragHandle.setPointerCapture(event.pointerId);
+    });
+    dragHandle.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      const left = Math.max(0, Math.min(innerWidth - host.offsetWidth, event.clientX - drag.dx));
+      const top = Math.max(0, Math.min(innerHeight - host.offsetHeight, event.clientY - drag.dy));
+      host.style.left = left + "px";
+      host.style.top = top + "px";
+    });
+    dragHandle.addEventListener("pointerup", () => { drag = null; });
+    dragHandle.addEventListener("pointercancel", () => { drag = null; });
 
     const dismiss = (after) => {
       clearTimeout(dismissTimer);
