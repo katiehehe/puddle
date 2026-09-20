@@ -49,13 +49,40 @@
     if (!i) return "";
     const dupes = ((result.portfolio || {}).redundant_with || []).length;
     if (i.type === "return_pattern") {
-      return `returned ${i.stat.returned}/${i.stat.total}${i.stat.size ? ", size " + i.stat.size : ""}`;
+      return `you sent back ${i.stat.returned} of ${i.stat.total}${i.stat.size ? ", size " + i.stat.size : ""}`;
     }
-    if (i.type === "time_pattern") return `${Math.round((i.stat.return_rate || 0) * 100)}% returned this late`;
-    if (i.type === "redundancy") return `${dupes || i.stat.owned_similar} similar owned`;
-    if (i.type === "coverage_gap") return `covers ${i.stat.state}`;
-    if (i.type === "overexposure") return "over-concentrated";
+    if (i.type === "time_pattern") return `${Math.round((i.stat.return_rate || 0) * 100)}% of late-night buys go back`;
+    if (i.type === "redundancy") return `${dupes || i.stat.owned_similar} similar already owned`;
+    if (i.type === "coverage_gap") return `nothing else for ${i.stat.state}`;
+    if (i.type === "overexposure") return "you have plenty of these";
     return "";
+  }
+
+  const cash = (n) => "$" + Number(n).toFixed(2).replace(/\.00$/, "");
+
+  /* The checkout facts, said the way a friend would say them: what you already
+   * own, whether this price is normal for you, what it works out to per wear. */
+  function facts(shopping) {
+    if (!shopping) return [];
+    const lines = [];
+    if (shopping.owned_count > 0 && shopping.closest) {
+      lines.push(
+        `You already own ${shopping.owned_count} of these. You've worn your ${shopping.closest.title} ` +
+        `${shopping.closest.wears} time${shopping.closest.wears === 1 ? "" : "s"}.`
+      );
+    }
+    if (shopping.typical_price != null && shopping.difference != null) {
+      const gap = Math.abs(shopping.difference);
+      lines.push(
+        gap < 1
+          ? `That's about what you usually pay (${shopping.basis}).`
+          : `That's ${cash(gap)} ${shopping.difference > 0 ? "below" : "above"} what you usually pay ` +
+            `(${shopping.basis}: ${cash(shopping.typical_price)}).`
+      );
+    }
+    const twenty = (shopping.per_wear_at || {})[20];
+    if (twenty) lines.push(`Wear it 20 times and it costs ${cash(twenty)} a wear.`);
+    return lines;
   }
 
   const send = msg => globalThis.PuddleSend(msg);
@@ -75,6 +102,8 @@
     const pond = (await send({ type: "pond" })) || { saved: 0 };
     if (version !== renderVersion) return;
     const c = chip(result);
+    const money = result.shopping;
+    const plain = facts(money);
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
     // One event_id per intentional action; the brain dedupes retries on it.
     const skipEvent = crypto.randomUUID(), buyEvent = crypto.randomUUID();
@@ -111,19 +140,37 @@
           width:${pondPct(pond.saved)}%;transition:width .3s ease}
         @media(prefers-reduced-motion:reduce){.card{animation:none}}
         .saved{font-size:12px;color:${PALETTE.water};margin-top:5px;font-weight:600}
+        .ask{font-size:13px;font-weight:700;color:${PALETTE.ink};margin-bottom:8px}
         .done{font-size:14px;color:${PALETTE.ink}}
         .why{display:inline-block;margin-bottom:10px;font-size:12px;color:${PALETTE.muted};
           text-decoration:underline}
+        .facts{margin:0 0 10px;padding:0;list-style:none}
+        .facts li{font-size:13px;line-height:1.45;color:${PALETTE.muted};margin-bottom:4px}
+        .more{background:none;border:none;padding:0 0 10px;font-size:12px;color:${PALETTE.muted};
+          text-decoration:underline;cursor:pointer}
+        .more:hover{transform:none}
+        .nums{display:none;font-size:12px;color:${PALETTE.muted};margin-bottom:10px;line-height:1.6}
+        .nums.open{display:block}
+        .nums b{color:${PALETTE.ink}}
       </style>
       <div class="card" id="card">
         <div class="row">
           <div class="duckwrap">${DUCK()}</div>
           <div class="bubble">
-            <div class="quack">Mallard</div>
+            <div class="quack">Quant Quack</div>
             <div class="line">${esc(line)}</div>
             ${c ? `<span class="chip">${esc(c)}</span>` : ""}
+            <ul class="facts">${plain.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+            <div class="ask">Still worth it?</div>
+            <button class="more" id="more">Show the numbers</button>
+            <div class="nums" id="nums">
+              ${money ? `Worth about <b>${esc(cash(money.resale))}</b> resold. ` : ""}
+              At 5 wears <b>${esc(cash((money?.per_wear_at || {})[5] || 0))}</b> each,
+              at 10 <b>${esc(cash((money?.per_wear_at || {})[10] || 0))}</b>,
+              at 20 <b>${esc(cash((money?.per_wear_at || {})[20] || 0))}</b>.
+            </div>
             <a class="why" target="_blank" rel="noopener"
-               href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">Where this came from</a>
+               href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">See my closet</a>
             <div class="btns">
               <button class="buy" id="buy">Buy anyway</button>
               <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
@@ -133,6 +180,15 @@
         <div class="pond"><div class="fill"></div></div>
         <div class="saved">$${esc(pond.saved)} in the pond</div>
       </div>`;
+
+    const more = shadow.getElementById("more");
+    if (more) {
+      more.onclick = () => {
+        const nums = shadow.getElementById("nums");
+        const open = nums.classList.toggle("open");
+        more.textContent = open ? "Hide the numbers" : "Show the numbers";
+      };
+    }
 
     voiceCleanup = globalThis.PuddleVoice.attach(shadow, item, total => {
       shadow.querySelector(".fill").style.width = pondPct(total) + "%";
@@ -155,7 +211,7 @@
       try { next = await send({ type: "skip", item, prediction_id: result.prediction_id, event_id: skipEvent }); }
       catch (error) { shadow.querySelector(".line").textContent = error.message; return; }
       if (version !== renderVersion) return;
-      shadow.querySelector(".line").textContent = "Skipped. Added to the pond.";
+      shadow.querySelector(".line").textContent = "Skipped. That money's in your pond.";
       shadow.querySelector(".fill").style.width = pondPct(next.saved) + "%";
       shadow.querySelector(".saved").textContent = `$${next.saved} in the pond`;
       shadow.querySelector(".btns").remove();
@@ -170,8 +226,7 @@
       const declined = res.approved === false || (res.status && res.status !== "approved");
       shadow.querySelector(".line").innerHTML = declined
         ? `<span class="done">Payment ${esc(res.status || "failed")}: nothing was recorded.</span>`
-        : `<span class="done">Done: ${esc(res.network)} ${res.mode === "mock" ? "(simulated)" : ""}. ` +
-          `Added to your closet.</span>`;
+        : `<span class="done">Bought${res.mode === "mock" ? " (simulated)" : ""}. It's in your closet now.</span>`;
       shadow.querySelector(".btns").remove();
       dismiss(2600);
     };

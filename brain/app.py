@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import desk, history, ledger, payments, pond, storage, voice
+from . import desk, history, insights, ledger, market, payments, pond, storage, voice
 from .catalog import CLOSET, STOREFRONT, Item, coerce_item
 from .miner import Miner, rank, verdict
 from .portfolio import Closet
@@ -40,6 +40,16 @@ app.mount("/demo-assets", StaticFiles(directory=PROJECT_ROOT / "extension"), nam
 DASHBOARD_DIST = PROJECT_ROOT / "web" / "dist"
 if DASHBOARD_DIST.is_dir():
     app.mount("/dashboard", StaticFiles(directory=DASHBOARD_DIST, html=True), name="dashboard")
+
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    """The marketing page and the dashboard are the same bundle; assets are
+    absolute under /dashboard/, so serving its index here just works."""
+    index = DASHBOARD_DIST / "index.html"
+    if not index.is_file():
+        return HTMLResponse("<h1>Puddle brain</h1><p>Dashboard not built. Run <code>npm run build</code>.</p>")
+    return HTMLResponse(index.read_text(encoding="utf-8"))
 
 
 @app.get("/demo", response_class=HTMLResponse)
@@ -163,6 +173,27 @@ def recommend(item, closet, miner, now):
     }
 
 
+def _shopping_context(item: Item, evaluation: dict) -> dict:
+    """The checkout facts in shopper's terms: how many you own, how much they
+    get worn, whether this price is good, what it works out to per wear."""
+    counts = history.wear_counts()
+    purchases = history.purchases()
+    owned = evaluation["redundant_with"]
+    owned_wears = sum(counts.get(d["id"], 0) for d in owned)
+    most_worn = max(owned, key=lambda d: counts.get(d["id"], 0), default=None)
+    return {
+        "owned_count": len(owned),
+        "owned_titles": [d["title"] for d in owned],
+        "owned_wears": owned_wears,
+        "closest": (
+            {"title": most_worn["title"], "wears": counts.get(most_worn["id"], 0)} if most_worn else None
+        ),
+        "resale": market.resale(item, 0),
+        "per_wear_at": {n: round(item.price / n, 2) for n in (5, 10, 20)},
+        **market.deal(item, purchases),
+    }
+
+
 def _act(req, action):
     item = _resolve(req)
     # Legacy clients can retry the same item/prediction safely. New clients
@@ -197,7 +228,13 @@ def score_item(req: ScoreRequest) -> dict:
     prediction_id = storage.record(
         item, result["headline"], result["decision"], result["duck_state"], result["confidence"]
     )
-    return {"item": item.dict(), **result, "prediction_id": prediction_id, "accuracy": ledger.accuracy()}
+    return {
+        "item": item.dict(),
+        **result,
+        "shopping": _shopping_context(item, result["portfolio"]),
+        "prediction_id": prediction_id,
+        "accuracy": ledger.accuracy(),
+    }
 
 
 @app.post("/actions")
@@ -323,6 +360,57 @@ def closet_items() -> dict:
             {**item.dict(), "wears": counts.get(item.id, 0), "expected_payoff": round(float(closet.mu[i]), 3)}
             for i, item in enumerate(closet.items)
         ]
+    }
+
+
+@app.get("/me")
+def me() -> dict:
+    """Everything the shopping dashboard needs: what you own, what you bought,
+    what it's worth, and what your own history says about how you shop."""
+    closet, _, counts = _context()
+    purchases = history.purchases()
+
+    wardrobe = [
+        {
+            **item.dict(),
+            **market.valuation(item, counts.get(item.id, 0), purchases),
+            "duplicates": [d["title"] for d in closet.evaluate(item)["redundant_with"] if d["id"] != item.id],
+        }
+        for item in closet.items
+    ]
+    owned_by_title = {item.title: item for item in closet.items}
+    recent = []
+    for p in sorted(purchases, key=lambda p: p.bought_at, reverse=True)[:12]:
+        owned = owned_by_title.get(p.title)
+        wears = counts.get(owned.id, 0) if owned else 0
+        recent.append(
+            {
+                "id": p.id,
+                "title": p.title,
+                "category": p.category,
+                "price": p.price,
+                "bought_at": p.bought_at,
+                "returned": p.returned,
+                "return_reason": p.return_reason,
+                "in_closet": owned is not None,
+                "wears": wears if owned else None,
+                "worth_now": market.resale(owned, wears) if owned else None,
+                "cost_per_wear": market.cost_per_wear(p.price, wears) if owned else None,
+            }
+        )
+
+    spent = round(sum(i["paid"] for i in wardrobe), 2)
+    worth = round(sum(i["worth_now"] for i in wardrobe), 2)
+    return {
+        "closet": wardrobe,
+        "purchases": recent,
+        "shopping": insights.summarise(closet.items, counts, purchases),
+        "value": {
+            "spent": spent,
+            "worth_now": worth,
+            "value_retained": round(worth / spent, 3) if spent else 0.0,
+            "saved": pond.state()["saved"],
+        },
     }
 
 

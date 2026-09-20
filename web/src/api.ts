@@ -40,6 +40,7 @@ export type Score = {
     covers_gap: { label: string } | null;
   };
   item: { title: string; price: number };
+  shopping?: ShoppingContext;
 };
 
 /** The live brain, scoring one item. This is the same call the duck makes at
@@ -107,6 +108,77 @@ export type Quote = {
 export async function getQuote(itemId: string, nowHour: number): Promise<Quote> {
   return call<Quote>(`/desk/${encodeURIComponent(itemId)}?now_hour=${nowHour}`);
 }
+
+export type ClosetPiece = {
+  id: string;
+  title: string;
+  category: string;
+  kind: string;
+  color: string;
+  material: string;
+  size: string | null;
+  paid: number;
+  worth_now: number;
+  value_retained: number;
+  lost: number;
+  cost_per_wear: number | null;
+  wears: number;
+  typical_price: number | null;
+  difference: number | null;
+  verdict: string;
+  duplicates: string[];
+};
+
+export type PurchaseRow = {
+  id: string;
+  title: string;
+  category: string;
+  price: number;
+  bought_at: string;
+  returned: boolean;
+  return_reason: string | null;
+  in_closet: boolean;
+  wears: number | null;
+  worth_now: number | null;
+  cost_per_wear: number | null;
+};
+
+export type Me = {
+  closet: ClosetPiece[];
+  purchases: PurchaseRow[];
+  shopping: {
+    lines: string[];
+    categories: { category: string; label: string; count: number }[];
+    items_owned: number;
+    in_rotation: number;
+    spent_recently: number;
+    recent_days: number;
+    best_value: { title: string; cost_per_wear: number } | null;
+    least_used: { title: string; price: number } | null;
+    returned_count: number;
+    purchase_count: number;
+  };
+  value: { spent: number; worth_now: number; value_retained: number; saved: number };
+};
+
+/** Everything the closet dashboard shows: what you own, what you bought, what
+ *  it's worth, and what your own history says about how you shop. */
+export async function getMe(): Promise<Me> {
+  return call<Me>("/me");
+}
+
+export type ShoppingContext = {
+  owned_count: number;
+  owned_titles: string[];
+  owned_wears: number;
+  closest: { title: string; wears: number } | null;
+  resale: number;
+  per_wear_at: Record<string, number>;
+  typical_price: number | null;
+  difference: number | null;
+  verdict: string;
+  basis: string;
+};
 
 /** The duck, answering in text. The extension uses this too, then speaks it. */
 export async function askDuck(itemId: string, question: string, nowHour: number): Promise<string> {

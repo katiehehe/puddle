@@ -25,7 +25,7 @@
         @media(prefers-reduced-motion:reduce){.card{animation:none!important}}
       </style>
       <div class="voice-controls">
-        <button type="button" class="voice-mic" aria-pressed="false">Talk to Mallard</button>
+        <button type="button" class="voice-mic" aria-pressed="false">Ask the duck</button>
         <button type="button" class="voice-cancel" hidden>Cancel recording</button>
         <button type="button" class="voice-mute" aria-pressed="false">Mute replies</button>
       </div>
@@ -62,7 +62,7 @@
       clearTimeout(timer);
       stream?.getTracks().forEach(track => track.stop());
       stream = null;
-      mic.textContent = "Talk to Mallard";
+      mic.textContent = "Ask the duck";
       mic.setAttribute("aria-pressed", "false");
       cancel.hidden = true;
     }
