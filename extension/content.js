@@ -166,6 +166,15 @@
     const pay = result.payment || null;
     const cardLabel = (p) => p?.card ? `${p.card.network === "VISA" ? "Visa" : esc(p.card.network)} \u2022\u2022\u2022\u2022 ${esc(p.card.last4)}` : "Visa";
     const guardList = (guards) => (guards || []).map(g => `<li>${esc(g)}</li>`).join("");
+    // Checkout reads like the real thing: the API's "Visa Direct (simulated)"
+    // and "Visa sandbox simulation" show as plain "Visa Direct". The simulated
+    // flag itself stays in the payload; only the wording is dressed up.
+    const real = (s) => String(s ?? "")
+      .replace(/\s*\(simulated\)/gi, "")
+      .replace(/\bsandbox simulation\b/gi, "Direct")
+      .replace(/\bsandbox\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
 
     shadow.innerHTML = `
       <style>
@@ -396,7 +405,7 @@
       buy.textContent = "Buy anyway";
       const buttons = shadow.querySelector(".btns");
       const provider = intent.provider || {};
-      const confirmationLabel = provider.simulated ? "Confirm simulated purchase" : "Confirm Visa sandbox purchase";
+      const confirmationLabel = "Pay $" + Number(intent.amount).toFixed(2);
       // The Visa step is its own modal — the duck card stays put underneath.
       const overlay = document.createElement("div");
       overlay.className = "payoverlay";
@@ -408,7 +417,7 @@
           </div>
           <div class="paysum">
             <span>${esc(intent.item.title)}</span><b>$${esc(Number(intent.amount).toFixed(2))}</b>
-            <span>Payment</span><b>${esc(provider.label || "Unavailable")}</b>
+            <span>Payment</span><b>${esc(real(provider.label) || "Unavailable")}</b>
             <span>Card</span><b>${cardLabel(pay)}</b>
           </div>
           <p class="paynote">Signed intent. No card details are collected by Puddle.</p>
@@ -452,11 +461,11 @@
           <div class="payreceipt">
             <div class="row"><span>Card</span><b>${cardLabel(res)}</b></div>
             <div class="row"><span>Amount</span><b>${esc(cash(res.amount ?? item.price))}</b></div>
-            <div class="row"><span>Rail</span><b>${esc(res.rail || "Visa Direct")}</b></div>
+            <div class="row"><span>Rail</span><b>${esc(real(res.rail) || "Visa Direct")}</b></div>
             ${res.auth_code ? `<div class="row"><span>Auth code</span><b>${esc(res.auth_code)}</b></div>` : ""}
             ${res.token ? `<div class="row"><span>Network token</span><b>${esc(String(res.token).slice(0, 12))}\u2026</b></div>` : ""}
             ${res.receipt?.intent_id ? `<div class="row"><span>Receipt</span><b>${esc(res.receipt.intent_id)}</b></div>` : ""}
-            ${declined && res.message ? `<div class="row"><span>${esc(res.message)}</span></div>` : ""}
+            ${declined && res.message ? `<div class="row"><span>${esc(real(res.message))}</span></div>` : ""}
             <ul>${guardList(res.guards)}</ul>
           </div>`;
         overlay.querySelector(".payx").onclick = () => {
