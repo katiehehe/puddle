@@ -6,6 +6,8 @@ import io
 import json
 import urllib.error
 
+from jwcrypto import jwe, jwk
+
 from brain import payments
 
 
@@ -111,3 +113,49 @@ def test_ping_reports_unreachable_without_raising(monkeypatch):
 
     _capture(monkeypatch, {"message": "helloworld"})
     assert provider.ping()["reachable"] is True
+
+def _mle_provider(tmp_path):
+    """A provider wired for MLE, with one key pair standing in for both legs."""
+    key = jwk.JWK.generate(kty="RSA", size=2048)
+    private_pem, public_pem = tmp_path / "client_key.pem", tmp_path / "server_cert.pem"
+    private_pem.write_bytes(key.export_to_pem(private_key=True, password=None))
+    public_pem.write_bytes(key.export_to_pem())
+    provider = payments.VisaSandboxProvider(
+        "k",
+        "s",
+        mle_key_id="key-id-1",
+        mle_server_cert=str(public_pem),
+        mle_client_key=str(private_pem),
+    )
+    return provider, key
+
+
+def test_mle_encrypts_the_request_and_decrypts_the_response(monkeypatch, tmp_path):
+    provider, key = _mle_provider(tmp_path)
+
+    def urlopen(request, timeout=None, context=None):
+        sent = json.loads(request.data)
+        assert set(sent) == {"encData"}
+        assert request.headers["Keyid"] == "key-id-1"
+
+        inbound = jwe.JWE()
+        inbound.deserialize(sent["encData"], key=key)
+        assert json.loads(inbound.payload)["amount"] == "64.00"
+
+        reply = jwe.JWE(
+            json.dumps({"actionCode": "00", "transactionIdentifier": "7"}).encode(),
+            recipient=key,
+            protected={"alg": "RSA-OAEP-256", "enc": "A128GCM", "kid": "key-id-1"},
+        )
+        return _Response(json.dumps({"encData": reply.serialize(compact=True)}).encode())
+
+    monkeypatch.setattr(payments.urllib.request, "urlopen", urlopen)
+    result = provider.pay(64.0, "sku_991")
+    assert result.approved is True and result.token == "7"
+
+
+def test_plaintext_body_when_mle_is_not_configured(monkeypatch):
+    provider = payments.VisaSandboxProvider("k", "s")
+    seen = _capture(monkeypatch, {"actionCode": "00"})
+    provider.pay(64.0, "sku_991")
+    assert "encData" not in seen["body"] and "keyid" not in seen["headers"]

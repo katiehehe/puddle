@@ -8,6 +8,7 @@ dependencies = [
     "numpy",
     "pydantic",
     "httpx",
+    "jwcrypto",
     "python-dotenv",
 ]
 

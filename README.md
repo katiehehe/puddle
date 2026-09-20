@@ -77,10 +77,19 @@ From your Visa Developer project (Visa Direct enabled), export:
 export VISA_API_KEY=...        # project API key
 export VISA_SHARED_SECRET=...  # project shared secret
 ```
-If the project was created for two-way SSL rather than X-Pay-Token, use instead:
+X-Pay-Token authenticates Hello World, but Visa Direct itself is two-way SSL only
+(it answers `401` otherwise), so also export the certificate Visa issued against your CSR:
 ```bash
 export VISA_CERT_PATH=/path/cert.pem VISA_KEY_PATH=/path/key.pem
-export VISA_USER_ID=... VISA_PASSWORD=...
+export VISA_USER_ID=... VISA_PASSWORD=...   # Credentials -> Two-Way SSL
+```
+Projects with message level encryption enforced answer `400/9125` to a plaintext body.
+Generate a Key-ID under Message Level Encryption, submit a CSR whose `UID` is that Key-ID,
+then export:
+```bash
+export VISA_MLE_KEY_ID=...
+export VISA_MLE_SERVER_CERT_PATH=/path/server_cert.pem  # Visa's, encrypts the request
+export VISA_MLE_CLIENT_KEY_PATH=/path/mle_key.pem       # yours, decrypts the response
 ```
 Check the credentials without spending anything — this calls Visa's Hello World:
 ```bash
