@@ -21,9 +21,10 @@
     </svg>`;
   };
 
-  let host = null, shadow = null, lastKey = "";
+  let host = null, shadow = null, lastKey = "", voiceCleanup = null, dismissTimer = null, renderVersion = 0;
 
   function ensureHost() {
+    clearTimeout(dismissTimer);
     if (host) return;
     host = document.createElement("div");
     host.id = "puddle-root";
@@ -43,13 +44,15 @@
     return "";
   }
 
-  async function getSaved() {
-    return new Promise((res) => chrome.storage.local.get(["saved"], (d) => res(d.saved || 0)));
+  function send(msg) {
+    return new Promise((resolve, reject) => chrome.runtime.sendMessage(msg, result => {
+      if (chrome.runtime.lastError || !result || result.error) reject(new Error(result?.error || "Puddle is unavailable."));
+      else resolve(result);
+    }));
   }
-  async function addSaved(amt) {
-    const cur = await getSaved();
-    const next = Math.round((cur + amt) * 100) / 100;
-    return new Promise((res) => chrome.storage.local.set({ saved: next }, () => res(next)));
+  async function getSaved() {
+    try { return (await send({ type: "read_pond" })).saved; }
+    catch { return 0; }
   }
 
   function speak(text) {
@@ -62,16 +65,19 @@
   }
 
   async function render(result, item) {
+    const version = ++renderVersion;
+    voiceCleanup?.();
     ensureHost();
     const concerned = result.duck_state === "concerned";
     const accent = concerned ? PALETTE.bad : result.duck_state === "approving" ? PALETTE.good : PALETTE.water;
     const saved = await getSaved();
+    if (version !== renderVersion) return;
     const c = chip(result);
 
     shadow.innerHTML = `
       <style>
         *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-        .card{width:340px;background:${PALETTE.surface};border:1px solid ${PALETTE.line};
+        .card{width:min(340px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;background:${PALETTE.surface};border:1px solid ${PALETTE.line};
           border-left:4px solid ${accent};border-radius:14px;padding:14px 16px;
           box-shadow:0 8px 24px rgba(20,25,28,.14);animation:pop .28s ease}
         @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -107,21 +113,35 @@
         <div class="saved">🪙 $${saved} saved so far</div>
       </div>`;
 
+    voiceCleanup = globalThis.PuddleVoice.attach(shadow, item, total => {
+      shadow.querySelector(".fill").style.width = Math.min(100, total / 5) + "%";
+      shadow.querySelector(".saved").textContent = `$${total} saved so far`;
+    });
+    const dismiss = delay => {
+      clearTimeout(dismissTimer);
+      dismissTimer = setTimeout(() => {
+        voiceCleanup?.(); voiceCleanup = null;
+        host?.remove(); host = null;
+      }, delay);
+    };
     if (result.speak) speak(result.headline || result.insights[0]?.line || "");
 
+    const skipEvent = crypto.randomUUID();
     shadow.getElementById("skip").onclick = async () => {
-      const total = await addSaved(item.price || 0);
+      let total;
+      try { total = (await send({ type: "record_skip", item, event_id: skipEvent })).pond.saved; }
+      catch (error) { shadow.querySelector(".line").textContent = error.message; return; }
       shadow.querySelector(".line").textContent = "Good call. I'll remember this one.";
       shadow.querySelector(".fill").style.width = Math.min(100, total / 5) + "%";
       shadow.querySelector(".saved").textContent = `🪙 $${total} saved so far`;
-      setTimeout(() => (host.innerHTML = "", host.remove(), host = null), 1600);
+      dismiss(1600);
     };
     shadow.getElementById("buy").onclick = () => {
       chrome.runtime.sendMessage({ type: "checkout", item }, (res) => {
         shadow.querySelector(".line").innerHTML =
-          `<span class="done">Done — ${res.network} ${res.mode === "mock" ? "(sandbox)" : ""}. I'll ask in 30 days whether I was wrong.</span>`;
+          `<span class="done">Done: ${res.network} ${res.mode === "mock" ? "(sandbox)" : ""}. I'll ask in 30 days whether I was wrong.</span>`;
         shadow.querySelector(".btns").remove();
-        setTimeout(() => (host && host.remove(), host = null), 2600);
+        dismiss(2600);
       });
     };
   }
@@ -137,6 +157,7 @@
 
   const obs = new MutationObserver(() => trigger(document.body.dataset.puddleCheckout));
   obs.observe(document.body, { attributes: true, attributeFilter: ["data-puddle-checkout"] });
+  window.addEventListener("pagehide", () => { voiceCleanup?.(); clearTimeout(dismissTimer); });
   // fire if already set on load
   if (document.body.dataset.puddleCheckout) trigger(document.body.dataset.puddleCheckout);
 })();

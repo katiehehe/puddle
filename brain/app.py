@@ -9,21 +9,26 @@ from __future__ import annotations
 
 import math
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import history, ledger, payments, pond, storage
+from . import history, ledger, payments, pond, storage, voice
 from .catalog import CLOSET, STOREFRONT, Item, coerce_item
 from .miner import Miner, rank, verdict
 from .portfolio import Closet
 from .states import life_mix
 
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
+
 BUDGET = 400.0
 
-app = FastAPI(title="Puddle Brain", version="0.2.0")
+app = FastAPI(title="Puddle Brain", version="0.3.0")
+app.include_router(voice.router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

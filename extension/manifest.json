@@ -3,12 +3,23 @@
   "name": "Puddle",
   "version": "0.1.0",
   "description": "A duck that lives in your cart. It knows what you own and what you send back, and it speaks up before you pay.",
-  "action": { "default_popup": "popup.html", "default_title": "Puddle" },
-  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Puddle"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
-      "matches": ["http://localhost/*", "http://127.0.0.1/*"],
-      "js": ["content.js"],
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": [
+        "voice.js",
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -16,5 +27,7 @@
     "http://localhost:8000/*",
     "http://127.0.0.1:8000/*"
   ],
-  "permissions": ["storage"]
+  "permissions": [
+    "storage"
+  ]
 }
