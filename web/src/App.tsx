@@ -54,7 +54,6 @@ function Duck({ size = 40 }: { size?: number }) {
 
 function CheckoutMock() {
   const [url, setUrl] = useState("northwick.com/shoes/chelsea-boots");
-  const mockRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // The embedded shop reports which item it's showing so the URL bar follows.
     const onMessage = (event: MessageEvent) => {
@@ -64,8 +63,26 @@ function CheckoutMock() {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, []);
-  const openFull = () => {
-    const el = mockRef.current;
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [fs, setFs] = useState(false);
+  useEffect(() => {
+    const onFs = () => {
+      const on = Boolean(document.fullscreenElement);
+      setFs(on);
+      // The shop inside scales up when it knows it's fullscreen.
+      wrapRef.current
+        ?.querySelector("iframe")
+        ?.contentWindow?.postMessage({ type: "puddle-fs", on }, window.location.origin);
+    };
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
+  const toggleFull = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+      return;
+    }
+    const el = wrapRef.current;
     if (el?.requestFullscreen) {
       el.requestFullscreen().catch(() => window.open("/demo", "_blank", "noopener"));
     } else {
@@ -73,15 +90,22 @@ function CheckoutMock() {
     }
   };
   return (
-    <div className="mock" ref={mockRef}>
-      <div className="mockbar">
-        <span /> <span /> <span />
-        <div className="mockurl">{url}</div>
-        <button className="fsbtn" onClick={openFull} title="Open the demo full screen">
-          ⤢ Full screen
-        </button>
+    <div className="mockwrap" ref={wrapRef}>
+      <div className="mock">
+        <div className="mockbar">
+          <span /> <span /> <span />
+          <div className="mockurl">{url}</div>
+        </div>
+        <iframe className="demoframe" src="/demo?embed=1" title="Puddle live demo" />
       </div>
-      <iframe className="demoframe" src="/demo?embed=1" title="Puddle live demo" />
+      <button
+        className="fsbtn"
+        onClick={toggleFull}
+        title={fs ? "Exit full screen" : "Open the demo full screen"}
+        aria-label={fs ? "Exit full screen" : "Open the demo full screen"}
+      >
+        {fs ? "✕" : "⤢"}
+      </button>
     </div>
   );
 }
