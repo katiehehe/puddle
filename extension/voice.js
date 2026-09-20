@@ -6,25 +6,25 @@
     panel.className = "voice-panel";
     panel.innerHTML = `
       <style>
-        .voice-panel{border-top:1px solid #3a3e47;margin-top:14px;padding-top:14px;color:#e7e6e2}
+        .voice-panel{border-top:1px solid #e7e3da;margin-top:14px;padding-top:14px;color:#1d2026}
         .voice-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-        .voice-controls button{background:transparent;color:#cfcec9;border:1px solid #3a3e47;
+        .voice-controls button{background:#fff;color:#1d2026;border:1px solid #e7e3da;
           border-radius:9px;padding:8px 12px;font-size:11px;font-weight:700}
-        .voice-controls button:hover{background:#33373f}
+        .voice-controls button:hover{background:#f7f5ef}
         .voice-controls button[aria-pressed="true"]{background:#c8493f;border-color:#c8493f;color:#fff}
         .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:2px solid #ffd166;outline-offset:2px}
         .voice-panel button:disabled{opacity:.55;cursor:default}
-        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#9aa0a8;margin:8px 0}
-        .voice-answer{font-size:14px;line-height:1.5;color:#e7e6e2;
+        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#6b7280;margin:8px 0}
+        .voice-answer{font-size:14px;line-height:1.5;color:#1d2026;
           margin:8px 0;overflow-wrap:anywhere}
         .voice-form{display:flex;gap:8px;margin-top:10px}
-        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #3a3e47;border-radius:9px;
-          padding:10px 12px;font-size:13px;background:#262a31;color:#fff}
+        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #e7e3da;border-radius:9px;
+          padding:10px 12px;font-size:13px;background:#fff;color:#1d2026}
         .voice-form input:focus{border-color:#ffd166}
-        .voice-form input::placeholder{color:#9aa0a8}
+        .voice-form input::placeholder{color:#6b7280}
         .voice-form button,.voice-confirm{background:#ffd166;color:#1d2026;border:0;border-radius:9px;
           padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer}
-        .voice-label{display:block;font-size:10px;margin-top:12px;color:#9aa0a8;font-weight:700;
+        .voice-label{display:block;font-size:10px;margin-top:12px;color:#6b7280;font-weight:700;
           text-transform:uppercase;letter-spacing:.12em}
         .voice-panel [hidden]{display:none!important}
         @media(prefers-reduced-motion:reduce){.card{animation:none!important}}
