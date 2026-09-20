@@ -21,9 +21,6 @@
     + "/dashboard/?item=";
 
   let host = null, shadow = null, lastKey = "", dismissTimer = null, voiceCleanup = null, renderVersion = 0, scoreVersion = 0;
-  // Set only on a storefront that never opted in: the product the page is
-  // showing, and what the brain already said about it. See the bootstrap below.
-  let pageItem = null, pageResult = null;
 
   function ensureHost() {
     // A new checkout cancels the previous card's pending dismissal.
@@ -32,9 +29,7 @@
     if (host) return;
     host = document.createElement("div");
     host.id = "puddle-root";
-    // Parked on a product page the duck sits top-right, clear of the sticky
-    // footers and support widgets that crowd the bottom of a storefront.
-    host.style.cssText = `position:fixed;${pageItem ? "top" : "bottom"}:20px;right:20px;z-index:2147483647;`;
+    host.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:2147483647;";
     document.documentElement.appendChild(host);
     shadow = host.attachShadow({ mode: "open" });
   }
@@ -103,43 +98,6 @@
 
   const pondPct = (saved) => Math.min(100, (saved / 800) * 100);
 
-  /* The duck parked on a product page, before anyone has clicked anything.
-   *
-   * On a real storefront the buy button submits a form, so a card drawn in
-   * response to that click dies with the page that drew it -- the verdict is
-   * on screen for a few hundred milliseconds and then gone. So on a page the
-   * shop never prepared for us, the duck scores the item up front and waits as
-   * a button instead. A dot means it has an opinion; the card opens on a click
-   * and stays open, because the product page is not going anywhere. */
-  function renderLauncher() {
-    if (!pageResult) return;
-    voiceCleanup?.(); voiceCleanup = null;
-    ensureHost();
-    // The dot is the whole "speaks up uninvited" budget on a page we were not
-    // invited onto: present whenever there is a verdict, coloured by which way
-    // it leans, so a glance is worth something before the click.
-    const stance = pageResult.advice?.stance;
-    const dotColor = { for: PALETTE.good, against: PALETTE.bad, think: PALETTE.beak }[stance];
-    shadow.innerHTML = `
-      <style>
-        .launch{width:52px;height:52px;border-radius:50%;border:1px solid ${PALETTE.line};
-          background:#fff;cursor:pointer;display:grid;place-items:center;position:relative;
-          padding:0;animation:pop .2s ease;transition:transform .15s;
-          box-shadow:0 1px 2px rgba(29,32,38,.05),0 8px 24px rgba(29,32,38,.14)}
-        .launch:hover{transform:translateY(-2px)}
-        .launch:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
-        @keyframes pop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
-        @media(prefers-reduced-motion:reduce){.launch{animation:none}}
-        .dot{position:absolute;top:1px;right:1px;width:13px;height:13px;border-radius:50%;
-          border:2px solid #fff;background:${dotColor || PALETTE.muted}}
-      </style>
-      <button class="launch" title="${esc(pageResult.advice?.verdict || "Puddle")}"
-              aria-label="Puddle on this item: ${esc(pageResult.advice?.verdict || "no verdict yet")}">
-        ${DUCK}${dotColor ? `<span class="dot"></span>` : ""}
-      </button>`;
-    shadow.querySelector(".launch").onclick = () => render(pageResult, pageItem);
-  }
-
   async function render(result, item) {
     const version = ++renderVersion;
     voiceCleanup?.();
@@ -152,14 +110,15 @@
     const advice = result.advice || null;
     // Puddle's own sentences when the brain has them; the old facts otherwise.
     const plain = advice ? advice.reasons.map(r => r.text) : facts(money);
-    // The card stays compact: verdict and one line up front, every reason under "Tell me more".
+    // The card stays compact: three reasons up front, the rest under "Tell me more".
+    const shown = plain.slice(0, 3), rest = plain.slice(3);
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
-    // Traffic light: green go, yellow maybe, red skip.
-    const light = advice
-      ? advice.stance === "for" ? { fg: "#1e7f4f", bg: "#e3f5ea" }
-        : advice.stance === "against" ? { fg: "#b3261e", bg: "#fbe7e5" }
-        : { fg: "#8a6100", bg: "#fff1c2" }
-      : { fg: PALETTE.ink, bg: "#f2efe7" };
+    const verdictTone = advice
+      ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.ink
+      : PALETTE.ink;
+    const verdictBg = advice
+      ? advice.stance === "for" ? "#e7f4ec" : advice.stance === "against" ? "#faecea" : "#f2efe7"
+      : "#f2efe7";
     // One event_id per intentional action; the brain dedupes retries on it.
     const skipEvent = crypto.randomUUID();
     const pay = result.payment || null;
@@ -179,17 +138,11 @@
       <style>
         *{box-sizing:border-box;font-family:"Outfit",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
         .card{width:min(320px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
-          background:#fff;color:${PALETTE.ink};border-radius:10px;
+          background:#fff;color:${PALETTE.ink};border-radius:18px;
           border:1px solid ${PALETTE.line};
           padding:16px 18px;animation:pop .2s ease;
           box-shadow:0 1px 2px rgba(29,32,38,.05),0 12px 32px rgba(29,32,38,.12)}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-        @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-        .card>*{animation:rise .45s cubic-bezier(.2,.7,.2,1) both}
-        .card>:nth-child(2){animation-delay:.08s}.card>:nth-child(3){animation-delay:.18s}
-        .card>:nth-child(4){animation-delay:.28s}.card>:nth-child(5){animation-delay:.36s}
-        .card>:nth-child(6){animation-delay:.42s}.card>:nth-child(7){animation-delay:.48s}
-        .card>:nth-child(n+8){animation-delay:.54s}
         .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;
           cursor:grab;user-select:none;touch-action:none}
         .duckhead:active{cursor:grabbing}
@@ -199,17 +152,16 @@
         .x:hover{color:${PALETTE.ink};background:#f4f1ea}
         .hl{font-weight:700;text-decoration:underline;text-decoration-color:${PALETTE.duck};
           text-decoration-thickness:2.5px;text-underline-offset:2px}
-        .card{border-top:5px solid ${light.fg}}
-        .verdict{display:inline-block;font-size:16px;font-weight:800;color:${light.fg};
-          background:${light.bg};border-radius:6px;padding:6px 12px;margin:0 0 12px}
+        .verdict{display:inline-block;font-size:15px;font-weight:800;color:${verdictTone};
+          background:${verdictBg};border-radius:99px;padding:5px 14px;margin:0 0 12px}
         .line{font-size:14px;line-height:1.5;color:${PALETTE.ink};margin:0 0 10px}
         .chip{display:inline-block;border:1px solid ${PALETTE.line};
           padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
-          color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:6px}
+          color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:99px}
         .btns{display:flex;gap:8px}
         .btns[hidden]{display:none}
         .btns button{flex:1;padding:11px 0;font-size:14px;font-weight:700;cursor:pointer;
-          border-radius:8px;transition:all .15s}
+          border-radius:12px;transition:all .15s}
         button:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
         .skip{background:${PALETTE.duck};color:${PALETTE.ink};border:0}
         .skip:hover{transform:translateY(-1px)}
@@ -219,7 +171,7 @@
           border-radius:99px;overflow:hidden}
         .fill{height:100%;background:${PALETTE.duck};
           width:${pondPct(pond.saved)}%;transition:width .3s ease}
-        @media(prefers-reduced-motion:reduce){.card,.card>*{animation:none}}
+        @media(prefers-reduced-motion:reduce){.card{animation:none}}
         .saved{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
           color:${PALETTE.muted};margin-top:6px;font-weight:700}
         .ask{font-size:13px;font-weight:700;color:${PALETTE.ink};margin:12px 0 10px}
@@ -270,11 +222,16 @@
         .guards.open{display:block}
       </style>
       <div class="card" id="card">
-        <div class="duckhead">${DUCK}<b>Puddle</b>
+        <div class="duckhead">${DUCK}<b>Puddle</b>${result.phrasing?.source === "llm"
+          ? `<span class="chip" style="margin:0 0 0 auto" title="${esc(result.headline_math || "")}">said by ${esc(result.phrasing.model)}${result.phrasing.cached ? " · cached" : ""}</span>`
+          : ""}
           <button class="x" id="close" aria-label="Close" title="Close">✕</button>
         </div>
         ${advice ? `<div class="verdict">${esc(advice.verdict)}</div>` : ""}
         <div class="line">${emph(line)}</div>
+        ${c ? `<span class="chip">${esc(c)}</span>` : ""}
+        <ul class="facts">${shown.map(f => `<li>${emph(f)}</li>`).join("")}</ul>
+        <div class="ask">Still worth it?</div>
         <div class="cardlinks">
           <button class="more" id="more">Tell me more</button>
           <a class="why" target="_blank" rel="noopener"
@@ -282,8 +239,7 @@
           <button class="more" id="asktoggle">Ask the duck</button>
         </div>
         <div class="nums" id="nums">
-          ${c ? `<span class="chip">${esc(c)}</span>` : ""}
-          ${plain.length ? `<ul class="facts">${plain.map(f => `<li>${emph(f)}</li>`).join("")}</ul>` : ""}
+          ${rest.length ? `<ul class="facts">${rest.map(f => `<li>${emph(f)}</li>`).join("")}</ul>` : ""}
           ${money ? `Worth about <b>${esc(cash(money.resale))}</b> resold. ` : ""}
           At 5 wears <b>${esc(cash((money?.per_wear_at || {})[5] || 0))}</b> each,
           at 10 <b>${esc(cash((money?.per_wear_at || {})[10] || 0))}</b>,
@@ -339,9 +295,6 @@
       clearTimeout(dismissTimer);
       dismissTimer = null;
       voiceCleanup?.(); voiceCleanup = null;
-      // On a parked product page the duck folds back into its button: the item
-      // is still on screen, so the verdict stays one click away.
-      if (pageResult) return renderLauncher();
       if (host) host.remove();
       host = null;
     };
@@ -376,15 +329,9 @@
     };
 
     shadow.getElementById("skip").onclick = async () => {
-      let next;
-      try { next = await send({ type: "skip", item, prediction_id: result.prediction_id, event_id: skipEvent }); }
+      try { await send({ type: "skip", item, prediction_id: result.prediction_id, event_id: skipEvent }); }
       catch (error) { shadow.querySelector(".line").textContent = error.message; return; }
-      if (version !== renderVersion) return;
-      shadow.querySelector(".line").textContent = "Skipped. That money's in your pond.";
-      shadow.querySelector(".fill").style.width = pondPct(next.saved) + "%";
-      shadow.querySelector(".saved").textContent = `$${next.saved} in the pond`;
-      shadow.querySelector(".btns").remove();
-      dismiss(2000);
+      close();
     };
 
     shadow.getElementById("buy").onclick = async () => {
@@ -483,7 +430,9 @@
         buttons.remove();
         shadow.querySelector(".payline")?.remove();
         shadow.getElementById("guardlist")?.remove();
-        setTimeout(() => { overlay.remove(); dismiss(0); }, declined ? 6000 : 4200);
+        // Approved: the receipt flashes just long enough to read, then the
+        // whole thing goes away. Declines stay longer so the reason lands.
+        setTimeout(() => { overlay.remove(); dismiss(0); }, declined ? 6000 : 1600);
       };
     };
   }
@@ -557,46 +506,4 @@
       trigger(JSON.stringify({ ...item, _t: Date.now() }));
     }, 0);
   }, true);
-
-  /* Park the duck on a product page the shop never opted in to.
-   *
-   * A shop that drives Puddle itself says so, and keeps the behaviour it
-   * scripted: the duck stays hidden until that shop summons it. Everywhere
-   * else, reading the product is the only way to know there is one, so a
-   * readable product *is* the signal that this page is worth sitting on.
-   *
-   * Re-read on a timer rather than once on load, because a storefront can swap
-   * the product without a reload: Amazon moves between items through
-   * history.pushState and changes size and colour in place, and a duck that
-   * only looks once keeps answering about the item you have already left. The
-   * check is a handful of querySelectors and returns early unless the product
-   * actually changed, so the cost of asking every second is not worth avoiding. */
-  let parkedKey = "";
-  function park() {
-    if (document.body.dataset.puddleShop) return;
-    const item = globalThis.PuddleExtract?.();
-    // A guessed title means a search or category page: many products, none of
-    // them this one. Uninvited, that is not enough to speak on.
-    if (!item || item._guessedTitle) return;
-    const key = `${item.title}|${item.price}|${item.size || ""}`;
-    if (key === parkedKey) return;
-    parkedKey = key;
-    send({ type: "score", item, now_hour: new Date().getHours() })
-      .then((result) => {
-        // Another product landed while this one was scoring: that answer is
-        // already stale, and the newer request owns the duck.
-        if (!result || key !== parkedKey) return;
-        pageItem = item;
-        pageResult = result;
-        // Redraw even over an open card: it is about the item that just left.
-        host?.remove(); host = null;
-        renderLauncher();
-      })
-      // No backend, no duck. A page we cannot score is not ours to decorate.
-      .catch(() => {});
-  }
-
-  park();
-  const parkPoll = setInterval(park, 1000);
-  window.addEventListener("pagehide", () => clearInterval(parkPoll));
 })();

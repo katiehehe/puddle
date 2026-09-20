@@ -88,10 +88,16 @@ def test_purchase_updates_wardrobe_and_reverses_saved_amount(monkeypatch):
     assert client.post("/payment-intents/confirm", json=body).json()["duplicate"] is True
     assert len(calls) == 1
     assert "sku_991" in [i["id"] for i in client.get("/closet").json()["closet"]]
-    assert skip("after-purchase").status_code == 409
+    # Skipping an owned item still counts: you skipped buying another one.
+    after = skip("after-purchase")
+    assert after.status_code == 200 and after.json()["pond"]["saved"] == 128
+    # Re-buying an owned variant is a real second purchase: new intent, new
+    # charge, closet row replaced, and the pond reverses the skip above.
     second = client.post("/payment-intents", json={"item_id": "cand_boots"}).json()
     retry = client.post("/payment-intents/confirm", json={"token": second["token"], "confirmed": True})
-    assert retry.status_code == 409
+    assert retry.status_code == 200 and retry.json()["duplicate"] is False
+    assert retry.json()["pond"]["saved"] == 0
+    assert len(calls) == 2
 
 
 def test_decline_does_not_add_holdings_or_grade_prediction(monkeypatch):
