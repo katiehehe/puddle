@@ -49,6 +49,14 @@ _MINE = re.compile(
     r"returned|saved|savings|pond|skip|skipped|donate)\b"
 )
 
+# What the question is *about* sits after one of these: a preposition, a
+# determiner, or a verb of owning and buying. "Spent on Bitcoin" and "own for
+# rain" are the same grammar, and only one of the two subjects exists here.
+_SUBJECT = re.compile(
+    r"\b(?:on|in|at|for|about|to|from|with|my|your|a|an|the|this|that|"
+    r"buy|buying|bought|own|owns|wear|wearing|spend|spent|spending)\s+(?=(\w+))"
+)
+
 # Words that name nothing in particular: question words, verbs about shopping,
 # units of time. Anything outside these and the catalogue's own vocabulary is a
 # subject this brain has never heard of -- Tesla stock, Mars, Bitcoin -- and
@@ -75,6 +83,9 @@ _GENERIC = set(
     week weeks month months year years season seasons now recently lately ago
     happen happens happened doing well good bad better worse best worst first last next
     per each all any some enough really actually please thanks ok okay
+    total altogether overall average percentage percent rate ratio share number count
+    currently usually normally mostly suitable appropriate sensible useful
+    suggest suggests suggestion recommend recommends advice think thoughts
     dont doesnt didnt wont cant isnt arent wasnt havent hasnt shouldnt couldnt wouldnt
     whats thats theres heres lets youre theyre
     size sizes fit fits color colors colour colours brand brands""".split()
@@ -98,13 +109,12 @@ _VOCABULARY = _vocabulary()
 
 
 def _known(text: str) -> bool:
-    """False as soon as the question names something the closet has never seen."""
-    for raw in text.split():
+    """False as soon as the question is about something the closet has never seen."""
+    for raw in _SUBJECT.findall(text):
         word = raw.replace("'", "")
         if len(word) <= 2 or word.isdigit():
             continue
-        stem = word.rstrip("s")
-        if {word, stem} & (_GENERIC | _VOCABULARY):
+        if {word, word.rstrip("s")} & (_GENERIC | _VOCABULARY):
             continue
         return False
     return True

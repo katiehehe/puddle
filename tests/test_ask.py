@@ -92,6 +92,11 @@ def test_the_questions_it_does_answer_survive_that_guard():
         "Can I donate anything?": "unworn",
         "How much is my closet worth?": "spend",
         "Tell me about my closet": "summary",
+        "How many crewnecks do I currently own?": "count",
+        "Do I own anything suitable for rain?": "occasion",
+        "What is my return rate?": "returns",
+        "How much have I spent in total?": "spend",
+        "How much money have I saved altogether?": "saved",
     }
     for question, intent in answerable.items():
         assert ask(question)["intent"] == intent, question

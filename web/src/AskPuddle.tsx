@@ -90,11 +90,13 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
       setError("");
       setBusy(true);
       try {
+        const turn = speech.current;
         const reply = await askPuddle(asked);
         setTurns((previous) =>
           [...previous, { question: asked, answer: reply.answer, intent: reply.intent }].slice(-MAX_TURNS),
         );
-        void say(reply.answer);
+        // Muting or closing while the answer is still in flight counts.
+        if (turn === speech.current) void say(reply.answer);
       } catch {
         setError("Can't reach the brain. Start it with ./run.sh and try again.");
       } finally {
