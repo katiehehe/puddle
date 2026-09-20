@@ -418,18 +418,14 @@ def get_provider() -> PaymentProvider:
         return MockProvider()
     if not status["ready"]:
         return IncompleteVisaProvider(status["missing"], status["invalid_files"])
-    api_key = os.environ["VISA_API_KEY"]
-    shared_secret = os.environ["VISA_SHARED_SECRET"]
-    if status["ready"]:
-        return VisaSandboxProvider(
-            api_key,
-            shared_secret,
-            cert=os.environ.get("VISA_CERT_PATH"),
-            key=os.environ.get("VISA_KEY_PATH"),
-            user_id=os.environ.get("VISA_USER_ID"),
-            password=os.environ.get("VISA_PASSWORD"),
-            mle_key_id=os.environ.get("VISA_MLE_KEY_ID"),
-            mle_server_cert=os.environ.get("VISA_MLE_SERVER_CERT_PATH"),
-            mle_client_key=os.environ.get("VISA_MLE_CLIENT_KEY_PATH"),
-        )
-    raise RuntimeError("unreachable payment provider state")
+    return VisaSandboxProvider(
+        os.environ["VISA_API_KEY"],
+        os.environ["VISA_SHARED_SECRET"],
+        cert=os.environ.get("VISA_CERT_PATH"),
+        key=os.environ.get("VISA_KEY_PATH"),
+        user_id=os.environ.get("VISA_USER_ID"),
+        password=os.environ.get("VISA_PASSWORD"),
+        mle_key_id=os.environ.get("VISA_MLE_KEY_ID"),
+        mle_server_cert=os.environ.get("VISA_MLE_SERVER_CERT_PATH"),
+        mle_client_key=os.environ.get("VISA_MLE_CLIENT_KEY_PATH"),
+    )

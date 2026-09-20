@@ -208,3 +208,14 @@ def test_dashboard_questions_do_not_mutate_state():
         assert response.json()['answer']
         assert response.json()['pending_action'] is None
     assert storage.actions() == before
+
+
+def test_dashboard_scope_answers_from_the_closet_or_not_at_all():
+    """The panel and /ask read the same closet, so they refuse the same strangers."""
+    counted = client.post("/voice/respond", json={"scope": "wardrobe", "transcript": "How many jackets do I own?"})
+    assert counted.json()["intent"] == "count"
+    assert counted.json()["answer"].startswith("3 jackets")
+
+    stranger = client.post("/voice/respond", json={"scope": "wardrobe", "transcript": "What is Tesla stock doing?"})
+    assert stranger.json()["intent"] == "unknown"
+    assert "only answer from your own history" in stranger.json()["answer"]

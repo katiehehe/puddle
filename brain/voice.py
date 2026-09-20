@@ -191,31 +191,21 @@ def respond(req: VoiceQuestion):
     if not req.transcript.strip():
         raise HTTPException(422, "Please ask a question.")
     if req.scope == "wardrobe":
-        from .app import portfolio
-
-        board = portfolio()
-        question = req.transcript.lower()
-        rebalance = board["rebalance"]
-        if any(word in question for word in ("overspend", "stop", "avoid", "skip", "duplicate")):
-            choices = rebalance["skip"][:2]
-            answer = " ".join(f"{c['title']}: {c['reasons'][0]}" for c in choices if c["reasons"])
-            answer = answer or "I do not see a strong skip recommendation in the current catalog."
-        elif any(word in question for word in ("buy", "interview", "gap", "need", "recommend")):
-            choices = rebalance["buy"]
-            if "interview" in question:
-                choices = [c for c in choices if "interview" in (c.get("covers_gap") or "").lower()]
-            answer = " ".join(
-                f"Consider {c['title']} at ${c['price']:g}. " + " ".join(c["reasons"][:1])
-                for c in choices[:2]
-            ) or "I do not have a strong purchase recommendation for that need in the current catalog."
-        elif any(word in question for word in ("saved", "saving", "pond")):
-            answer = f"Your recorded avoided spending is ${board['pond']['saved']:g}. This is not a bank balance."
-        else:
-            gaps = [c["state"] for c in board["coverage"] if not c["covered"]]
-            answer = f"Your wardrobe has {len(board['holdings'])} items. "
-            answer += "Coverage gaps: " + ", ".join(gaps) + ". " if gaps else "All modeled occasions have coverage. "
-            answer += "Ask what to buy for an interview, what to stop buying, or how much you have saved."
-        return {"answer": answer.replace(" — ", ", "), "pending_action": None, "scope": "wardrobe"}
+        # A wardrobe question is answered from the closet itself, so a subject
+        # the closet says nothing about is refused rather than summarised.
+        closet, miner, counts = _context()
+        found = ask.answer(req.transcript, closet, miner, counts)
+        line = (
+            found["answer"]
+            if found
+            else "I can only answer from your own history. Try: " + " ".join(ask.EXAMPLES[:3])
+        )
+        return {
+            "answer": line.replace(" \u2014 ", ", "),
+            "intent": found["intent"] if found else "unknown",
+            "pending_action": None,
+            "scope": "wardrobe",
+        }
     item = _resolve(req)
     closet, miner, counts = _context()
     now = datetime.now()
