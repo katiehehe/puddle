@@ -103,18 +103,14 @@ function Home() {
   }, [hash]);
   const homeRef = useRef<HTMLDivElement>(null);
   const ioRef = useRef<IntersectionObserver | null>(null);
-  // Scroll-triggered reveal: hidden elements get .in as they enter the view.
+  // Scroll-triggered reveal both ways: .in while on screen, off again once it
+  // leaves — so scrolling back replays the pop-up each time.
   useEffect(() => {
     const root = homeRef.current;
     if (!root) return;
     const io = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            e.target.classList.add("in");
-            io.unobserve(e.target);
-          }
-        }
+        for (const e of entries) e.target.classList.toggle("in", e.isIntersecting);
       },
       { threshold: 0.1 },
     );
@@ -123,12 +119,17 @@ function Home() {
     return () => io.disconnect();
   }, []);
   // Clicking the brand or Add to Chrome while already here: hide everything
-  // instantly, then re-arm the observer so it pops back in as the scroll lands.
+  // instantly, then force a fresh observation so it pops back in as the
+  // scroll lands. (Re-observing is a no-op unless we unobserve first.)
   const replay = () => {
     const els = homeRef.current?.querySelectorAll(REVEAL);
-    if (!els) return;
-    els.forEach((n) => n.classList.remove("in"));
-    setTimeout(() => els.forEach((n) => ioRef.current?.observe(n)), 420);
+    const io = ioRef.current;
+    if (!els || !io) return;
+    els.forEach((n) => {
+      n.classList.remove("in");
+      io.unobserve(n);
+    });
+    setTimeout(() => els.forEach((n) => io.observe(n)), 420);
   };
   const goInstall = () => {
     document.getElementById("install")?.scrollIntoView({ behavior: "smooth" });
