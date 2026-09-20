@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addPurchase,
   askDuck,
@@ -114,7 +114,7 @@ function Home() {
     <div className="home">
       <nav className="nav">
         <a className="brand" href="#/home">
-          <Duck size={28} />
+          <Duck size={54} />
           <span>Puddle</span>
         </a>
         <div className="navlinks">
@@ -215,11 +215,49 @@ const today = () => new Date().toISOString().slice(0, 10);
 const when = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
+const REVEAL_MS = 200;
+
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
+  const chars = [...value];
+  const [shown, setShown] = useState(chars.length);
+  const timer = useRef<number | null>(null);
+
+  const stop = useCallback(() => {
+    if (timer.current !== null) {
+      window.clearInterval(timer.current);
+      timer.current = null;
+    }
+  }, []);
+
+  useEffect(() => stop, [stop]);
+  useEffect(() => setShown(value.length), [value]);
+
+  const play = () => {
+    stop();
+    setShown(1);
+    timer.current = window.setInterval(() => {
+      setShown((n) => {
+        if (n + 1 >= chars.length) stop();
+        return Math.min(n + 1, chars.length);
+      });
+    }, REVEAL_MS);
+  };
+
+  const reset = () => {
+    stop();
+    setShown(chars.length);
+  };
+
   return (
-    <div className="stat">
+    <div className="stat" onMouseEnter={play} onMouseLeave={reset}>
       <span>{label}</span>
-      <b>{value}</b>
+      <b>
+        {chars.map((c, i) => (
+          <span key={i} className={i < shown ? "on" : undefined}>
+            {c}
+          </span>
+        ))}
+      </b>
       {note && <em>{note}</em>}
     </div>
   );
@@ -1109,20 +1147,11 @@ function Dashboard() {
 
   const summary = useMemo(() => {
     if (!me) return null;
-    const best = me.shopping.best_value;
     return [
-      { label: "Your closet", value: `${me.shopping.items_owned} items`, note: "things you own" },
-      {
-        label: "Actually in rotation",
-        value: `${me.shopping.in_rotation} items`,
-        note: "worn at least once",
-      },
-      { label: "Wears recorded", value: String(me.usage.total_wears), note: "across your closet" },
-      {
-        label: "Best value",
-        value: best ? money(best.cost_per_wear) : round(me.value.saved),
-        note: best ? `${best.title} per wear` : "saved by skipping",
-      },
+      { label: "Things you own", value: String(me.shopping.items_owned) },
+      { label: "Spent on them", value: round(me.value.spent) },
+      { label: "Worth today", value: round(me.value.worth_now) },
+      { label: "Saved by skipping", value: round(me.value.saved) },
     ];
   }, [me]);
 
@@ -1141,7 +1170,7 @@ function Dashboard() {
     <div className="shell">
       <nav className="nav">
         <a className="brand" href="#/home">
-          <Duck size={28} />
+          <Duck size={54} />
           <span>Puddle</span>
         </a>
         <div className="navlinks">
@@ -1155,10 +1184,10 @@ function Dashboard() {
 
       <header className="dashhead">
         <h1>Your closet</h1>
-        <p>What you own, what you actually wear, and whether the next thing is worth it.</p>
+        <p>What you own and whether the next thing is worth it.</p>
         <div className="statrow">
           {summary.map((s) => (
-            <Stat key={s.label} label={s.label} value={s.value} note={s.note} />
+            <Stat key={s.label} label={s.label} value={s.value} />
           ))}
         </div>
       </header>

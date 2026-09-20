@@ -37,7 +37,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   padding: 22px 0; position: sticky; top: 0; z-index: 20;
   background: linear-gradient(var(--paper) 72%, rgba(251, 249, 244, 0));
 }
-.brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 18px; }
+.brand { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 44px; letter-spacing: -0.035em; }
 .navlinks { display: flex; align-items: center; gap: 22px; font-size: 15px; color: var(--muted); }
 .navlinks a:hover { color: var(--ink); }
 .live {
@@ -67,7 +67,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
   border-radius: 99px; padding: 5px 12px; margin-bottom: 18px;
 }
-.hero h1 { font-size: 54px; line-height: 1.05; margin-bottom: 18px; }
+.hero h1 { font-size: 66px; line-height: 1.05; margin-bottom: 18px; }
 .hero > div > p { font-size: 19px; color: var(--muted); margin: 0 0 28px; max-width: 30em; }
 .herobtns { display: flex; gap: 12px; flex-wrap: wrap; }
 
@@ -142,15 +142,27 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 
 /* --- dashboard ---------------------------------------------------------- */
 .dashhead { padding: 18px 0 8px; }
-.dashhead h1 { font-size: 40px; }
+.dashhead h1 { font-size: 44px; }
 .dashhead > p { color: var(--muted); margin: 8px 0 26px; }
 .statrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .stat {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 18px 20px; box-shadow: var(--shadow);
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
 }
-.stat span { display: block; font-size: 13px; color: var(--muted); }
+.stat:hover {
+  transform: translateY(-3px);
+  border-color: #cfc9bb;
+  box-shadow: 0 10px 24px rgba(44, 42, 36, .12);
+}
+.stat:active { transform: translateY(-1px); }
+.stat > span { display: block; font-size: 13px; color: var(--muted); }
 .stat b { display: block; font-size: 26px; letter-spacing: -.03em; margin-top: 4px; }
+.stat b span {
+  display: inline-block; opacity: 0; transform: translateY(5px);
+  transition: opacity .3s ease, transform .3s ease;
+}
+.stat b span.on { opacity: 1; transform: none; }
 .stat em { display: block; font-size: 12px; color: var(--muted); font-style: normal; margin-top: 2px; }
 
 .tabs { display: flex; gap: 6px; margin: 30px 0 22px; flex-wrap: wrap; }
@@ -463,7 +475,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 
 @media (max-width: 900px) {
   .hero, .stepgrid, .tellgrid, .statrow, .valuetop, .notes, .two, .details { grid-template-columns: 1fr; }
-  .hero h1 { font-size: 38px; }
+  .hero h1 { font-size: 46px; }
+  .dashhead h1 { font-size: 36px; }
   .duckcard { width: auto; margin: 6px 0 0; }
   .buy { grid-template-columns: 52px 1fr 80px 80px; }
 }
