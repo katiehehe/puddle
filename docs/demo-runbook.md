@@ -111,3 +111,35 @@ provider switches to mutual TLS on its own, and still verifies the server.
 
 **Payments are capped at $500** (`BUDGET_CAP`), so the $320 suit goes through
 and nothing catastrophic can.
+
+## Demoing with your own wardrobe
+
+```bash
+cp my_wardrobe.example.json my_wardrobe.json     # then edit it
+PUDDLE_WARDROBE=my_wardrobe.json python3 scripts/wardrobe_check.py
+```
+
+The check tells you what it inferred from each title, what life mix your wear
+counts imply, where your coverage gaps are, and — the part that matters —
+whether your history gives the duck anything to say.
+
+Then run the brain against it:
+
+```bash
+PUDDLE_WARDROBE=my_wardrobe.json ./run.sh
+```
+
+It is off unless that variable is set, so the seeded demo is untouched.
+`my_wardrobe.json` is gitignored.
+
+**Put real returns in it.** The closet is the smaller half. The duck's best
+line comes from what you *sent back*, and a closet with no return history
+leaves it with nothing to say. Three or more returns of the same kind and size
+is what makes `return_pattern` fire; two of anything you own is what makes
+`redundancy` fire. `wardrobe_check.py` tells you whether you have cleared
+either bar.
+
+You write titles and prices; category, formality, warmth, kind and rain are
+inferred from the words. State any field explicitly to override the guess. An
+item the inferrer cannot place is reported rather than dropped — a closet
+quietly missing your coat produces confident, wrong advice.

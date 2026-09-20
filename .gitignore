@@ -17,3 +17,6 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# your own closet, which is nobody else's business
+my_wardrobe.json
