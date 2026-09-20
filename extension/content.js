@@ -430,9 +430,8 @@
         buttons.remove();
         shadow.querySelector(".payline")?.remove();
         shadow.getElementById("guardlist")?.remove();
-        // Approved: the receipt flashes just long enough to read, then the
-        // whole thing goes away. Declines stay longer so the reason lands.
-        setTimeout(() => { overlay.remove(); dismiss(0); }, declined ? 6000 : 1600);
+        // The receipt stays until it's dismissed — X or a click outside.
+        // Either way the card behind it closes too.
       };
     };
   }

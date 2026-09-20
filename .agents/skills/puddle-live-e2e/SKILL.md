@@ -57,7 +57,7 @@ description: Test Puddle's Chrome extension and embedded demo against the local 
 
 ## Evidence
 - The duck is in the open shadow root of `#puddle-root`; buttons are `#buy` and `#skip`, and text is `.line`.
-- Confirmation cards auto-dismiss quickly (skip closes immediately; purchase receipt roughly1.6 seconds, declined roughly6 seconds). Capture immediately; consecutive screenshot calls may be too slow.
+- Skip closes the card immediately. The purchase receipt stays open until dismissed (X or click-outside); closing it dismisses the card too.
 - For timing races, batch native pointer actions and use read-only click/MutationObserver instrumentation. Do not substitute scripted DOM clicks for UI flow.
 - Record GUI actions and compare server POST logs and persisted actions, not only card copy: the extension has an offline fallback.
 - Distinguish native speech errors, diagnostic probe errors, expected hosted unconfigured responses, and actual uncaught application errors.
