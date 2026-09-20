@@ -55,11 +55,8 @@
       mic.disabled = value || !configured;
     }
     function say(text) {
-      if (muted || disposed || !globalThis.speechSynthesis || !globalThis.SpeechSynthesisUtterance) return;
-      globalThis.speechSynthesis?.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.02;
-      speechSynthesis.speak(utterance);
+      if (muted || disposed) return;
+      globalThis.PuddleSpeech?.speak(text);
     }
     function releaseMic() {
       clearTimeout(timer);
@@ -83,7 +80,7 @@
     }
     function beginQuestion() {
       generation += 1;
-      globalThis.speechSynthesis?.cancel();
+      globalThis.PuddleSpeech?.cancel();
       confirm.hidden = true;
       answer.hidden = true;
       heard.hidden = true;
@@ -104,7 +101,7 @@
       muted = !muted;
       mute.setAttribute("aria-pressed", String(muted));
       mute.textContent = muted ? "Unmute replies" : "Mute replies";
-      if (muted) globalThis.speechSynthesis?.cancel();
+      if (muted) globalThis.PuddleSpeech?.cancel();
     };
     function stopRecording(discard) {
       cancelled = discard;
@@ -206,7 +203,7 @@
     }).catch(error => { if (!disposed) status.textContent = error.message; });
     return () => {
       disposed = true; generation += 1; pendingMic = false;
-      stopRecording(true); globalThis.speechSynthesis?.cancel(); panel.remove();
+      stopRecording(true); globalThis.PuddleSpeech?.cancel(); panel.remove();
     };
   }
   globalThis.PuddleVoice = { attach };

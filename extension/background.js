@@ -128,6 +128,10 @@ async function voiceRequest(msg) {
     path = "/actions";
     options = { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ event_id: msg.event_id, item: msg.item, prediction_id: msg.prediction_id, action: "skip" }) };
+  } else if (msg.type === "voice_speak") {
+    path = "/voice/speak";
+    options = { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: msg.text }) };
   } else if (msg.type === "read_pond") path = "/pond";
   else throw new Error("Unknown voice request.");
   const response = await fetch(`${BRAIN}${path}`, { ...options, signal: AbortSignal.timeout(30000) });
@@ -137,7 +141,7 @@ async function voiceRequest(msg) {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (!["voice_status", "voice_respond", "voice_transcribe", "record_skip", "read_pond"].includes(msg.type)) return false;
+  if (!["voice_status", "voice_respond", "voice_transcribe", "voice_speak", "record_skip", "read_pond"].includes(msg.type)) return false;
   voiceRequest(msg).then(sendResponse).catch(error => sendResponse({
     error: error.name === "TimeoutError" ? "The request timed out. Please try again." :
       error instanceof TypeError ? "Puddle is unavailable. Start the backend and try again." : error.message

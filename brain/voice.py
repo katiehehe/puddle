@@ -1,7 +1,8 @@
-"""Short-clip transcription and deterministic, evidence-grounded voice answers."""
+"""Short-clip transcription, spoken replies, and deterministic evidence-grounded answers."""
 
 from __future__ import annotations
 
+import base64
 import os
 import re
 from dataclasses import replace
@@ -19,10 +20,24 @@ MAX_AUDIO_BYTES = 2 * 1024 * 1024
 MAX_RECORD_SECONDS = 20
 AUDIO_TYPES = {"audio/webm", "audio/ogg", "audio/wav", "audio/x-wav", "audio/mp4", "audio/mpeg"}
 DEEPGRAM_URL = "https://api.deepgram.com/v1/listen"
+ELEVENLABS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
+# Flash is the low-latency model; the duck has to answer while the shopper waits.
+ELEVENLABS_MODEL = "eleven_flash_v2_5"
+ELEVENLABS_FORMAT = "mp3_44100_64"
+DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
+MAX_SPEECH_CHARS = 600
 
 
 def api_key():
     return os.getenv("DEEPGRAM_API_KEY", "").strip()
+
+
+def speech_key():
+    return os.getenv("ELEVENLABS_API_KEY", "").strip()
+
+
+def voice_id():
+    return os.getenv("ELEVENLABS_VOICE_ID", "").strip() or DEFAULT_VOICE_ID
 
 
 @router.get("/status")
@@ -31,9 +46,50 @@ def status():
         "configured": bool(api_key()),
         "provider": "deepgram",
         "model": "nova-3",
+        "speech": "elevenlabs" if speech_key() else "browser",
         "max_audio_bytes": MAX_AUDIO_BYTES,
         "max_record_seconds": MAX_RECORD_SECONDS,
     }
+
+
+class SpeechRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
+
+
+@router.post("/speak")
+async def speak(req: SpeechRequest):
+    """Render a reply with ElevenLabs. Callers fall back to browser speech on 503."""
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(422, "Nothing to speak.")
+    if not speech_key():
+        raise HTTPException(503, "Hosted speech is not configured.")
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                f"{ELEVENLABS_URL}/{voice_id()}",
+                params={"output_format": ELEVENLABS_FORMAT},
+                headers={"xi-api-key": speech_key(), "Content-Type": "application/json"},
+                json={
+                    "text": text,
+                    "model_id": ELEVENLABS_MODEL,
+                    "voice_settings": {"stability": 0.45, "similarity_boost": 0.75, "speed": 1.05},
+                },
+            )
+        if response.status_code in (401, 403):
+            raise HTTPException(502, "ElevenLabs rejected the credentials. Check the server API key.")
+        if response.status_code == 429:
+            raise HTTPException(503, "ElevenLabs is rate limited right now.")
+        if response.status_code >= 400:
+            raise HTTPException(502, "ElevenLabs could not render this reply.")
+        audio = response.content
+        if not audio:
+            raise HTTPException(502, "ElevenLabs returned empty audio.")
+        return {"audio": base64.b64encode(audio).decode(), "mime": "audio/mpeg", "provider": "elevenlabs"}
+    except httpx.TimeoutException as exc:
+        raise HTTPException(504, "Speech timed out.") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, "Could not reach ElevenLabs.") from exc
 
 
 async def deepgram_transcribe(audio: bytes, content_type: str):

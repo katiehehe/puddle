@@ -61,10 +61,10 @@ Close on the line: **retailers run return-prediction models on you and never tel
 |---|---|
 | Portfolio math (states → μ, Σ, Style Sharpe, alpha buy-rule) | **Real** (numpy, tested) |
 | History mining (return / time / redundancy / gap / overexposure) | **Real** |
-| Extension → brain → duck overlay + voice | **Real** (Deepgram transcription and browser speech output) |
+| Extension → brain → duck overlay + voice | **Real** (Deepgram transcription, ElevenLabs speech output) |
 | Prediction ledger + pond | **Real.** SQLite-persisted; extension records skips/buys with idempotent `event_id`s, dashboard reads the same state. |
 | Visa checkout | **Interface real, settlement unverified**: see below. Failures are reported as failures; there is no successful mock fallback. |
-| Voice STT/TTS | Deepgram speech-to-text + browser speech synthesis; typed questions also supported |
+| Voice STT/TTS | Deepgram speech-to-text + ElevenLabs `eleven_flash_v2_5` speech out, browser synthesis as fallback; typed questions also supported |
 
 ## Visa settlement
 A buy is settled as a **Visa Direct push funds transfer**
@@ -119,6 +119,7 @@ restarts.
 ## Voice demo
 
 Open [Puddle's integrated demo](http://localhost:8000/demo) with the backend running.
-Click Checkout, then Talk to Puddle. Deepgram transcribes the question and the
-duck answers from the current item and wardrobe history. The same controls work
+Click Checkout, then Talk to Puddle. Deepgram transcribes the question, the
+duck answers from the current item and wardrobe history, and ElevenLabs speaks
+the answer (browser speech if no key is set). The same controls work
 in the Chrome extension. See [voice setup](docs/voice.md).
