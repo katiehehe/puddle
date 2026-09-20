@@ -26,7 +26,7 @@ import httpx
 OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
-DEFAULT_ANTHROPIC_MODEL = "claude-3-5-haiku-latest"
+DEFAULT_ANTHROPIC_MODEL = "claude-haiku-4-5"
 TIMEOUT_S = 4.0
 MAX_WORDS = 28
 CACHE_SIZE = 256
@@ -42,11 +42,23 @@ _cache: OrderedDict[str, dict] = OrderedDict()
 
 
 def configured() -> dict:
-    """Which provider will answer, without touching the network."""
+    """Which provider will answer, without touching the network.
+
+    PHRASE_PROVIDER=openai|anthropic|none picks explicitly when both keys are set.
+    """
+    pick = os.environ.get("PHRASE_PROVIDER", "").lower()
+    openai = {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", DEFAULT_OPENAI_MODEL)}
+    anthropic = {"provider": "anthropic", "model": os.environ.get("ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL)}
+    if pick == "none":
+        return {"provider": None, "model": None}
+    if pick == "anthropic" and os.environ.get("ANTHROPIC_API_KEY"):
+        return anthropic
+    if pick == "openai" and os.environ.get("OPENAI_API_KEY"):
+        return openai
     if os.environ.get("OPENAI_API_KEY"):
-        return {"provider": "openai", "model": os.environ.get("OPENAI_MODEL", DEFAULT_OPENAI_MODEL)}
+        return openai
     if os.environ.get("ANTHROPIC_API_KEY"):
-        return {"provider": "anthropic", "model": os.environ.get("ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL)}
+        return anthropic
     return {"provider": None, "model": None}
 
 

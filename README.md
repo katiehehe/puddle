@@ -70,7 +70,7 @@ Close on the line: **retailers run return-prediction models on you and never tel
 | Extension → brain → duck overlay + voice | **Real** (Deepgram transcription, ElevenLabs speech output) |
 | Prediction ledger + pond | **Real.** SQLite-persisted; extension records skips/buys with idempotent `event_id`s, dashboard reads the same state. |
 | Visa checkout | **Signed intent and explicit confirmation are real. Settlement is simulated by default and Visa sandbox remains unverified**: see below. Every buy shows a receipt: card on file (network token, last4), amount, rail, auth code, and the guards that make the tap safe. |
-| Duck phrasing | **Optional LLM.** With `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` set, a small model (`gpt-4o-mini` / `claude-3-5-haiku-latest`) phrases the verdict from the reasons the math produced; output is rejected if it cites a number it was not given, and cached per set of facts. Without a key the deterministic headline is used unchanged. `/health` reports which. |
+| Duck phrasing | **Optional LLM.** With `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` set, a small model (`gpt-4o-mini` / `claude-haiku-4-5`; `PHRASE_PROVIDER` picks when both keys are set) phrases the verdict from the reasons the math produced; output is rejected if it cites a number it was not given, and cached per set of facts. Without a key the deterministic headline is used unchanged. `/health` reports which. |
 | Voice STT/TTS | Deepgram speech-to-text + ElevenLabs `eleven_flash_v2_5` speech out, browser synthesis as fallback; typed questions also supported |
 
 ## Visa settlement
