@@ -115,7 +115,17 @@ def coerce_item(raw: dict) -> Item | None:
     if known is not None:
         return replace(known, size=str(raw["size"]) if raw.get("size") is not None else known.size)
     if "formality" not in raw or "warmth" not in raw:
-        return None
+        # A real storefront publishes a title, not a formality rating. Infer
+        # what we can from the words; infer() returns None for anything it
+        # does not recognise, so an unreadable garment still gets no opinion.
+        from .infer import infer
+
+        guessed = infer(raw.get("title", ""), raw.get("category"))
+        if guessed is None:
+            return None
+        raw = {**guessed, **{k: v for k, v in raw.items() if v is not None}, **{
+            k: guessed[k] for k in ("formality", "warmth") if k not in raw
+        }}
     category = raw.get("category", "top")
     title = raw.get("title", "this")
     kind = raw.get("kind") or _KIND_BY_CATEGORY.get(category)
