@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BRAIN,
   addPurchase,
   askDuck,
   editPurchase,
@@ -57,7 +58,10 @@ function CheckoutMock() {
   useEffect(() => {
     // The embedded shop reports which item it's showing so the URL bar follows.
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
+      // The frame is cross origin in development, where the brain serves it
+      // from another port, so a same-origin test drops every message.
+      const allowed = new Set([window.location.origin, BRAIN && new URL(BRAIN).origin]);
+      if (!allowed.has(event.origin)) return;
       if (event.data?.type === "puddle-demo-item") setUrl(event.data.path);
     };
     window.addEventListener("message", onMessage);
@@ -69,7 +73,7 @@ function CheckoutMock() {
         <span /> <span /> <span />
         <div className="mockurl">{url}</div>
       </div>
-      <iframe className="demoframe" src="/demo?embed=1" title="Puddle live demo" />
+      <iframe className="demoframe" src={`${BRAIN}/demo?embed=1`} title="Puddle live demo" />
     </div>
   );
 }
