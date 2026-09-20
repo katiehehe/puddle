@@ -319,5 +319,9 @@ def grade(prediction_id: str, correct: bool) -> dict:
 
 
 @app.get("/health")
-def health() -> dict:
-    return {"ok": True, "service": "puddle-brain", "payments": payments.get_provider().name}
+def health(check_payments: bool = False) -> dict:
+    provider = payments.get_provider()
+    out = {"ok": True, "service": "puddle-brain", "payments": provider.name}
+    if check_payments:
+        out["payments_check"] = provider.ping()
+    return out

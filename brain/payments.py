@@ -2,8 +2,13 @@
 
 Both implementations sit behind one interface so the Visa sandbox can be
 swapped in without touching a caller. The mock is the default; setting
-VISA_API_KEY + VISA_SHARED_SECRET switches the same call onto Visa's sandbox
-(X-Pay-Token auth), and failures remain failures. No automatic successful mock fallback is used.
+VISA_API_KEY + VISA_SHARED_SECRET switches the same call onto Visa Direct in
+the sandbox. Failures stay failures -- a Visa error never silently degrades
+into a successful mock payment, because the pond would then be wrong.
+
+Buying is settled as a Visa Direct push: the money leaves a funding account
+and lands on the merchant's. That is also the primitive the pond will use in
+reverse, so there is one settlement path rather than two.
 """
 
 from __future__ import annotations
@@ -13,16 +18,29 @@ import hmac
 import json
 import math
 import os
+import random
+import ssl
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
+from base64 import b64encode
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from typing import Protocol
 
 BUDGET_CAP = 500.0
 SANDBOX_BASE = "https://sandbox.api.visa.com"
-RESOURCE_PATH = "src/v1/checkout"
+PUSH_PATH = "visadirect/fundstransfer/v1/pushfundstransactions"
+HELLO_PATH = "vdp/helloworld"
+
+# Sandbox-only acquirer identifiers from Visa's own Visa Direct samples. They
+# are not credentials: the project's API key is what authenticates the call.
+ACQUIRING_BIN = "408999"
+ACQUIRER_COUNTRY = "840"
+SENDER_ACCOUNT = "4653459515756154"
+RECIPIENT_ACCOUNT = "4957030420210496"
 
 
 @dataclass
@@ -47,6 +65,8 @@ class PaymentProvider(Protocol):
 
     def pay(self, amount: float, item_id: str) -> PaymentResult: ...
 
+    def ping(self) -> dict: ...
+
 
 def _capped(amount: float) -> str | None:
     if not math.isfinite(amount) or amount < 0:
@@ -68,21 +88,127 @@ class MockProvider:
             message="Paid (simulated)." if reason is None else "Declined (simulated).",
         )
 
+    def ping(self) -> dict:
+        return {"reachable": True, "detail": "mock provider"}
+
+
+def hash_path(path: str) -> str:
+    """The path Visa hashes, which drops the context path.
+
+    Visa's x-pay-token message uses the resource path *after* the context
+    path, i.e. everything but the first segment -- except for Hello World,
+    which keeps only the last one. Getting this wrong fails as 401, not as a
+    signature error, so it is worth pinning in a test.
+    """
+    if path == HELLO_PATH:
+        return "helloworld"
+    head, _, tail = path.partition("/")
+    return tail or head
+
 
 class VisaSandboxProvider:
-    """Visa Developer sandbox, authenticated with an X-Pay-Token."""
+    """Visa Direct in the sandbox, authenticated with an X-Pay-Token.
+
+    Two-way SSL is used instead when a client certificate and key are
+    configured; Visa accepts either, and which one a project gets depends on
+    how it was created.
+    """
 
     name = "visa_sandbox"
 
-    def __init__(self, api_key: str, shared_secret: str):
+    def __init__(
+        self,
+        api_key: str,
+        shared_secret: str,
+        cert: str | None = None,
+        key: str | None = None,
+        user_id: str | None = None,
+        password: str | None = None,
+    ):
         self.api_key = api_key
         self.shared_secret = shared_secret
+        self.cert = cert
+        self.key = key
+        self.user_id = user_id
+        self.password = password
 
-    def _x_pay_token(self, query: str, body: str) -> str:
+    @property
+    def mutual_tls(self) -> bool:
+        return bool(self.cert and self.key)
+
+    def _x_pay_token(self, path: str, query: str, body: str) -> str:
         timestamp = str(int(time.time()))
-        message = timestamp + RESOURCE_PATH + query + body
+        message = timestamp + hash_path(path) + query + body
         digest = hmac.new(self.shared_secret.encode(), message.encode(), hashlib.sha256).hexdigest()
         return f"xv2:{timestamp}:{digest}"
+
+    def _call(self, path: str, body: dict | None) -> dict:
+        payload = json.dumps(body) if body is not None else ""
+        query = urllib.parse.urlencode({"apikey": self.api_key})
+        headers = {"Accept": "application/json"}
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+        if self.mutual_tls:
+            credentials = b64encode(f"{self.user_id}:{self.password}".encode()).decode()
+            headers["Authorization"] = f"Basic {credentials}"
+        else:
+            headers["x-pay-token"] = self._x_pay_token(path, query, payload)
+
+        request = urllib.request.Request(
+            f"{SANDBOX_BASE}/{path}?{query}",
+            data=payload.encode() if body is not None else None,
+            headers=headers,
+            method="POST" if body is not None else "GET",
+        )
+        context = None
+        if self.mutual_tls:
+            context = ssl.create_default_context()
+            context.load_cert_chain(certfile=self.cert, keyfile=self.key)
+        with urllib.request.urlopen(request, timeout=8, context=context) as response:
+            return json.loads(response.read() or b"{}")
+
+    def ping(self) -> dict:
+        """Cheap credential check -- Hello World is the endpoint Visa ships for it."""
+        try:
+            payload = self._call(HELLO_PATH, None)
+        except urllib.error.HTTPError as err:
+            return {"reachable": False, "detail": f"HTTP {err.code}"}
+        except (urllib.error.URLError, TimeoutError, ValueError, OSError) as err:
+            return {"reachable": False, "detail": type(err).__name__}
+        return {"reachable": True, "detail": payload.get("message", "ok")}
+
+    def _push_request(self, amount: float, item_id: str) -> dict:
+        trace = f"{random.randrange(10**6):06d}"
+        now_utc = datetime.now(timezone.utc)
+        return {
+            "acquirerCountryCode": ACQUIRER_COUNTRY,
+            "acquiringBin": ACQUIRING_BIN,
+            "amount": f"{amount:.2f}",
+            "businessApplicationId": "AA",
+            "cardAcceptor": {
+                "address": {"country": "USA", "county": "San Mateo", "state": "CA", "zipCode": "94404"},
+                "idCode": item_id[:15],
+                "name": "Puddle Checkout",
+                "terminalId": "PUDDLE01",
+            },
+            "localTransactionDateTime": now_utc.strftime("%Y-%m-%dT%H:%M:%S"),
+            "merchantCategoryCode": "5651",  # family clothing store
+            "pointOfServiceData": {"motoECIIndicator": "0", "panEntryMode": "90", "posConditionCode": "00"},
+            "recipientName": "Puddle Merchant",
+            "recipientPrimaryAccountNumber": RECIPIENT_ACCOUNT,
+            # yddd + 7 digits, the 12-character form Visa's samples use.
+            "retrievalReferenceNumber": now_utc.strftime("%y%j") + f"{random.randrange(10**7):07d}",
+            "senderAccountNumber": SENDER_ACCOUNT,
+            "senderAddress": "901 Metro Center Blvd",
+            "senderCity": "Foster City",
+            "senderCountryCode": "840",
+            "senderName": "Puddle User",
+            "senderStateCode": "CA",
+            "sourceOfFundsCode": "05",
+            "systemsTraceAuditNumber": trace,
+            "transactionCurrencyCode": "USD",
+            "transactionIdentifier": str(random.randrange(10**14, 10**15)),
+        }
 
     def pay(self, amount: float, item_id: str) -> PaymentResult:
         reason = _capped(amount)
@@ -96,21 +222,19 @@ class VisaSandboxProvider:
                 message="Declined before dispatch.",
             )
 
-        query = f"apikey={self.api_key}"
-        body = json.dumps({"amount": round(amount, 2), "currency": "USD", "reference": item_id})
-        request = urllib.request.Request(
-            f"{SANDBOX_BASE}/{RESOURCE_PATH}?{query}",
-            data=body.encode(),
-            headers={
-                "Content-Type": "application/json",
-                "x-pay-token": self._x_pay_token(query, body),
-            },
-            method="POST",
-        )
         try:
-            with urllib.request.urlopen(request, timeout=6) as response:
-                payload = json.loads(response.read() or b"{}")
-        except (urllib.error.URLError, TimeoutError, ValueError):
+            payload = self._call(PUSH_PATH, self._push_request(amount, item_id))
+        except urllib.error.HTTPError as err:
+            detail = _error_detail(err)
+            return PaymentResult(
+                mode=self.name,
+                approved=False,
+                amount=amount,
+                token="",
+                reason="provider_error",
+                message=f"Visa rejected the transfer ({detail}).",
+            )
+        except (urllib.error.URLError, TimeoutError, ValueError, OSError):
             return PaymentResult(
                 mode=self.name,
                 approved=False,
@@ -120,20 +244,40 @@ class VisaSandboxProvider:
                 message="Sandbox payment could not be confirmed.",
             )
 
-        approved = isinstance(payload, dict) and payload.get("approved") is True
+        # Visa signals success with ISO action code 00; anything else, including
+        # a 200 carrying an error body, is a decline.
+        action_code = payload.get("actionCode") if isinstance(payload, dict) else None
+        approved = action_code == "00"
+        token = payload.get("transactionIdentifier") or payload.get("networkId") or "" if approved else ""
         return PaymentResult(
             mode=self.name,
             approved=approved,
             amount=amount,
-            token=(payload.get("transactionId") or payload.get("token") or "") if approved else "",
+            token=str(token),
             reason=None if approved else "not_approved",
-            message="Approved by Visa sandbox." if approved else "Sandbox did not confirm approval.",
+            message="Settled over Visa Direct." if approved else f"Visa declined (action code {action_code}).",
         )
+
+
+def _error_detail(err: urllib.error.HTTPError) -> str:
+    try:
+        body = json.loads(err.read() or b"{}")
+    except (ValueError, OSError):
+        return f"HTTP {err.code}"
+    reason = body.get("responseStatus", {}).get("message") or body.get("message")
+    return f"HTTP {err.code}: {reason}" if reason else f"HTTP {err.code}"
 
 
 def get_provider() -> PaymentProvider:
     api_key = os.environ.get("VISA_API_KEY")
     shared_secret = os.environ.get("VISA_SHARED_SECRET")
     if api_key and shared_secret:
-        return VisaSandboxProvider(api_key, shared_secret)
+        return VisaSandboxProvider(
+            api_key,
+            shared_secret,
+            cert=os.environ.get("VISA_CERT_PATH"),
+            key=os.environ.get("VISA_KEY_PATH"),
+            user_id=os.environ.get("VISA_USER_ID"),
+            password=os.environ.get("VISA_PASSWORD"),
+        )
     return MockProvider()

@@ -61,10 +61,32 @@ Close on the line: **retailers run return-prediction models on you and never tel
 |---|---|
 | Portfolio math (states → μ, Σ, Style Sharpe, alpha buy-rule) | **Real** (numpy, tested) |
 | History mining (return / time / redundancy / gap / overexposure) | **Real** |
-| Extension → brain → duck overlay + voice | **Real** (voice via Web Speech; swap in ElevenLabs/Deepgram) |
+| Extension → brain → duck overlay + voice | **Real** (Deepgram transcription and browser speech output) |
 | Prediction ledger + pond | **Real.** SQLite-persisted; extension records skips/buys with idempotent `event_id`s, dashboard reads the same state. |
-| Visa checkout | **Interface real, call unverified**: with `VISA_API_KEY` + `VISA_SHARED_SECRET` it attempts an X-Pay-Token sandbox call. Failures are reported without successful mock fallback. Untested against live credentials. |
-| Voice STT/TTS | Web Speech fallback; wire Deepgram (STT) + ElevenLabs (TTS) at marked points |
+| Visa checkout | **Interface real, settlement unverified**: see below. Failures are reported as failures; there is no successful mock fallback. |
+| Voice STT/TTS | Deepgram speech-to-text + browser speech synthesis; typed questions also supported |
+
+## Visa settlement
+A buy is settled as a **Visa Direct push funds transfer**
+(`POST /visadirect/fundstransfer/v1/pushfundstransactions` on `sandbox.api.visa.com`),
+approved only on ISO action code `00`. Without credentials the same call runs through
+`MockProvider`, so the demo works either way.
+
+From your Visa Developer project (Visa Direct enabled), export:
+```bash
+export VISA_API_KEY=...        # project API key
+export VISA_SHARED_SECRET=...  # project shared secret
+```
+If the project was created for two-way SSL rather than X-Pay-Token, use instead:
+```bash
+export VISA_CERT_PATH=/path/cert.pem VISA_KEY_PATH=/path/key.pem
+export VISA_USER_ID=... VISA_PASSWORD=...
+```
+Check the credentials without spending anything — this calls Visa's Hello World:
+```bash
+curl 'localhost:8000/health?check_payments=true'
+# {"payments":"visa_sandbox","payments_check":{"reachable":true,...}}
+```
 
 ## Sponsor tracks
 Visa (primary) · Ramp (pond of saved money) · Deepgram + ElevenLabs (voice) · Cognition/Devin (build) · Long Lake + Token Company (narrative).
