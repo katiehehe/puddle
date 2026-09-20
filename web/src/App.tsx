@@ -54,42 +54,12 @@ function Duck({ size = 40 }: { size?: number }) {
 
 function CheckoutMock() {
   return (
-    <div className="mock" aria-hidden="true">
+    <div className="mock">
       <div className="mockbar">
         <span /> <span /> <span />
-        <div className="mockurl">westridge.com/boots/suede-chelsea</div>
+        <div className="mockurl">northwick.com — live demo, try checkout</div>
       </div>
-      <div className="mockbody">
-        <div className="mockshot">
-          <Garment category="shoes" colour="brown" kind="boots" size={150} />
-        </div>
-        <div className="mockinfo">
-          <div className="mockbrand">WESTRIDGE</div>
-          <h4>Suede Chelsea boots</h4>
-          <div className="mockprice">$128.00</div>
-          <div className="mockbtn">Add to cart</div>
-        </div>
-        <div className="duckcard">
-          <div className="duckhead">
-            <Duck size={30} />
-            <b>Puddle</b>
-          </div>
-          <p className="mockverdict">Maybe — think about it</p>
-          <p>
-            You already own <b>3 pairs of black boots</b>. You've worn the closest pair 7 times
-            this year.
-          </p>
-          <p>
-            $128 is <b>$18 below</b> what you usually pay for boots. Wear these 20 times and
-            they cost <b>$6.40 a wear</b>.
-          </p>
-          <div className="duckask">Still worth it?</div>
-          <div className="duckbtns">
-            <span className="db">Skip it</span>
-            <span className="db alt">Buy anyway</span>
-          </div>
-        </div>
-      </div>
+      <iframe className="demoframe" src="/demo?embed=1" title="Puddle live demo" />
     </div>
   );
 }
@@ -118,7 +88,6 @@ function Home() {
           <span>Puddle</span>
         </a>
         <div className="navlinks">
-          <a href="/demo">Live demo</a>
           <a href="#/closet">My closet</a>
           <a className="cta small" href="#/home?install">
             Add to Chrome
@@ -137,9 +106,6 @@ function Home() {
           <div className="herobtns">
             <a className="cta" href="#install">
               Add to Chrome — free
-            </a>
-            <a className="ghost" href="/demo">
-              Try the live demo
             </a>
           </div>
         </div>
@@ -1174,7 +1140,6 @@ function Dashboard() {
           <span>Puddle</span>
         </a>
         <div className="navlinks">
-          <a href="/demo">Live demo</a>
           <a href="#/closet">My closet</a>
           <a className="cta small" href="#/home?install">
             Add to Chrome
