@@ -55,7 +55,7 @@ Or just run everything: `./run.sh`
 2. Switch to **crewneck**. Checkout.
    → Duck: *"You own 3 of these already: they cover the same days, and you've worn them 32 times between them."* (redundancy = covariance)
 3. Switch to **suit**. Checkout.
-   → Duck (approving): *"Get it. You have nothing for 'formal / interview': this is the first thing that covers it."* Tap **Why this is safe** (cap, one-tap-one-charge, declines record nothing, tokenized card) → **Buy anyway** → Visa receipt: `Visa •••• 6154 · $320 · Visa Direct · Auth 00 · tok_…` (simulated unless `VISA_*` is set).
+   → Duck (approving): *"Get it. You have nothing for 'formal / interview': this is the first thing that covers it."* Tap **Why this is safe** (cap, one-tap-one-charge, declines record nothing, tokenized card) → **Buy anyway** → **Secure checkout** review (item, amount, provider, signed intent) → **Confirm** → Visa receipt: `Visa •••• 6154 · $320 · Visa Direct · Auth 00 · tok_…` (simulated unless `VISA_*` is set). With an LLM key set, the header shows *said by gpt-4o-mini*; hover it for the deterministic line underneath.
 4. Open the **dashboard** (`localhost:5173`): Style Sharpe, the coverage radar (Formal + Rain glowing red as gaps), the rebalance trades (suit + blazer under the $500 budget), and the duck's public accuracy ledger.
 
 Close on the line: **retailers run return-prediction models on you and never tell you. We point that model: plus a portfolio of everything you own: at you.**
@@ -70,7 +70,7 @@ Close on the line: **retailers run return-prediction models on you and never tel
 | Extension → brain → duck overlay + voice | **Real** (Deepgram transcription, ElevenLabs speech output) |
 | Prediction ledger + pond | **Real.** SQLite-persisted; extension records skips/buys with idempotent `event_id`s, dashboard reads the same state. |
 | Visa checkout | **Signed intent and explicit confirmation are real. Settlement is simulated by default and Visa sandbox remains unverified**: see below. Every buy shows a receipt: card on file (network token, last4), amount, rail, auth code, and the guards that make the tap safe. |
-| Duck phrasing | **Optional LLM.** With `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` set, a small model (`gpt-4o-mini` / `claude-3-5-haiku-latest`) phrases the verdict from the reasons the math produced; output is rejected if it cites a number it was not given, and cached per set of facts. Without a key the deterministic headline is used unchanged. `/health` reports which. |
+| Duck phrasing | **Optional LLM.** With `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` set, a small model (`gpt-4o-mini` / `claude-haiku-4-5`; `PHRASE_PROVIDER` picks when both keys are set) phrases the verdict from the reasons the math produced; output is rejected if it cites a number it was not given, and cached per set of facts. Without a key the deterministic headline is used unchanged. `/health` reports which. |
 | Voice STT/TTS | Deepgram speech-to-text + ElevenLabs `eleven_flash_v2_5` speech out, browser synthesis as fallback; typed questions also supported |
 
 ## Visa settlement
@@ -113,6 +113,35 @@ curl 'localhost:8000/health?check_payments=true'
 
 ## Sponsor tracks
 Visa (primary) · Ramp (pond of saved money) · Deepgram + ElevenLabs (voice) · Cognition/Devin (build) · Long Lake + Token Company (narrative).
+
+### Visa: Reimagine Shopping
+The brief asks for a Generative-AI commerce experience that is intuitive,
+personalized and frictionless, with secure and trusted payments. Puddle is the
+decision layer between "add to cart" and "pay": it never asks the shopper to do
+anything new, it just speaks up once, with numbers, before the charge.
+
+| Journey stage | What Puddle does |
+|---|---|
+| **Decision-making** | Buy / skip verdict from the shopper's own closet and return history: redundancy (covariance with what they own), priced return risk, the most the item is worth paying. |
+| **Personalization** | Every number comes from that person's wardrobe, wears and returns. No segment, no cohort: the duck for two shoppers never says the same thing. |
+| **Checkout** | One tap. Signed, short-lived payment intent → review (item, amount, provider, $500 cap) → confirm. Blocked amounts are visible before the tap, not after. |
+| **Payments** | Visa Direct push-funds behind one provider interface; simulated by default, sandbox with credentials, never a silent mock success. Receipt shows card on file (network token, last4), rail, auth code. |
+| **Post-purchase** | Pond of money not spent, and a public ledger of whether the duck was right (bought-and-kept, bought-and-returned). |
+| **Discovery** | Dashboard coverage radar names the gaps (formal, rain) and the rebalance trades that close them under budget. |
+| **Loyalty and rewards** | Not built. The pond is the hook: skipped-and-not-regretted decisions could earn cashback-style rewards. |
+
+**Generative AI, kept honest.** The verdict and every number are deterministic
+(numpy, tested). A small model (`gpt-4o-mini` or Claude Haiku) only phrases the
+reasons the math already produced, is rejected if it cites a number it was not
+given, and is cached per set of facts. Without a key, the deterministic line is
+used unchanged. The shopper can always see the math the model is paraphrasing.
+
+**Secure and trusted, made visible.** "Why this is safe" at checkout lists the
+four guards: a $500 cap per purchase, one tap = one charge (retries are
+deduplicated on `event_id`), a decline records nothing (no closet change, no
+pond change), and the card number never leaves the network token. Payment
+intents are signed server-side and expire; a partial Visa configuration
+disables checkout instead of pretending.
 
 ## Architecture
 ```
