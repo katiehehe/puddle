@@ -11,9 +11,10 @@
   :root { --ink:#16191c; --muted:#5d6771; --line:#e4e8ec; --accent:#111827; }
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif; color:var(--ink); background:#fafbfc; }
-  .puddlebar { background:#fbf9f4; border-bottom:1px solid #e7e3da; font-family:Outfit,ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif; }
-  .puddlebar .inner { max-width:1120px; margin:0 auto; padding:22px 24px; display:flex; align-items:center; justify-content:space-between; }
-  .puddlebar .pb { display:flex; align-items:center; gap:9px; font-weight:800; font-size:18px; color:#1d2026; text-decoration:none; }
+  .puddlebar { background:linear-gradient(#fbf9f4 72%, rgba(251,249,244,0)); font-family:Outfit,ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif; position:sticky; top:0; z-index:20; }
+  .puddlebar .inner { max-width:1120px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
+  .puddlebar .inner { padding-top:22px; padding-bottom:22px; }
+  .puddlebar .pb { display:flex; align-items:center; gap:14px; font-weight:800; font-size:44px; letter-spacing:-0.035em; color:#1d2026; text-decoration:none; }
   .puddlebar .pl { display:flex; align-items:center; gap:22px; font-size:15px; }
   .puddlebar .pl a { color:#6b7280; text-decoration:none; }
   .puddlebar .pl a:hover { color:#1d2026; }
