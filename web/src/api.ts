@@ -1,7 +1,10 @@
 import { FIXTURE, Portfolio } from "./fixtures";
 
-// Empty base = same origin, for the build the brain serves at /dashboard.
-const BRAIN = import.meta.env.VITE_BRAIN ?? "http://localhost:8000";
+// Dev server (vite, :5173) talks to the brain on :8000. Production builds go
+// same-origin: the brain serves the bundle at /dashboard/, and hardcoding
+// localhost would break the dashboard over a tunnel or another host.
+const BRAIN =
+  import.meta.env.VITE_BRAIN ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(`${BRAIN}${path}`, init);
