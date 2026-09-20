@@ -1,0 +1,59 @@
+"""The staging rail: things you're thinking about, reviewed but not owned."""
+
+from fastapi.testclient import TestClient
+
+from brain.app import app
+
+client = TestClient(app)
+
+
+def _stage(**kwargs):
+    body = {"title": "charcoal wool blazer", "price": 220} | kwargs
+    res = client.post("/cart", json=body)
+    assert res.status_code == 200, res.text
+    return res.json()["item"]
+
+
+def test_staged_items_are_listed_with_a_review():
+    staged = _stage()
+    cart = client.get("/cart").json()["items"]
+    row = next(i for i in cart if i["id"] == staged["id"])
+    assert row["review"]["verdict"]
+    assert row["review"]["stance"] in ("for", "think", "against")
+
+
+def test_staging_never_touches_the_closet_or_purchases():
+    staged = _stage()
+    assert staged["id"] not in [i["id"] for i in client.get("/closet").json()["closet"]]
+    assert staged["id"] not in [p["id"] for p in client.get("/purchases").json()["purchases"]]
+
+
+def test_buying_moves_it_off_the_rail_into_the_closet():
+    staged = _stage()
+    bought = client.post(f"/cart/{staged['id']}/buy")
+    assert bought.status_code == 200, bought.text
+    purchase = bought.json()["purchase"]
+    assert purchase["in_closet"] is True
+    assert purchase["bought_at"]
+    assert staged["id"] not in [i["id"] for i in client.get("/cart").json()["items"]]
+    assert staged["id"] in [i["id"] for i in client.get("/closet").json()["closet"]]
+
+
+def test_removing_takes_it_off_the_rail():
+    staged = _stage()
+    assert client.delete(f"/cart/{staged['id']}").status_code == 200
+    assert staged["id"] not in [i["id"] for i in client.get("/cart").json()["items"]]
+
+
+def test_the_rail_is_empty_until_you_park_something():
+    assert client.get("/cart").json()["items"] == []
+
+
+def test_unnameable_things_get_refused_like_purchases():
+    res = client.post("/cart", json={"title": "asdf qwerty", "price": 10})
+    assert res.status_code == 422
+
+
+def test_buying_or_removing_nothing_is_a_404():
+    assert client.post("/cart/cart_u_nope/buy").status_code == 404
+    assert client.delete("/cart/cart_u_nope").status_code == 404

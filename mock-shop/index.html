@@ -3,16 +3,28 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <title>NORTHWICK: checkout</title>
 <style>
   :root { --ink:#16191c; --muted:#5d6771; --line:#e4e8ec; --accent:#111827; }
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif; color:var(--ink); background:#fafbfc; }
+  .puddlebar { background:linear-gradient(#fbf9f4 72%, rgba(251,249,244,0)); font-family:Outfit,ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif; position:sticky; top:0; z-index:20; }
+  .puddlebar .inner { max-width:1120px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
+  .puddlebar .inner { padding-top:22px; padding-bottom:22px; }
+  .puddlebar .pb { display:flex; align-items:center; gap:14px; font-weight:800; font-size:44px; letter-spacing:-0.035em; color:#1d2026; text-decoration:none; }
+  .puddlebar .pl { display:flex; align-items:center; gap:22px; font-size:15px; }
+  .puddlebar .pl a { color:#6b7280; text-decoration:none; }
+  .puddlebar .pl a:hover { color:#1d2026; }
+  .puddlebar .pc { background:#1d2026; color:#fff !important; border-radius:99px; padding:9px 16px; font-size:14px; font-weight:700; }
   header { border-bottom:1px solid var(--line); padding:16px 28px; display:flex; justify-content:space-between; align-items:center; }
   .brand { font-weight:800; letter-spacing:.18em; }
   .cart { color:var(--muted); font-size:14px; }
   .wrap { max-width:900px; margin:36px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px; padding:0 24px; }
-  .photo { background:#eef1f4; border-radius:18px; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:120px; }
+  .photo { background:#eef1f4; border-radius:12px; aspect-ratio:1; display:flex; align-items:center; justify-content:center; }
+  .photo svg { width:62%; height:auto; display:block; }
   h1 { font-size:26px; margin:6px 0; }
   .price { font-size:22px; font-weight:700; margin:10px 0 18px; }
   .muted { color:var(--muted); font-size:14px; }
@@ -27,20 +39,32 @@
 </style>
 </head>
 <body>
+  <nav class="puddlebar">
+    <div class="inner">
+      <a class="pb" href="/">
+        <svg viewBox="0 0 64 64" width="54" height="54" aria-hidden="true"><circle cx="32" cy="34" r="20" fill="#ffd166"/><circle cx="44" cy="20" r="12" fill="#ffd166"/><circle cx="48" cy="17" r="2.2" fill="#23262d"/><path d="M56 21 h9 l-3 5 h-6 z" fill="#f1893b"/></svg>
+        <span>Puddle</span>
+      </a>
+      <div class="pl">
+        <a href="/dashboard/">My closet</a>
+        <a class="pc" href="/#/home?install">Add to Chrome</a>
+      </div>
+    </div>
+  </nav>
   <header>
     <div class="brand">NORTHWICK</div>
-    <div class="cart">🛒 Cart (1)</div>
+    <div class="cart">Cart (1)</div>
   </header>
 
   <div class="wrap">
-    <div class="photo" id="emoji">🥾</div>
+    <div class="photo" id="photo"></div>
     <div>
-      <div class="muted">Demo item. Switch between them to see the duck change its mind.</div>
+      <div class="muted">Demo item</div>
       <div class="seg" id="seg"></div>
 
       <h1 id="title">Chelsea Boots</h1>
       <div class="price" id="price">$128.00</div>
-      <p class="muted" id="desc">Handsome, and you'll probably send them back. Full-grain leather.</p>
+      <p class="muted" id="desc">Full-grain leather. Runs narrow.</p>
 
       <div class="row"><span class="muted">Size</span> <select id="size"><option>8</option><option>9</option><option>10</option></select></div>
 
@@ -50,12 +74,24 @@
   <div class="hint">Load the <b>Puddle</b> extension (chrome://extensions → Load unpacked → <code>extension/</code>) and start the brain (<code>uvicorn brain.app:app --port 8000</code>). Then click Checkout.</div>
 
 <script>
+  // The garment silhouettes the dashboard draws (web/src/Garment.tsx): d is the
+  // shape, det the seam layer, lite the pale layer. One fill per colour, no
+  // image hosting.
+  const SHAPES = {
+    crewneck: { d:"M34 14 h20 l13 7 -6 12 -7 -4 v29 h-20 v-29 l-7 4 -6 -12 z",
+      det:"M39 14 h10 c0 3 -10 3 -10 0 z M34 52 h20 v6 h-20 z" },
+    blazer: { d:"M34 14 h20 l13 7 -6 12 -7 -4 v29 h-20 v-29 l-7 4 -6 -12 z",
+      det:"M34 14 h6 l4 16 -10 -4 z M54 14 h-6 l-4 16 10 -4 z M44 42 a2 2 0 1 1 0 4 a2 2 0 1 1 0 -4 z",
+      lite:"M40 14 h8 l-4 16 z" },
+    boots: { d:"M29 11 h21 v25 c6 3 12 7 15 12 l7 7 c3 5 0 11 -6 11 H29 z",
+      det:"M44 20 h6 v14 h-6 z M32 7 h4 v5 h-4 z M29 61 h41 v5 h-41 z" },
+  };
   const ITEMS = {
-    boots: { emoji:"🥾", desc:"Handsome, and you'll probably send them back. Full-grain leather.",
+    boots: { desc:"Full-grain leather. Runs narrow.", shape:"boots", fill:"#8a6244",
       item:{ id:"cand_boots", title:"Chelsea boots", category:"boots", formality:3, warmth:3, price:128, q:0.6, waterproof:false, size:"8", now_hour:23 } },
-    crewneck: { emoji:"🧥", desc:"Another charcoal crewneck. You have a type.",
+    crewneck: { desc:"Heavyweight charcoal crewneck.", shape:"crewneck", fill:"#3f4550",
       item:{ id:"cand_crew4", title:"Charcoal crewneck", category:"top", formality:2, warmth:3, price:68, q:0.7 } },
-    suit: { emoji:"🤵", desc:"Charcoal wool suit. Interview season is coming.",
+    suit: { desc:"Charcoal wool. Two-button.", shape:"blazer", fill:"#3f4550",
       item:{ id:"cand_suit", title:"Charcoal wool suit", category:"formal", formality:5, warmth:3, price:320, q:0.85 } },
   };
   let current = "boots";
@@ -71,7 +107,12 @@
 
   function paint() {
     const it = ITEMS[current].item;
-    document.getElementById("emoji").textContent = ITEMS[current].emoji;
+    const s = SHAPES[ITEMS[current].shape];
+    document.getElementById("photo").innerHTML =
+      `<svg viewBox="0 0 88 72" role="img" aria-label="${it.title}"><path d="${s.d}" fill="${ITEMS[current].fill}"/>` +
+      `<path d="${s.d}" fill="none" stroke="#2c2a24" stroke-opacity="0.22" stroke-width="1.5" stroke-linejoin="round"/>` +
+      (s.det ? `<path d="${s.det}" fill="#000" opacity="0.2"/>` : "") +
+      (s.lite ? `<path d="${s.lite}" fill="#fff" opacity="0.6"/>` : "") + `</svg>`;
     document.getElementById("title").textContent = it.title;
     document.getElementById("price").textContent = "$" + it.price.toFixed(2);
     document.getElementById("desc").textContent = ITEMS[current].desc;
@@ -90,7 +131,11 @@
 
   paint();
   if (document.body.dataset.puddleMode === "web") {
-    document.querySelector(".hint").textContent = "Click Checkout, then Talk to Puddle. Ask why, try another size, or ask what to get instead.";
+    document.querySelector(".hint").remove();
+  }
+  // Embedded in the landing page: the site's own nav is already there.
+  if (new URLSearchParams(location.search).has("embed")) {
+    document.querySelector(".puddlebar").remove();
   }
 </script>
 </body>

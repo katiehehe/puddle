@@ -6,31 +6,36 @@
     panel.className = "voice-panel";
     panel.innerHTML = `
       <style>
-        .voice-panel{border-top:2px solid #e5e7eb;margin-top:14px;padding-top:14px;color:#111827}
+        .voice-panel{border-top:1px solid #e7e3da;margin-top:14px;padding-top:14px;color:#1d2026}
         .voice-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-        .voice-controls button{background:#f3f4f6;color:#111827;border-radius:6px}
-        .voice-controls button:hover{background:#e5e7eb}
-        .voice-controls button[aria-pressed="true"]{background:#dc2626;color:#fff}
-        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:3px solid #3b82f6;outline-offset:2px}
+        .voice-controls button{background:#fff;color:#1d2026;border:1px solid #e7e3da;
+          border-radius:9px;padding:8px 12px;font-size:11px;font-weight:700}
+        .voice-controls button:hover{background:#f7f5ef}
+        .voice-controls button[aria-pressed="true"]{background:#c8493f;border-color:#c8493f;color:#fff}
+        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:2px solid #ffd166;outline-offset:2px}
         .voice-panel button:disabled{opacity:.55;cursor:default}
         .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#6b7280;margin:8px 0}
-        .voice-answer{font-size:14px;line-height:1.5;margin:8px 0;overflow-wrap:anywhere}
+        .voice-answer{font-size:14px;line-height:1.5;color:#1d2026;
+          margin:8px 0;overflow-wrap:anywhere}
         .voice-form{display:flex;gap:8px;margin-top:10px}
-        .voice-form input{width:0;flex:1;min-width:0;border:2px solid transparent;border-radius:6px;
-          padding:10px 12px;font-size:13px;background:#f3f4f6;color:#111827}
-        .voice-form input:focus{background:#fff;border-color:#3b82f6}
+        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #e7e3da;border-radius:9px;
+          padding:10px 12px;font-size:13px;background:#fff;color:#1d2026}
+        .voice-form input:focus{border-color:#ffd166}
         .voice-form input::placeholder{color:#6b7280}
-        .voice-label{display:block;font-size:12px;margin-top:12px;color:#6b7280;font-weight:600}
+        .voice-form button,.voice-confirm{background:#ffd166;color:#1d2026;border:0;border-radius:9px;
+          padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer}
+        .voice-label{display:block;font-size:10px;margin-top:12px;color:#6b7280;font-weight:700;
+          text-transform:uppercase;letter-spacing:.12em}
         .voice-panel [hidden]{display:none!important}
         @media(prefers-reduced-motion:reduce){.card{animation:none!important}}
       </style>
       <div class="voice-controls">
-        <button type="button" class="voice-mic" aria-pressed="false">Talk to Puddle</button>
+        <button type="button" class="voice-mic" aria-pressed="false">Ask the duck</button>
         <button type="button" class="voice-cancel" hidden>Cancel recording</button>
         <button type="button" class="voice-mute" aria-pressed="false">Mute replies</button>
       </div>
-      <p class="voice-status" role="status" aria-live="polite">Checking microphone setup...</p>
-      <label class="voice-label" for="puddle-question">Or type a question</label>
+      <p class="voice-status" role="status" aria-live="polite">Checking microphone...</p>
+      <label class="voice-label" for="puddle-question">Or type</label>
       <form class="voice-form">
         <input id="puddle-question" maxlength="1000" autocomplete="off" placeholder="Why should I skip these?">
         <button type="submit">Ask</button>
@@ -62,7 +67,7 @@
       clearTimeout(timer);
       stream?.getTracks().forEach(track => track.stop());
       stream = null;
-      mic.textContent = "Talk to Puddle";
+      mic.textContent = "Ask the duck";
       mic.setAttribute("aria-pressed", "false");
       cancel.hidden = true;
     }
@@ -197,9 +202,9 @@
       if (disposed) return;
       configured = result.configured && Boolean(navigator.mediaDevices?.getUserMedia && globalThis.MediaRecorder);
       if (!busy) mic.disabled = !configured;
-      status.textContent = !result.configured ? "Voice is not connected yet. You can type a question below." :
-        !configured ? "Microphone recording is unavailable here. Type a question below." :
-        "Tap to record. Audio is sent to Deepgram after you stop.";
+      status.textContent = !result.configured ? "Voice not connected. Type instead." :
+        !configured ? "No microphone here. Type instead." :
+        "Tap to record.";
     }).catch(error => { if (!disposed) status.textContent = error.message; });
     return () => {
       disposed = true; generation += 1; pendingMic = false;

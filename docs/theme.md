@@ -1,9 +1,10 @@
-# Puddle theme — Flat Pond
+# Puddle theme — Field Guide
 
-Adapted from the **Flat Design** system prompt — zero artificial depth.
-No shadows, no gradients, no blur, no bevels. Hierarchy comes from color
-blocks, scale, and typography. Confidently reductive, digital-native,
-print-poster inspired.
+Adapted from the **naturalist field journal / paper-and-ink** design language —
+cream paper, deep ink, ruled lines, and serif display type. The duck reads as a
+specimen in a birder's notebook: observed, catalogued, and annotated. No
+shadows, no gradients in components; depth comes from ink weight and paper
+tone. Hierarchy comes from rules, scale, and typography.
 
 One pond, three surfaces: the checkout duck (content script + popup), the
 dashboard, and the web demo. The mock shop (NORTHWICK) is a third-party
@@ -17,64 +18,65 @@ contract — keep the two declarations in sync.
 
 ## Palette
 
-Tailwind-adjacent hues, pond semantics. The duck is yellow — literally:
-the hero and popup header are a solid `#f2b431` color block.
+Pond tones on cream paper. The duck is ochre — like a field sketch tinted with
+watercolor.
 
 | Token          | Value     | Role                                                        |
 |----------------|-----------|-------------------------------------------------------------|
-| `duck`         | `#f2b431` | THE brand color block. Hero, popup header, duck orb, tags.  |
-| `duck-deep`    | `#92600a` | Duck hue that passes contrast as text on light tints.       |
-| `water`        | `#3b82f6` | Primary action + data. Links, pond fill, radar, live state. |
-| `water-dark`   | `#2563eb` | Hover/emphasis for water.                                   |
-| `water-tint`   | `#eff6ff` | Soft block: radar zone, chips, row hover.                   |
-| `reed`         | `#10b981` | "Good" / approving state.                                   |
-| `reed-dark`    | `#059669` | Reed as text/number on tints.                               |
-| `reed-tint`    | `#ecfdf5` | Soft block for positive surfaces.                           |
-| `warning`      | `#ef4444` | "Bad" / concerned state, gaps, declines.                    |
-| `warning-dark` | `#dc2626` | Warning hover/emphasis.                                     |
-| `warning-tint` | `#fef2f2` | Soft block for negative surfaces.                           |
-| `ink`          | `#111827` | Text — near-black. Also a color block (table header).       |
-| `muted`        | `#6b7280` | Secondary text. Never lighter.                              |
-| `line`         | `#e5e7eb` | Hairlines, pond track, card separation outline.             |
-| `surface`      | `#ffffff` | Cards — white blocks on the gray page.                      |
-| `page`/`block` | `#f3f4f6` | Canvas / secondary gray blocks.                             |
+| `duck`         | `#c98a2b` | Brand ochre. Life-mix bars, the Style Sharpe number.        |
+| `duck-deep`    | `#8a5a17` | Ochre that passes contrast as text on paper.                |
+| `water`        | `#3e6b8e` | Primary data — pond fill, radar, links, "live" state.       |
+| `water-dark`   | `#2f5570` | Water hover/emphasis.                                       |
+| `water-tint`   | `#e7edf1` | Soft wash behind water-tagged content.                      |
+| `reed`         | `#5b7a4b` | "Good" / approving state — olive like riverside reeds.      |
+| `reed-dark`    | `#47603a` | Reed as text/number on paper.                               |
+| `reed-tint`    | `#e9ecdd` | Soft wash for positive surfaces.                            |
+| `warning`      | `#a63d2f` | "Bad" / concerned state, gaps, declines — madder red.       |
+| `warning-dark` | `#86301f` | Warning hover/emphasis.                                     |
+| `warning-tint` | `#f2e3d9` | Soft wash for negative surfaces.                            |
+| `ink`          | `#2c2a24` | Text and every rule/border — warm near-black.               |
+| `muted`        | `#8a8270` | Secondary text — faded pencil.                              |
+| `line`         | `#cfc5a8` | Hairlines inside cards (paper-dark, not gray).              |
+| `surface`      | `#efe8d3` | Card paper — a shade deeper than the page.                  |
+| `page`         | `#f6f1e3` | Cream paper canvas with faint ruled lines.                  |
+| `block`        | `#e7dfca` | Inset blocks, hover washes.                                 |
 
 ## Rules
 
-- **Zero artificial depth.** `box-shadow: none` everywhere. Edges are
-  defined by color contrast or honest borders — never fake elevation.
-- **Color as structure.** Sections and groups are separated by background
-  color blocks (white card on gray page, ink table header, tinted stat
-  blocks), not lines or shadows. Row separators are thick `2px` blocks.
-- **The duck is yellow.** The hero and popup header are a solid
-  `duck`-yellow poster block with `ink` text (high contrast — white text
-  on `#f2b431` fails). Decorative geometry is white shapes at ~15% opacity.
-- **Semantic, not decorative.** `water` = interactive/data, `reed` = go,
-  `warning` = stop. Duck yellow = brand only.
-- **State accents ride the left edge.** The duck card's `8px` left border
-  and ledger rows take their accent (water/reed/warning) from `duck_state`.
-- **Type**: Outfit (400–800) everywhere it's loadable; extension falls
-  back to the system geometric stack. Headings `font-weight:800` with
-  `letter-spacing:-.02em`. Labels uppercase with wide tracking.
-- **Shape**: `6–8px` radii only. Pills (`99px`) are reserved for tags —
-  section pills, chips, flag pills. No organic blobs; decoration is
-  circles and rotated squares.
-- **Motion**: snappy `.2s` transitions. Feedback is scale (`hover:1.02–1.05`)
-  and color shifts — never depth. `prefers-reduced-motion` kills transforms.
-- **Focus**: no shadows means focus must be loud — solid `3px` water-blue
-  outline with `2px` offset.
+- **Ink rules, not shadows.** `box-shadow: none`. Structure comes from
+  `1px` ink borders, `3px double` rules, and `§` section markers — the way a
+  printed journal separates content. Ledger rows get an inset `4px` accent
+  stripe instead of a background tint.
+- **Paper, not chrome.** The page is cream with faint ruled lines; cards are
+  a deeper paper shade framed in ink. Nothing is pure white or pure black.
+- **Serif for observation, sans for apparatus.** Display and running text are
+  Fraunces / Source Serif 4 (Georgia fallback where fonts can't load, e.g. the
+  extension). Labels, table headers, chips, and buttons are Space Grotesk
+  small-caps — the stamped annotations of the journal.
+- **Italic means quote.** The duck's lines, hints, and the hero sub are set in
+  italic serif — handwriting beside the apparatus.
+- **State accents are muted natural dyes.** `water` = interactive/data,
+  `reed` = go, `warning` = stop, `duck` ochre = brand only. Everything is
+  desaturated relative to Flat Pond — print ink, not screen neon.
+- **State accents ride the left edge.** The duck card's `4px` left border and
+  ledger rows take their accent from `duck_state`.
+- **Shape**: square or `2px` radii. No pills with fills — chips are outlined
+  ("stamped"), never solid.
+- **Motion**: restrained `.15–.3s` transitions on fills only. A journal
+  doesn't bounce. `prefers-reduced-motion` kills transitions.
+- **Focus**: solid `2px` pond-blue outline with `2px` offset.
 
 ## The mascot
 
-The mascot is the duck emoji 🦆 inside a **solid duck-yellow circle**
-(white circle on the yellow hero). On the checkout card the mood rides in
-a small accent-colored badge on the orb — `?` curious, `!` concerned,
-`✓` approving, none for idle — while the card's left edge carries the
-state color.
+The mascot is the duck emoji 🦆 inside a **double-ruled circle** — the specimen
+ring of a field plate (`1px` border + `3px double` outline offset). On the
+checkout card the mood rides in a small accent-colored badge on the orb —
+`?` curious, `!` concerned, `✓` approving, none for idle — while the card's
+left edge carries the state color.
 
 Duck-related touches that stay tasteful:
 
-- The pond bar is a flat blue fill rising in a gray track — savings
-  visibly *fill*.
+- The pond bar is a ruled track with an ink frame that fills pond blue —
+  savings visibly *fill*.
 - Footprints (`❋ ❋ ❋`) only in footers/empty states — never in the
   decision card, where they'd cheapen the warning.

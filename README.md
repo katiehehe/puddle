@@ -28,6 +28,12 @@ npm install
 npm run dev                                # http://localhost:5173
 ```
 
+To serve the dashboard from the brain itself (one origin, so it works over a
+tunnel or any host), build it instead of running the dev server:
+```bash
+npm run build                                # then http://localhost:8000/dashboard/
+```
+
 ### 3. Mock shop (to demo the extension)
 ```bash
 cd mock-shop
@@ -130,3 +136,10 @@ Click Checkout, then Talk to Puddle. Deepgram transcribes the question, the
 duck answers from the current item and wardrobe history, and ElevenLabs speaks
 the answer (browser speech if no key is set). The same controls work
 in the Chrome extension. See [voice setup](docs/voice.md).
+
+**Ask Puddle** on the dashboard opens the same microphone and text box scoped to
+the whole closet rather than one item: what you own for rain, what you never
+wear, where the coverage holes are, what late-night buying costs you, how often
+the duck has been right. Same deterministic brain — every answer carries the
+statistic behind it, and a question it cannot cite is refused rather than
+answered.

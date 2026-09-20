@@ -2,26 +2,23 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
-  // docs/theme.md — Flat Pond palette, kept in sync with web/src/styles.css.
+  // web/src/styles.css — light cards on warm paper: ink text, duck-yellow accents.
   const PALETTE = {
-    ink: "#111827", muted: "#6b7280", line: "#e5e7eb",
-    duck: "#f2b431", duckDeep: "#92600a", bill: "#ef7a2c",
-    water: "#3b82f6", waterDeep: "#2563eb", waterTint: "#eff6ff", ripple: "#c7d8ea", foam: "#f3f4f6",
-    good: "#10b981", bad: "#ef4444", surface: "#ffffff", surfaceHi: "#f3f4f6",
-    page: "#f3f4f6"
+    ink: "#1d2026", muted: "#6b7280", line: "#e7e3da", track: "#eceadf",
+    duck: "#ffd166", beak: "#f1893b",
+    good: "#2f8f5b", bad: "#c8493f",
   };
 
-  // The mascot is the duck emoji; mood rides in a small badge and the card accent.
-  const DUCK = (state) => {
-    const mark = { curious: "?", concerned: "!", approving: "✓" }[state] || "";
-    return `<div class="duckwrap"><span class="duckmoji">🦆</span>${
-      mark ? `<span class="mood">${mark}</span>` : ""}</div>`;
-  };
+  // The same mascot the app draws — a yellow circle duck, not an emoji.
+  const DUCK = `<svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true">
+    <circle cx="32" cy="34" r="20" fill="${PALETTE.duck}"/>
+    <circle cx="44" cy="20" r="12" fill="${PALETTE.duck}"/>
+    <circle cx="48" cy="17" r="2.2" fill="#23262d"/>
+    <path d="M56 21 h9 l-3 5 h-6 z" fill="${PALETTE.beak}"/></svg>`;
 
-  const HEADER = {
-    idle: "Puddle", curious: "Hmm",
-    concerned: "Quack", approving: "Go on then",
-  };
+  // Where the duck's reasoning is shown in full.
+  const DASHBOARD = (document.body.dataset.puddleMode === "web" ? "" : "http://localhost:8000")
+    + "/dashboard/?item=";
 
   let host = null, shadow = null, lastKey = "", dismissTimer = null, voiceCleanup = null, renderVersion = 0, scoreVersion = 0;
 
@@ -45,18 +42,52 @@
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
   ));
 
+  // Escaped text with the numbers that matter picked out — prices and
+  // percentages get a duck-yellow underline.
+  const emph = (text) => esc(text).replace(
+    /(\$\d[\d,]*(?:\.\d+)?|\b\d+(?:\.\d+)?%)/g,
+    '<u class="hl">$1</u>'
+  );
+
   function chip(result) {
     const i = (result.insights || [])[0];
     if (!i) return "";
     const dupes = ((result.portfolio || {}).redundant_with || []).length;
     if (i.type === "return_pattern") {
-      return `returned ${i.stat.returned}/${i.stat.total}${i.stat.size ? ", size " + i.stat.size : ""}`;
+      return `you sent back ${i.stat.returned} of ${i.stat.total}${i.stat.size ? ", size " + i.stat.size : ""}`;
     }
-    if (i.type === "time_pattern") return `${Math.round((i.stat.return_rate || 0) * 100)}% returned this late`;
-    if (i.type === "redundancy") return `${dupes || i.stat.owned_similar} similar owned`;
-    if (i.type === "coverage_gap") return `covers ${i.stat.state}`;
-    if (i.type === "overexposure") return "over-concentrated";
+    if (i.type === "time_pattern") return `${Math.round((i.stat.return_rate || 0) * 100)}% of late-night buys go back`;
+    if (i.type === "redundancy") return `${dupes || i.stat.owned_similar} similar already owned`;
+    if (i.type === "coverage_gap") return `nothing else for ${i.stat.state}`;
+    if (i.type === "overexposure") return "you have plenty of these";
     return "";
+  }
+
+  const cash = (n) => "$" + Number(n).toFixed(2).replace(/\.00$/, "");
+
+  /* The checkout facts, said the way a friend would say them: what you already
+   * own, whether this price is normal for you, what it works out to per wear. */
+  function facts(shopping) {
+    if (!shopping) return [];
+    const lines = [];
+    if (shopping.owned_count > 0 && shopping.closest) {
+      lines.push(
+        `You already own ${shopping.owned_count} of these. You've worn your ${shopping.closest.title} ` +
+        `${shopping.closest.wears} time${shopping.closest.wears === 1 ? "" : "s"}.`
+      );
+    }
+    if (shopping.typical_price != null && shopping.difference != null) {
+      const gap = Math.abs(shopping.difference);
+      lines.push(
+        gap < 1
+          ? `That's about what you usually pay (${shopping.basis}).`
+          : `That's ${cash(gap)} ${shopping.difference > 0 ? "below" : "above"} what you usually pay ` +
+            `(${shopping.basis}: ${cash(shopping.typical_price)}).`
+      );
+    }
+    const twenty = (shopping.per_wear_at || {})[20];
+    if (twenty) lines.push(`Wear it 20 times and it costs ${cash(twenty)} a wear.`);
+    return lines;
   }
 
   const send = msg => globalThis.PuddleSend(msg);
@@ -72,77 +103,125 @@
     voiceCleanup?.();
     ensureHost();
     const state = result.duck_state || "idle";
-    const accent = state === "concerned" ? PALETTE.bad : state === "approving" ? PALETTE.good : PALETTE.water;
     const pond = (await send({ type: "pond" })) || { saved: 0 };
     if (version !== renderVersion) return;
     const c = chip(result);
+    const money = result.shopping;
+    const advice = result.advice || null;
+    // Puddle's own sentences when the brain has them; the old facts otherwise.
+    const plain = advice ? advice.reasons.map(r => r.text) : facts(money);
+    // The card stays compact: three reasons up front, the rest under "Tell me more".
+    const shown = plain.slice(0, 3), rest = plain.slice(3);
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
+    const verdictTone = advice
+      ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.ink
+      : PALETTE.ink;
+    const verdictBg = advice
+      ? advice.stance === "for" ? "#e7f4ec" : advice.stance === "against" ? "#faecea" : "#f2efe7"
+      : "#f2efe7";
     // One event_id per intentional action; the brain dedupes retries on it.
     const skipEvent = crypto.randomUUID();
 
     shadow.innerHTML = `
       <style>
-        *{box-sizing:border-box;font-family:"Outfit",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-        .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
-          background:${PALETTE.surface};
-          border-radius:0 8px 8px 0;padding:16px 18px;animation:pop .2s ease;
-          border-left:8px solid ${accent};outline:2px solid ${PALETTE.line}}
+        *{box-sizing:border-box;font-family:"Outfit",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+        .card{width:min(320px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
+          background:#fff;color:${PALETTE.ink};border-radius:18px;
+          border:1px solid ${PALETTE.line};
+          padding:16px 18px;animation:pop .2s ease;
+          box-shadow:0 1px 2px rgba(29,32,38,.05),0 12px 32px rgba(29,32,38,.12)}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-        .row{display:flex;gap:12px;align-items:flex-start}
-        .duckwrap{position:relative;flex-shrink:0;width:56px;height:56px;border-radius:50%;
-          background:${PALETTE.duck};
-          display:flex;align-items:center;justify-content:center}
-        .duckmoji{font-size:34px;line-height:1}
-        .mood{position:absolute;top:-4px;right:-4px;width:20px;height:20px;border-radius:50%;
-          background:${accent};color:#fff;font-size:12px;font-weight:800;
-          display:flex;align-items:center;justify-content:center}
-        .bubble{flex:1}
-        .quack{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${PALETTE.muted};font-weight:700}
-        .line{font-size:15px;line-height:1.45;color:${PALETTE.ink};margin:3px 0 8px;font-weight:500}
-        .chip{display:inline-block;background:${PALETTE.waterTint};border-radius:99px;
-          padding:4px 12px;font-size:12px;color:${PALETTE.waterDeep};margin-bottom:10px;font-weight:700}
-        .btns{display:flex;gap:8px;justify-content:flex-end}
-        button{border-radius:6px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;
-          border:none;transition:all .2s}
-        button:hover{transform:scale(1.05)}
-        button:active{transform:scale(.97)}
-        button:focus-visible{outline:3px solid ${PALETTE.water};outline-offset:2px}
-        .skip{background:${accent};color:#fff}
-        .buy{background:${PALETTE.foam};color:${PALETTE.ink}}
-        .buy:hover{background:${PALETTE.line}}
-        .pond{margin-top:14px;height:10px;border-radius:6px;background:${PALETTE.line};overflow:hidden}
-        .fill{height:100%;background:${PALETTE.water};
+        .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px}
+        .duckhead b{color:${PALETTE.muted};font-weight:700}
+        .x{margin-left:auto;background:none;border:0;color:${PALETTE.muted};
+          font-size:15px;line-height:1;padding:4px;cursor:pointer;border-radius:6px}
+        .x:hover{color:${PALETTE.ink};background:#f4f1ea}
+        .hl{font-weight:700;text-decoration:underline;text-decoration-color:${PALETTE.duck};
+          text-decoration-thickness:2.5px;text-underline-offset:2px}
+        .verdict{display:inline-block;font-size:15px;font-weight:800;color:${verdictTone};
+          background:${verdictBg};border-radius:99px;padding:5px 14px;margin:0 0 12px}
+        .line{font-size:14px;line-height:1.5;color:${PALETTE.ink};margin:0 0 10px}
+        .chip{display:inline-block;border:1px solid ${PALETTE.line};
+          padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+          color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:99px}
+        .btns{display:flex;gap:8px}
+        .btns button{flex:1;padding:11px 0;font-size:14px;font-weight:700;cursor:pointer;
+          border-radius:12px;transition:all .15s}
+        button:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
+        .skip{background:${PALETTE.duck};color:${PALETTE.ink};border:0}
+        .skip:hover{transform:translateY(-1px)}
+        .buy{background:#fff;color:${PALETTE.ink};border:1px solid ${PALETTE.line}}
+        .buy:hover{background:#f7f5ef}
+        .pond{margin-top:14px;height:6px;background:${PALETTE.track};
+          border-radius:99px;overflow:hidden}
+        .fill{height:100%;background:${PALETTE.duck};
           width:${pondPct(pond.saved)}%;transition:width .3s ease}
         @media(prefers-reduced-motion:reduce){.card{animation:none}}
-        .saved{font-size:12px;color:${PALETTE.water};margin-top:5px;font-weight:600}
+        .saved{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+          color:${PALETTE.muted};margin-top:6px;font-weight:700}
+        .ask{font-size:13px;font-weight:700;color:${PALETTE.ink};margin:12px 0 10px}
         .done{font-size:14px;color:${PALETTE.ink}}
         .checkout-review{border-top:2px solid ${PALETTE.line};margin-top:12px;padding-top:12px}
         .checkout-review h3{font-size:15px;margin:0 0 8px;color:${PALETTE.ink}}
         .checkout-summary{display:grid;grid-template-columns:1fr auto;gap:5px 12px;
-          padding:10px;background:${PALETTE.surfaceHi};border-radius:6px;color:${PALETTE.ink}}
+          padding:10px;background:#f7f5ef;border-radius:12px;color:${PALETTE.ink}}
         .checkout-summary b{text-align:right}
         .checkout-note,.checkout-status{font-size:12px;line-height:1.45;color:${PALETTE.muted};margin:8px 0}
         .checkout-status{color:${PALETTE.bad}}
         .checkout-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
-        .confirm-purchase{background:${PALETTE.waterDeep};color:#fff}
-        .back-checkout{background:${PALETTE.foam};color:${PALETTE.ink}}
+        .checkout-actions button{padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+        .confirm-purchase{background:${PALETTE.duck};color:${PALETTE.ink};border:0}
+        .back-checkout{background:#fff;color:${PALETTE.ink};border:1px solid ${PALETTE.line}}
+        .facts{margin:0 0 10px;padding:0;list-style:none}
+        .facts li{font-size:13px;line-height:1.5;color:${PALETTE.muted};margin-bottom:4px}
+        .cardlinks{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 12px}
+        .more,.why{font-size:12px;font-weight:600;color:${PALETTE.muted};
+          text-decoration:underline;text-underline-offset:2px}
+        .more{background:none;border:none;padding:0;cursor:pointer}
+        .why{display:inline-block}
+        .nums{display:none;font-size:12px;color:${PALETTE.muted};margin-bottom:10px;line-height:1.6}
+        .nums.open{display:block}
+        .nums b{color:${PALETTE.ink}}
       </style>
       <div class="card" id="card">
-        <div class="row">
-          <div>${DUCK(state)}</div>
-          <div class="bubble">
-            <div class="quack">${esc(HEADER[state] || "Puddle")}</div>
-            <div class="line">${esc(line)}</div>
-            ${c ? `<span class="chip">${esc(c)}</span>` : ""}
-            <div class="btns">
-              <button class="buy" id="buy">Buy anyway</button>
-              <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
-            </div>
-          </div>
+        <div class="duckhead">${DUCK}<b>Puddle</b>
+          <button class="x" id="close" aria-label="Close" title="Close">✕</button>
+        </div>
+        ${advice ? `<div class="verdict">${esc(advice.verdict)}</div>` : ""}
+        <div class="line">${emph(line)}</div>
+        ${c ? `<span class="chip">${esc(c)}</span>` : ""}
+        <ul class="facts">${shown.map(f => `<li>${emph(f)}</li>`).join("")}</ul>
+        <div class="ask">Still worth it?</div>
+        <div class="cardlinks">
+          <button class="more" id="more">Tell me more</button>
+          <a class="why" target="_blank" rel="noopener"
+             href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">See my closet</a>
+          <button class="more" id="asktoggle">Ask the duck</button>
+        </div>
+        <div class="nums" id="nums">
+          ${rest.length ? `<ul class="facts">${rest.map(f => `<li>${emph(f)}</li>`).join("")}</ul>` : ""}
+          ${money ? `Worth about <b>${esc(cash(money.resale))}</b> resold. ` : ""}
+          At 5 wears <b>${esc(cash((money?.per_wear_at || {})[5] || 0))}</b> each,
+          at 10 <b>${esc(cash((money?.per_wear_at || {})[10] || 0))}</b>,
+          at 20 <b>${esc(cash((money?.per_wear_at || {})[20] || 0))}</b>.
+        </div>
+        <div id="voiceslot" hidden></div>
+        <div class="btns">
+          <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
+          <button class="buy" id="buy">Buy anyway</button>
         </div>
         <div class="pond"><div class="fill"></div></div>
         <div class="saved">$${esc(pond.saved)} in the pond</div>
       </div>`;
+
+    const more = shadow.getElementById("more");
+    if (more) {
+      more.onclick = () => {
+        const nums = shadow.getElementById("nums");
+        const open = nums.classList.toggle("open");
+        more.textContent = open ? "Show less" : "Tell me more";
+      };
+    }
 
     voiceCleanup = globalThis.PuddleVoice.attach(shadow, item, total => {
       shadow.querySelector(".fill").style.width = pondPct(total) + "%";
@@ -150,14 +229,30 @@
     }, result.prediction_id);
     if (result.speak) speak(line);
 
+    // The voice panel starts tucked away — "Ask the duck" opens it.
+    const slot = shadow.getElementById("voiceslot");
+    const panelEl = shadow.querySelector(".voice-panel");
+    if (slot && panelEl) slot.appendChild(panelEl);
+    const askToggle = shadow.getElementById("asktoggle");
+    if (askToggle && slot) {
+      askToggle.onclick = () => {
+        slot.hidden = !slot.hidden;
+        askToggle.textContent = slot.hidden ? "Ask the duck" : "Hide the duck";
+      };
+    }
+
+    const close = () => {
+      clearTimeout(dismissTimer);
+      dismissTimer = null;
+      voiceCleanup?.(); voiceCleanup = null;
+      if (host) host.remove();
+      host = null;
+    };
+    shadow.getElementById("close").onclick = close;
+
     const dismiss = (after) => {
       clearTimeout(dismissTimer);
-      dismissTimer = setTimeout(() => {
-        voiceCleanup?.(); voiceCleanup = null;
-        if (host) host.remove();
-        host = null;
-        dismissTimer = null;
-      }, after);
+      dismissTimer = setTimeout(close, after);
     };
 
     shadow.getElementById("skip").onclick = async () => {
@@ -165,7 +260,7 @@
       try { next = await send({ type: "skip", item, prediction_id: result.prediction_id, event_id: skipEvent }); }
       catch (error) { shadow.querySelector(".line").textContent = error.message; return; }
       if (version !== renderVersion) return;
-      shadow.querySelector(".line").textContent = "Skipped. Added to the pond.";
+      shadow.querySelector(".line").textContent = "Skipped. That money's in your pond.";
       shadow.querySelector(".fill").style.width = pondPct(next.saved) + "%";
       shadow.querySelector(".saved").textContent = `$${next.saved} in the pond`;
       shadow.querySelector(".btns").remove();
@@ -211,7 +306,7 @@
             ${esc(confirmationLabel)}
           </button>
         </div>`;
-      shadow.querySelector(".bubble").appendChild(review);
+      shadow.querySelector(".card").appendChild(review);
       const back = review.querySelector(".back-checkout");
       const confirm = review.querySelector(".confirm-purchase");
       const status = review.querySelector(".checkout-status");

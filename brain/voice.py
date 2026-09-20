@@ -12,7 +12,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import storage
+from . import ask, storage
 from .catalog import STOREFRONT
 
 router = APIRouter(prefix="/voice", tags=["voice"])
@@ -54,6 +54,8 @@ def status():
 
 class SpeechRequest(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
+    # The duck voice is played back fast, so it is rendered slow and warm.
+    ducky: bool = False
 
 
 @router.post("/speak")
@@ -73,7 +75,11 @@ async def speak(req: SpeechRequest):
                 json={
                     "text": text,
                     "model_id": ELEVENLABS_MODEL,
-                    "voice_settings": {"stability": 0.45, "similarity_boost": 0.75, "speed": 1.05},
+                    "voice_settings": (
+                        {"stability": 0.75, "similarity_boost": 0.95, "style": 0.2, "speed": 0.72}
+                        if req.ducky
+                        else {"stability": 0.45, "similarity_boost": 0.75, "speed": 1.05}
+                    ),
                 },
             )
         if response.status_code in (401, 403):
@@ -211,7 +217,7 @@ def respond(req: VoiceQuestion):
             answer += "Ask what to buy for an interview, what to stop buying, or how much you have saved."
         return {"answer": answer.replace(" — ", ", "), "pending_action": None, "scope": "wardrobe"}
     item = _resolve(req)
-    closet, miner, _ = _context()
+    closet, miner, counts = _context()
     now = datetime.now()
     if req.now_hour is not None:
         now = now.replace(hour=req.now_hour, minute=40)
@@ -271,6 +277,16 @@ def respond(req: VoiceQuestion):
             else "I do not have a strong reason to recommend buying or skipping this item."
         )
     else:
-        response["answer"] = "Ask why I recommend this item, what about size nine, or what to get instead."
+        # A question the checkout handler has no reading of is usually about the
+        # closet rather than the thing on the page, so it goes to the wardrobe
+        # answers before it becomes a list of supported commands.
+        wardrobe = ask.answer(req.transcript, closet, miner, counts)
+        if wardrobe is not None:
+            response.update(answer=wardrobe["answer"], intent=wardrobe["intent"], scope="wardrobe")
+        else:
+            response["answer"] = (
+                "Ask why I recommend this item, what about size nine, or what to get instead. "
+                "I can also answer about your closet: what you own for rain, or what you never wear."
+            )
     response["answer"] = response["answer"].replace(" \u2014 ", ", ")
     return response
