@@ -24,7 +24,7 @@ ELEVENLABS_URL = "https://api.elevenlabs.io/v1/text-to-speech"
 # Flash is the low-latency model; the duck has to answer while the shopper waits.
 ELEVENLABS_MODEL = "eleven_flash_v2_5"
 ELEVENLABS_FORMAT = "mp3_44100_64"
-DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"
+DEFAULT_VOICE_ID = "FGY2WhTYpPnrIDTdsKH5"  # ElevenLabs "Laura"
 MAX_SPEECH_CHARS = 600
 
 
