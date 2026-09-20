@@ -1,3 +1,4 @@
+import AskPuddle from "./AskPuddle";
 import { useEffect, useState } from "react";
 import {
   CatalogItem, Score, Status,
@@ -174,7 +175,7 @@ function LiveScorer({ items }: { items: CatalogItem[] }) {
               <div><span className="lbl">beta</span><b>{pf.beta}</b></div>
               <div><span className="lbl">Sharpe before</span><b>{pf.style_sharpe_before}</b></div>
               <div><span className="lbl">Sharpe after</span><b className={pf.style_sharpe_after >= pf.style_sharpe_before ? "good" : "bad"}>{pf.style_sharpe_after}</b></div>
-              <div><span className="lbl">covers</span><b>{pf.covers_gap?.label ?? "—"}</b></div>
+              <div><span className="lbl">covers</span><b>{pf.covers_gap?.label ?? "None"}</b></div>
             </div>
           )}
         </div>
@@ -239,6 +240,7 @@ export default function App() {
           )}
         </div>
       </header>
+      <AskPuddle />
 
       <section className="stats">
         <div className="stat big">

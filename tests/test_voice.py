@@ -190,3 +190,21 @@ def test_integrated_demo_serves_shared_voice_assets_only():
     for filename in ["transport.js", "voice.js", "content.js"]:
         assert client.get("/demo-assets/" + filename).status_code == 200
     assert client.get("/demo-assets/.env").status_code == 404
+
+
+def test_dashboard_questions_do_not_mutate_state():
+    from brain import storage
+
+    before = storage.actions()
+    questions = [
+        "What should I buy for an interview?",
+        "What should I stop buying?",
+        "How much have I saved?",
+        "My wardrobe?",
+    ]
+    for text in questions:
+        response = client.post('/voice/respond', json={'scope': 'wardrobe', 'transcript': text})
+        assert response.status_code == 200
+        assert response.json()['answer']
+        assert response.json()['pending_action'] is None
+    assert storage.actions() == before
