@@ -956,20 +956,11 @@ function Dashboard() {
 
   const summary = useMemo(() => {
     if (!me) return null;
-    const best = me.shopping.best_value;
     return [
-      { label: "Your closet", value: `${me.shopping.items_owned} items`, note: "things you own" },
-      {
-        label: "Actually in rotation",
-        value: `${me.shopping.in_rotation} items`,
-        note: "worn at least once",
-      },
-      { label: "Wears recorded", value: String(me.usage.total_wears), note: "across your closet" },
-      {
-        label: "Best value",
-        value: best ? money(best.cost_per_wear) : round(me.value.saved),
-        note: best ? `${best.title} per wear` : "saved by skipping",
-      },
+      { label: "Things you own", value: String(me.shopping.items_owned) },
+      { label: "Spent on them", value: round(me.value.spent) },
+      { label: "Worth today", value: round(me.value.worth_now) },
+      { label: "Saved by skipping", value: round(me.value.saved) },
     ];
   }, [me]);
 
@@ -1004,7 +995,7 @@ function Dashboard() {
         <p>What you own, what you actually wear, and whether the next thing is worth it.</p>
         <div className="statrow">
           {summary.map((s) => (
-            <Stat key={s.label} label={s.label} value={s.value} note={s.note} />
+            <Stat key={s.label} label={s.label} value={s.value} />
           ))}
         </div>
       </header>
