@@ -38,7 +38,10 @@ STATE_WORDS: dict[str, tuple[str, ...]] = {
     "casual_warm": ("casual", "class", "everyday"),
 }
 
-_QUANTITY = re.compile(r"\b(how many|how much|do i own|do i have|what do i own|what do i have|own any|have any)\b")
+_QUANTITY = re.compile(
+    r"\b(how many|how much|do i own|do i have|what do i own|what do i have|own any|have any|"
+    r"count|number of)\b"
+)
 
 # A question has to be about the shopper's own things before any handler gets
 # to read it. Without this, an occasion word inside "will it rain in Boston"
@@ -54,7 +57,8 @@ _MINE = re.compile(
 # rain" are the same grammar, and only one of the two subjects exists here.
 _SUBJECT = re.compile(
     r"\b(?:on|in|at|for|about|to|from|with|my|your|a|an|the|this|that|"
-    r"buy|buying|bought|own|owns|wear|wearing|spend|spent|spending)\s+(?=(\w+))"
+    r"more|another|other|new|some|any|does|\w+ing|"
+    r"buy|bought|own|owns|wear|spend|spent)\s+(?=(\w+))"
 )
 
 # Words that name nothing in particular: question words, verbs about shopping,
@@ -168,6 +172,10 @@ class Wardrobe:
         for colour in {i.color for i in self.items}:
             if re.search(rf"\b{re.escape(colour)}\b", text):
                 return colour, [i for i in self.items if i.color == colour]
+        titles = {word for i in self.items for word in re.findall(r"\w{4,}", i.title.lower())}
+        for word in sorted(titles):
+            if re.search(rf"\b{re.escape(word)}s?\b", text):
+                return word, [i for i in self.items if word in i.title.lower()]
         return None
 
 

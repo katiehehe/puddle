@@ -80,6 +80,10 @@ def test_wardrobe_words_in_another_subject_are_not_an_answer():
         "What is my best buy in cryptocurrency?",
         "How much have I spent on Bitcoin?",
         "What do I own for rain on Mars?",
+        "How much have I spent buying more Bitcoin?",
+        "What do I own for rain while visiting Mars?",
+        "How many jackets does Elon Musk own?",
+        "How much have I spent on groceries?",
     ):
         assert ask(question)["intent"] == "unknown", question
 
@@ -97,6 +101,8 @@ def test_the_questions_it_does_answer_survive_that_guard():
         "What is my return rate?": "returns",
         "How much have I spent in total?": "spend",
         "How much money have I saved altogether?": "saved",
+        "Could you please count my crewnecks?": "count",
+        "How many jackets do I own?": "count",
     }
     for question, intent in answerable.items():
         assert ask(question)["intent"] == intent, question
