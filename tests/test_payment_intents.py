@@ -46,8 +46,12 @@ def test_mock_intent_requires_confirmation_and_records_one_purchase(monkeypatch)
 
 def test_tampered_intent_is_rejected_without_an_action():
     intent = create_intent()
-    replacement = "A" if intent["token"][-1] != "A" else "B"
-    tampered = intent["token"][:-1] + replacement
+    # The last base64 character carries spare bits, so edit one that does not:
+    # a trailing edit can decode back to the very signature it meant to break.
+    payload, signature = intent["token"].split(".", 1)
+    middle = len(signature) // 2
+    replacement = "A" if signature[middle] != "A" else "B"
+    tampered = f"{payload}.{signature[:middle]}{replacement}{signature[middle + 1:]}"
     response = client.post("/payment-intents/confirm", json={"token": tampered, "confirmed": True})
     assert response.status_code == 400
     assert "signature" in response.json()["detail"].lower()
