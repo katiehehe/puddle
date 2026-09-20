@@ -137,6 +137,7 @@
         .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;
           cursor:grab;user-select:none;touch-action:none}
         .duckhead:active{cursor:grabbing}
+        .duckhead svg{flex:0 0 auto}
         .duckhead b{color:${PALETTE.muted};font-weight:700}
         .x{margin-left:auto;background:none;border:0;color:${PALETTE.muted};
           font-size:15px;line-height:1;padding:4px;cursor:pointer;border-radius:6px;touch-action:auto}
