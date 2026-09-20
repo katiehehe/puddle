@@ -54,6 +54,7 @@ function Duck({ size = 40 }: { size?: number }) {
 
 function CheckoutMock() {
   const [url, setUrl] = useState("northwick.com/shoes/chelsea-boots");
+  const mockRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // The embedded shop reports which item it's showing so the URL bar follows.
     const onMessage = (event: MessageEvent) => {
@@ -63,11 +64,22 @@ function CheckoutMock() {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, []);
+  const openFull = () => {
+    const el = mockRef.current;
+    if (el?.requestFullscreen) {
+      el.requestFullscreen().catch(() => window.open("/demo", "_blank", "noopener"));
+    } else {
+      window.open("/demo", "_blank", "noopener");
+    }
+  };
   return (
-    <div className="mock">
+    <div className="mock" ref={mockRef}>
       <div className="mockbar">
         <span /> <span /> <span />
         <div className="mockurl">{url}</div>
+        <button className="fsbtn" onClick={openFull} title="Open the demo full screen">
+          ⤢ Full screen
+        </button>
       </div>
       <iframe className="demoframe" src="/demo?embed=1" title="Puddle live demo" />
     </div>
