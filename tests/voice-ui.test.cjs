@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const { webcrypto } = require('node:crypto');
 const code = fs.readFileSync('extension/voice.js', 'utf8');
 
-function harness({ configured = false, getUserMedia } = {}) {
+function harness({ configured = false, getUserMedia, speechAvailable = true } = {}) {
   const nodes = new Map();
   const calls = [], tracks = [], recorders = [];
   const node = selector => {
@@ -48,6 +48,7 @@ function harness({ configured = false, getUserMedia } = {}) {
     SpeechSynthesisUtterance: class { constructor(text) { this.text = text; } },
     speechSynthesis: { cancel() {}, speak() {} }
   };
+  if (!speechAvailable) { delete context.speechSynthesis; delete context.SpeechSynthesisUtterance; }
   context.PuddleSend = msg => new Promise(resolve => context.chrome.runtime.sendMessage(msg, resolve));
   vm.runInNewContext(code, context);
   let saved;
@@ -105,5 +106,32 @@ test('a skip question needs explicit confirmation before recording an action', a
   await h.node('.voice-confirm').onclick();
   assert.equal(h.calls.filter(m => m.type === 'record_skip').length, 1);
   assert.equal(h.saved, 128);
+  h.dispose();
+});
+
+
+test('typed questions and cleanup work without browser speech output', async () => {
+  const h = harness({ speechAvailable: false }); await settle();
+  h.node('input').value = 'Why these?';
+  await h.node('.voice-form').submit({ preventDefault() {} });
+  assert.equal(h.node('.voice-answer').textContent, 'You returned four pairs.');
+  assert.equal(h.node('[type=submit]').disabled, false);
+  h.node('.voice-mute').onclick();
+  h.dispose();
+});
+
+test('a cancelled permission request cannot stop a newer recording', async () => {
+  let rejectFirst, count = 0;
+  const h = harness({ configured: true, getUserMedia: () => ++count === 1
+    ? new Promise((resolve, reject) => { rejectFirst = reject; })
+    : Promise.resolve(h.acquired()) });
+  await settle();
+  const first = h.node('.voice-mic').onclick();
+  h.node('.voice-cancel').onclick();
+  await h.node('.voice-mic').onclick();
+  rejectFirst(new Error('Old permission request failed'));
+  await first;
+  assert.equal(h.tracks[0].stopped, false);
+  assert.equal(h.node('.voice-mic').textContent, 'Stop and ask');
   h.dispose();
 });
