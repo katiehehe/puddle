@@ -51,20 +51,23 @@
   <div class="hint">Load the <b>Puddle</b> extension (chrome://extensions → Load unpacked → <code>extension/</code>) and start the brain (<code>uvicorn brain.app:app --port 8000</code>). Then click Checkout.</div>
 
 <script>
-  // The garment silhouettes the dashboard draws (web/src/Garment.tsx): one
-  // shape per category, one fill per colour, no image hosting.
+  // The garment silhouettes the dashboard draws (web/src/Garment.tsx): d is the
+  // shape, det the seam layer, lite the pale layer. One fill per colour, no
+  // image hosting.
   const SHAPES = {
-    top: "M22 16 L34 10 h20 l12 6 -6 12 -6 -3 v35 h-20 v-35 l-6 3 z",
-    outer: "M20 16 L34 9 v10 l6 6 6 -6 V9 l14 7 -4 14 v34 h-32 v-34 z",
-    shoes: "M14 44 h14 l10 6 h16 c8 0 14 3 14 8 v6 h-54 z",
-    boots: "M28 10 h22 v26 c5 3 11 6 15 11 l7 7 c3 4 1 10 -5 10 H28 z",
+    crewneck: { d:"M34 14 h20 l13 7 -6 12 -7 -4 v29 h-20 v-29 l-7 4 -6 -12 z",
+      det:"M39 14 h10 c0 3 -10 3 -10 0 z M34 52 h20 v6 h-20 z" },
+    blazer: { d:"M34 14 h20 l13 7 -6 12 -7 -4 v29 h-20 v-29 l-7 4 -6 -12 z",
+      det:"M40 14 l4 15 -7 5 9 1 -2 -18 z M48 14 l-4 15 7 5 -9 1 2 -18 z" },
+    boots: { d:"M29 11 h21 v25 c6 3 12 7 15 12 l7 7 c3 5 0 11 -6 11 H29 z",
+      det:"M44 20 h6 v14 h-6 z M32 7 h4 v5 h-4 z M29 61 h41 v5 h-41 z" },
   };
   const ITEMS = {
     boots: { desc:"Full-grain leather. Runs narrow.", shape:"boots", fill:"#8a6244",
       item:{ id:"cand_boots", title:"Chelsea boots", category:"boots", formality:3, warmth:3, price:128, q:0.6, waterproof:false, size:"8", now_hour:23 } },
-    crewneck: { desc:"Heavyweight charcoal crewneck.", shape:"top", fill:"#3f4550",
+    crewneck: { desc:"Heavyweight charcoal crewneck.", shape:"crewneck", fill:"#3f4550",
       item:{ id:"cand_crew4", title:"Charcoal crewneck", category:"top", formality:2, warmth:3, price:68, q:0.7 } },
-    suit: { desc:"Charcoal wool. Two-button.", shape:"outer", fill:"#3f4550",
+    suit: { desc:"Charcoal wool. Two-button.", shape:"blazer", fill:"#3f4550",
       item:{ id:"cand_suit", title:"Charcoal wool suit", category:"formal", formality:5, warmth:3, price:320, q:0.85 } },
   };
   let current = "boots";
@@ -80,8 +83,11 @@
 
   function paint() {
     const it = ITEMS[current].item;
+    const s = SHAPES[ITEMS[current].shape];
     document.getElementById("photo").innerHTML =
-      `<svg viewBox="0 0 88 72" role="img" aria-label="${it.title}"><path d="${SHAPES[ITEMS[current].shape]}" fill="${ITEMS[current].fill}"/></svg>`;
+      `<svg viewBox="0 0 88 72" role="img" aria-label="${it.title}"><path d="${s.d}" fill="${ITEMS[current].fill}"/>` +
+      (s.det ? `<path d="${s.det}" fill="#000" opacity="0.16"/>` : "") +
+      (s.lite ? `<path d="${s.lite}" fill="#fff" opacity="0.55"/>` : "") + `</svg>`;
     document.getElementById("title").textContent = it.title;
     document.getElementById("price").textContent = "$" + it.price.toFixed(2);
     document.getElementById("desc").textContent = ITEMS[current].desc;
