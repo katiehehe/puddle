@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import math
 import os
 import re
 from dataclasses import replace
@@ -175,12 +176,44 @@ def intent(text):
         return "size", NUMBERS.get(size[1], size[1])
     if re.search(r"\b(instead|alternative|alternatives)\b", clean):
         return "alternatives", None
+    times = re.search(r"\b(?:wear|wore|use)\s+(?:it|them|this|these)?\s*(\d{1,3})\s*times?\b", clean)
+    if times:
+        return "per_wear", times[1]
+    if re.search(r"\bper wear\b", clean) or re.search(
+        r"\bwill i (?:actually |really )?(?:wear|use) (?:it|them|this|these)\b", clean
+    ):
+        return "per_wear", None
+    # Only ownership questions about the thing on the page: "what do I already
+    # own for rain" is a closet question and belongs to the wardrobe answers.
+    if re.search(r"\b(similar|duplicates?)\b", clean) or re.search(
+        r"\b(?:already )?(?:own|have|got)\s+(?:one|any|some|something|anything)?\s*"
+        r"(?:of\s+)?(?:like\s+)?(?:this|these|it|them|that)\b",
+        clean,
+    ):
+        return "duplicates", None
+    if re.search(r"\b(?:good|fair|bad|right|decent) (?:price|deal)\b", clean) or re.search(
+        r"\b(?:overpaying|too expensive|cheap for)\b", clean
+    ):
+        # A question may name its own amount: "is 100 a good price?"
+        named = re.search(r"\b(\d[\d,]*(?:\.\d+)?)\b", clean)
+        return "price", named[1].replace(",", "") if named else None
     if re.search(r"\b(why|explain|should|recommend|worth)\b", clean) or clean in {
         "what about this",
         "what about this one",
     }:
         return "explain", None
     return "unknown", None
+
+
+def _amount(spoken: str | None) -> float | None:
+    """The price a question names, when it names one worth pricing."""
+    if spoken is None:
+        return None
+    try:
+        value = float(spoken)
+    except ValueError:
+        return None
+    return value if math.isfinite(value) and 0 < value < 1_000_000 else None
 
 
 @router.post("/respond")
@@ -260,6 +293,52 @@ def respond(req: VoiceQuestion):
             )
             or "I do not have a strong alternative in this catalog right now."
         )
+    elif kind == "duplicates":
+        dupes = result["portfolio"]["redundant_with"]
+        named = [f"{d['title']}, worn {counts.get(d['id'], 0)} times" for d in dupes]
+        response["answer"] = (
+            f"You already own {len(named)}: " + "; ".join(named) + "."
+            if named
+            else f"Nothing in your closet doubles for {item.title}. It is not a repeat buy."
+        )
+        response["owned"] = [{"title": d["title"], "wears": counts.get(d["id"], 0)} for d in dupes]
+    elif kind == "per_wear":
+        from . import desk
+
+        figures = desk.quote(item, closet, miner, counts, now)
+        expected = figures["expected_wears"]
+        if size is not None and int(size) > 0:
+            hoped = int(size)
+            lines = [f"At {hoped} wears, ${item.price:,.0f} works out to ${item.price / hoped:,.2f} a wear."]
+        else:
+            lines = []
+        if expected > 0:
+            lines.append(
+                f"Going on what you actually wear, I expect about {expected:.0f} wears out of it, "
+                f"roughly ${figures['cost_per_wear_if_bought']:,.2f} a wear, against the "
+                f"${figures['your_cost_per_wear']:,.2f} your closet averages."
+            )
+        else:
+            lines.append("You have not logged enough wears for me to say how often you would wear it.")
+        response.update(answer=" ".join(lines), expected_wears=expected)
+    elif kind == "price":
+        from . import market
+        from .app import _purchases
+
+        asked = _amount(size)
+        priced = item if asked is None else replace(item, price=asked)
+        read = market.deal(priced, _purchases())
+        if read["typical_price"] is None:
+            response["answer"] = (
+                f"I cannot price ${priced.price:,.0f} against your own buying yet: "
+                "you have not bought enough of this kind of thing for a comparison."
+            )
+        else:
+            response["answer"] = (
+                f"${priced.price:,.0f} is {read['verdict']}: the median across {read['basis']} "
+                f"is ${read['typical_price']:,.0f}."
+            )
+        response["deal"] = read
     elif kind == "explain":
         response["answer"] = " ".join(result["reasons"][:2]) or (
             "The portfolio model sees some benefit, but I do not have a strong personal-history signal for this item."
