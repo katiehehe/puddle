@@ -7,10 +7,12 @@ dependencies = [
     "uvicorn[standard]",
     "numpy",
     "pydantic",
+    "httpx",
+    "python-dotenv",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff", "httpx"]
+dev = ["pytest", "ruff"]
 
 [tool.ruff]
 line-length = 120

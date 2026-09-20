@@ -60,7 +60,7 @@ export default function App() {
         <div>
           <div className="tag">PUDDLE · YOUR CLOSET PORTFOLIO</div>
           <h1>Your wardrobe, as an <span>investment portfolio</span> 🦆</h1>
-          <p className="sub">Everything you own, priced by how much use it actually returns — and the trades to improve it.</p>
+          <p className="sub">Everything you own, priced by how much use it actually returns: and the trades to improve it.</p>
         </div>
         <div className={"badge " + (live ? "on" : "off")}>{live ? "live · brain connected" : "offline · demo data"}</div>
       </header>
@@ -86,7 +86,7 @@ export default function App() {
       <section className="grid2">
         <div className="card">
           <h2>Coverage across your life</h2>
-          <p className="muted">Red points are gaps — occasions your closet underserves.</p>
+          <p className="muted">Red points are gaps: occasions your closet underserves.</p>
           <div className="radarwrap"><CoverageRadar coverage={p.coverage} /></div>
         </div>
 

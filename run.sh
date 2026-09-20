@@ -24,6 +24,7 @@ WEB=$!
 
 echo ""
 echo "Puddle up:"
+echo "  voice demo http://localhost:8000/demo   (no extension install needed)"
 echo "  shop      http://localhost:5500   (click Checkout to summon the duck)"
 echo "  dashboard http://localhost:5173"
 echo "  brain     http://localhost:8000/health"

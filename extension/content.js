@@ -1,5 +1,7 @@
 // Puddle content script: watches for checkout, then shows the duck.
 (function () {
+  // The extension ignores the explicitly selected web demo, which has its own panel.
+  if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
   const PALETTE = {
     ink: "#16191c", muted: "#5d6771", line: "#e4e8ec",
     duck: "#f2b431", bill: "#ef7a2c", water: "#2a7fb8", good: "#0d7a4a", bad: "#b3261e", surface: "#ffffff"
@@ -45,7 +47,7 @@
     concerned: "Puddle · quack", approving: "Puddle · go on then",
   };
 
-  let host = null, shadow = null, lastKey = "", dismissTimer = null;
+  let host = null, shadow = null, lastKey = "", dismissTimer = null, voiceCleanup = null, renderVersion = 0, scoreVersion = 0;
 
   function ensureHost() {
     // A new checkout cancels the previous card's pending dismissal.
@@ -73,7 +75,7 @@
     return "";
   }
 
-  const send = (msg) => new Promise((res) => chrome.runtime.sendMessage(msg, res));
+  const send = msg => globalThis.PuddleSend(msg);
 
   function speak(text) {
     try {
@@ -87,10 +89,13 @@
   const pondPct = (saved) => Math.min(100, (saved / 800) * 100);
 
   async function render(result, item) {
+    const version = ++renderVersion;
+    voiceCleanup?.();
     ensureHost();
     const state = result.duck_state || "idle";
     const accent = state === "concerned" ? PALETTE.bad : state === "approving" ? PALETTE.good : PALETTE.water;
     const pond = (await send({ type: "pond" })) || { saved: 0 };
+    if (version !== renderVersion) return;
     const c = chip(result);
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
     // One event_id per intentional action; the brain dedupes retries on it.
@@ -99,7 +104,7 @@
     shadow.innerHTML = `
       <style>
         *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-        .card{width:346px;background:${PALETTE.surface};border:1px solid ${PALETTE.line};
+        .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;background:${PALETTE.surface};border:1px solid ${PALETTE.line};
           border-left:4px solid ${accent};border-radius:16px;padding:14px 16px;
           box-shadow:0 10px 28px rgba(20,25,28,.16);animation:pop .28s ease}
         @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
@@ -135,11 +140,16 @@
         <div class="saved">🪙 $${pond.saved} in the pond</div>
       </div>`;
 
+    voiceCleanup = globalThis.PuddleVoice.attach(shadow, item, total => {
+      shadow.querySelector(".fill").style.width = pondPct(total) + "%";
+      shadow.querySelector(".saved").textContent = `$${total} in the pond`;
+    }, result.prediction_id);
     if (result.speak) speak(line);
 
     const dismiss = (after) => {
       clearTimeout(dismissTimer);
       dismissTimer = setTimeout(() => {
+        voiceCleanup?.(); voiceCleanup = null;
         if (host) host.remove();
         host = null;
         dismissTimer = null;
@@ -147,8 +157,11 @@
     };
 
     shadow.getElementById("skip").onclick = async () => {
-      const next = await send({ type: "skip", item, prediction_id: result.prediction_id, event_id: skipEvent });
-      shadow.querySelector(".line").textContent = "Good call. I'll ask in 30 days whether I was right.";
+      let next;
+      try { next = await send({ type: "skip", item, prediction_id: result.prediction_id, event_id: skipEvent }); }
+      catch (error) { shadow.querySelector(".line").textContent = error.message; return; }
+      if (version !== renderVersion) return;
+      shadow.querySelector(".line").textContent = "Skipped. Your saved total has been updated.";
       shadow.querySelector(".fill").style.width = pondPct(next.saved) + "%";
       shadow.querySelector(".saved").textContent = `🪙 $${next.saved} in the pond`;
       shadow.querySelector(".btns").remove();
@@ -156,28 +169,41 @@
     };
 
     shadow.getElementById("buy").onclick = async () => {
-      const res = await send({ type: "checkout", item, prediction_id: result.prediction_id, event_id: buyEvent });
+      let res;
+      try { res = await send({ type: "checkout", item, prediction_id: result.prediction_id, event_id: buyEvent }); }
+      catch (error) { shadow.querySelector(".line").textContent = error.message; return; }
+      if (version !== renderVersion) return;
       const declined = res.approved === false || (res.status && res.status !== "approved");
       shadow.querySelector(".line").innerHTML = declined
-        ? `<span class="done">Payment ${res.status || "failed"} — nothing was recorded.</span>`
-        : `<span class="done">Done — ${res.network} ${res.mode === "mock" ? "(sandbox)" : ""}. ` +
-          `I'll ask in 30 days whether I was wrong.</span>`;
+        ? `<span class="done">Payment ${res.status || "failed"}: nothing was recorded.</span>`
+        : `<span class="done">Done: ${res.network} ${res.mode === "mock" ? "(simulated)" : ""}. ` +
+          `Your wardrobe has been updated.</span>`;
       shadow.querySelector(".btns").remove();
       dismiss(2600);
     };
   }
 
   function trigger(raw) {
-    if (!raw || raw === lastKey) return;
+    if (!raw) {
+      scoreVersion += 1; renderVersion += 1; lastKey = "";
+      clearTimeout(dismissTimer); voiceCleanup?.(); voiceCleanup = null;
+      host?.remove(); host = null;
+      return;
+    }
+    if (raw === lastKey) return;
+    const requestVersion = ++scoreVersion;
     lastKey = raw;
     let item;
     try { item = JSON.parse(raw); } catch (e) { return; }
     const hour = item.now_hour != null ? item.now_hour : new Date().getHours();
-    send({ type: "score", item, now_hour: hour }).then((res) => res && render(res, item));
+    send({ type: "score", item, now_hour: hour }).then((res) => requestVersion === scoreVersion && res && render(res, item)).catch(error => {
+      ensureHost(); shadow.textContent = error.message;
+    });
   }
 
   const obs = new MutationObserver(() => trigger(document.body.dataset.puddleCheckout));
   obs.observe(document.body, { attributes: true, attributeFilter: ["data-puddle-checkout"] });
+  window.addEventListener("pagehide", () => { voiceCleanup?.(); clearTimeout(dismissTimer); });
   // fire if already set on load
   if (document.body.dataset.puddleCheckout) trigger(document.body.dataset.puddleCheckout);
 })();

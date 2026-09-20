@@ -9,13 +9,17 @@ from __future__ import annotations
 
 import math
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import history, ledger, payments, pond, storage
+from . import history, ledger, payments, pond, storage, voice
 from .catalog import CLOSET, STOREFRONT, Item, coerce_item
 from .miner import Miner, rank, verdict
 from .portfolio import Closet
@@ -24,9 +28,27 @@ from .states import life_mix
 # The dashboard is a planning surface, not a 2am checkout. Scoring it at the
 # wall-clock hour let the late-night signal leak into every recommendation.
 DASHBOARD_HOUR = 14
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env", override=False)
+
 DEFAULT_BUDGET = 500.0
 
-app = FastAPI(title="Puddle Brain", version="0.2.0")
+app = FastAPI(title="Puddle Brain", version="0.3.0")
+app.include_router(voice.router)
+app.mount("/demo-assets", StaticFiles(directory=PROJECT_ROOT / "extension"), name="demo-assets")
+
+
+@app.get("/demo", response_class=HTMLResponse)
+def voice_demo():
+    page = (PROJECT_ROOT / "mock-shop" / "index.html").read_text()
+    page = page.replace("<body>", '<body data-puddle-mode="web">')
+    # Same shop, duck and voice controller as the extension. Only transport differs.
+    scripts = '<script src="/demo-assets/transport.js"></script>'
+    scripts += '<script src="/demo-assets/voice.js"></script>'
+    scripts += '<script src="/demo-assets/content.js"></script>'
+    return page.replace("</body>", scripts + "</body>")
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -228,9 +250,7 @@ def portfolio(now_hour: int | None = None, budget: float = DEFAULT_BUDGET) -> di
             "sharpe_after": ev["style_sharpe_after"],
             # PRD 3.2 ranks by marginal Sharpe per dollar, not raw alpha: a
             # $320 coat with big alpha should not crowd out two cheap fixes.
-            "sharpe_per_dollar": round(
-                (ev["style_sharpe_after"] - ev["style_sharpe_before"]) / candidate.price, 6
-            ),
+            "sharpe_per_dollar": round((ev["style_sharpe_after"] - ev["style_sharpe_before"]) / candidate.price, 6),
             "covers_gap": ev["covers_gap"]["label"] if ev["covers_gap"] else None,
             "redundant_with": [d["id"] for d in ev["redundant_with"]],
         }
