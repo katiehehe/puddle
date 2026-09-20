@@ -317,9 +317,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .coversplit p { margin: 0; font-weight: 600; }
 .cover .note { max-width: 640px; margin-top: 6px; }
 
-/* puddle noticed */
-.noticed { margin-top: 26px; }
-.noticed .note p { font-size: 15px; }
+/* The headline observations, now among the shopping notes. */
+.notes .note p b { font-size: 15px; }
 
 /* add a purchase */
 .addcard {

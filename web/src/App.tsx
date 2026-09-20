@@ -700,6 +700,18 @@ function DressTab({ me, usage }: { me: Me; usage: Usage }) {
       </p>
       <h3 className="sub2">What Puddle has noticed about your shopping</h3>
       <div className="notes">
+        {/* The headline observations and the one-line ones are the same kind
+            of thing, so they read as one list rather than two sections. */}
+        {me.notices.map((n) => (
+          <div className="note" key={n.title}>
+            <Duck size={26} />
+            <p>
+              <b>{n.title}</b>
+              <br />
+              {n.detail}
+            </p>
+          </div>
+        ))}
         {s.lines.map((line) => (
           <div className="note" key={line}>
             <Duck size={26} />
@@ -1177,24 +1189,6 @@ function Dashboard() {
           ))}
         </div>
       </header>
-
-      {me.notices.length > 0 && (
-        <section className="noticed">
-          <h3 className="sub2">Puddle noticed…</h3>
-          <div className="notes">
-            {me.notices.map((n) => (
-              <div className="note" key={n.title}>
-                <Duck size={26} />
-                <p>
-                  <b>{n.title}</b>
-                  <br />
-                  {n.detail}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       <div className="tabs">
         {TABS.map((t) => (
