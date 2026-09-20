@@ -282,3 +282,9 @@ button.tiny:disabled { opacity: .4; cursor: default; }
   font-size: 13px; line-height: 1.5; font-weight: 400; text-transform: none; letter-spacing: 0; }
 .termpop em { display: block; font-style: normal; font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .08em; color: var(--duck); margin-bottom: 5px; }
+
+/* Inside a quote tile the popup hangs off the tile, not the word, so it never
+   covers the number it is explaining. */
+.quoterow > div { position: relative; }
+.quoterow .term { position: static; }
+.quoterow .termpop { top: calc(100% + 6px); }
