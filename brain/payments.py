@@ -42,7 +42,7 @@ HELLO_PATH = "vdp/helloworld"
 ACQUIRING_BIN = "408999"
 ACQUIRER_COUNTRY = "840"
 SENDER_ACCOUNT = "4653459515756154"
-RECIPIENT_ACCOUNT = "4957030420210496"
+RECIPIENT_ACCOUNT = "4957030420210454"
 
 
 @dataclass
@@ -236,8 +236,9 @@ class VisaSandboxProvider:
             "pointOfServiceData": {"motoECIIndicator": "0", "panEntryMode": "90", "posConditionCode": "00"},
             "recipientName": "Puddle Merchant",
             "recipientPrimaryAccountNumber": RECIPIENT_ACCOUNT,
-            # yddd + 7 digits, the 12-character form Visa's samples use.
-            "retrievalReferenceNumber": now_utc.strftime("%y%j") + f"{random.randrange(10**7):07d}",
+            # yddd + 8 digits: Visa rejects any other 12-character shape with
+            # "Mandatory field 'RetrievalReferenceNumber' ... invalid content".
+            "retrievalReferenceNumber": now_utc.strftime("%y%j")[1:] + f"{random.randrange(10**8):08d}",
             "senderAccountNumber": SENDER_ACCOUNT,
             "senderAddress": "901 Metro Center Blvd",
             "senderCity": "Foster City",
@@ -265,7 +266,7 @@ class VisaSandboxProvider:
         try:
             payload = self._call(PUSH_PATH, self._push_request(amount, item_id))
         except urllib.error.HTTPError as err:
-            detail = _error_detail(err)
+            detail = _error_detail(err, self._decrypt if self.encrypts else None)
             return PaymentResult(
                 mode=self.name,
                 approved=False,
@@ -304,12 +305,14 @@ def _pem(path: str | None) -> jwk.JWK:
         return jwk.JWK.from_pem(handle.read())
 
 
-def _error_detail(err: urllib.error.HTTPError) -> str:
+def _error_detail(err: urllib.error.HTTPError, decrypt=None) -> str:
     try:
         body = json.loads(err.read() or b"{}")
+        if decrypt is not None:
+            body = decrypt(body)
     except (ValueError, OSError):
         return f"HTTP {err.code}"
-    reason = body.get("responseStatus", {}).get("message") or body.get("message")
+    reason = body.get("responseStatus", {}).get("message") or body.get("errorMessage") or body.get("message")
     return f"HTTP {err.code}: {reason}" if reason else f"HTTP {err.code}"
 
 
