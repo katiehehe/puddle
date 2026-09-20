@@ -103,8 +103,13 @@
     if (version !== renderVersion) return;
     const c = chip(result);
     const money = result.shopping;
-    const plain = facts(money);
+    const advice = result.advice || null;
+    // Puddle's own sentences when the brain has them; the old facts otherwise.
+    const plain = advice ? advice.reasons.map(r => r.text) : facts(money);
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
+    const verdictTone = advice
+      ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.ink
+      : PALETTE.ink;
     // One event_id per intentional action; the brain dedupes retries on it.
     const skipEvent = crypto.randomUUID(), buyEvent = crypto.randomUUID();
 
@@ -126,6 +131,8 @@
           display:flex;align-items:center;justify-content:center}
         .bubble{flex:1}
         .quack{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:${PALETTE.muted};font-weight:700}
+        .verdict{font-family:Georgia,"Times New Roman",serif;font-size:19px;font-weight:700;
+          letter-spacing:-.01em;color:${verdictTone};margin:2px 0 2px}
         .line{font-family:Georgia,"Times New Roman",serif;font-size:15px;line-height:1.45;
           color:${PALETTE.ink};margin:3px 0 8px;font-style:italic}
         .chip{display:inline-block;border:1px solid ${PALETTE.waterDeep};
@@ -164,12 +171,13 @@
         <div class="row">
           ${DUCK(state)}
           <div class="bubble">
-            <div class="quack">Quant Quack</div>
+            <div class="quack">Puddle</div>
+            ${advice ? `<div class="verdict">${esc(advice.verdict)}</div>` : ""}
             <div class="line">${esc(line)}</div>
             ${c ? `<span class="chip">${esc(c)}</span>` : ""}
             <ul class="facts">${plain.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
             <div class="ask">Still worth it?</div>
-            <button class="more" id="more">Show the numbers</button>
+            <button class="more" id="more">View numbers</button>
             <div class="nums" id="nums">
               ${money ? `Worth about <b>${esc(cash(money.resale))}</b> resold. ` : ""}
               At 5 wears <b>${esc(cash((money?.per_wear_at || {})[5] || 0))}</b> each,
@@ -193,7 +201,7 @@
       more.onclick = () => {
         const nums = shadow.getElementById("nums");
         const open = nums.classList.toggle("open");
-        more.textContent = open ? "Hide the numbers" : "Show the numbers";
+        more.textContent = open ? "Hide the numbers" : "View numbers";
       };
     }
 

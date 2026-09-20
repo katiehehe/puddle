@@ -1,17 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  addPurchase,
   askDuck,
+  editPurchase,
   getMe,
   getQuote,
   getStatus,
   getStorefront,
+  guessItem,
+  logWears,
   scoreItem,
   CatalogItem,
   ClosetPiece,
+  Coverage,
   Me,
+  PurchaseRow,
   Quote,
   Score,
   Status,
+  Usage,
 } from "./api";
 import { Garment } from "./Garment";
 
@@ -61,8 +68,9 @@ function CheckoutMock() {
         <div className="duckcard">
           <div className="duckhead">
             <Duck size={30} />
-            <b>Quant Quack</b>
+            <b>Puddle</b>
           </div>
+          <p className="mockverdict">Maybe — think about it</p>
           <p>
             You already own <b>3 pairs of black boots</b>. You've worn the closest pair 7 times
             this year.
@@ -97,7 +105,7 @@ function Home() {
       <nav className="nav">
         <a className="brand" href="#/">
           <Duck size={28} />
-          <span>Quant Quack</span>
+          <span>Puddle</span>
         </a>
         <div className="navlinks">
           <a href="#how">How it works</a>
@@ -114,8 +122,8 @@ function Home() {
           <div className="pill">Chrome extension</div>
           <h1>Know if it's worth it before you buy it.</h1>
           <p>
-            Quant Quack remembers what you own, checks the numbers, and talks the purchase
-            through with you at checkout.
+            Puddle remembers what you own, notices what you actually wear, and talks the
+            purchase through with you at checkout.
           </p>
           <div className="herobtns">
             <a className="cta" href="#install">
@@ -131,22 +139,22 @@ function Home() {
       </header>
 
       <section className="steps" id="how">
-        <h2>Three things, then it's out of your way</h2>
+        <h2>It gets better the more you wear</h2>
         <div className="stepgrid">
           <div className="step">
             <span>1</span>
-            <h3>It learns your closet</h3>
-            <p>What you own, what you paid, and what you actually reach for.</p>
+            <h3>Add what you buy</h3>
+            <p>Name, price, date. Puddle works out the rest and puts it in your closet.</p>
           </div>
           <div className="step">
             <span>2</span>
-            <h3>It watches the page, not you</h3>
-            <p>When you're about to buy, it reads the item off the shop and does the maths.</p>
+            <h3>Tap what you wear</h3>
+            <p>One tap per thing. That's what turns a closet into an opinion worth having.</p>
           </div>
           <div className="step">
             <span>3</span>
-            <h3>It says something useful</h3>
-            <p>A sentence you can argue with — not a block, not a lecture. You still decide.</p>
+            <h3>Get a straight answer</h3>
+            <p>At checkout: probably worth it, maybe, or probably skip — and why. You still decide.</p>
           </div>
         </div>
       </section>
@@ -184,7 +192,7 @@ function Home() {
 
       <footer className="foot">
         <Duck size={22} />
-        <span>Quant Quack — built at HackMIT.</span>
+        <span>Puddle — built at HackMIT.</span>
       </footer>
     </div>
   );
@@ -192,8 +200,12 @@ function Home() {
 
 /* ------------------------------------------------------------- dashboard */
 
-const TABS = ["Closet", "Purchases", "Your shopping", "Value", "Worth it?"] as const;
+const TABS = ["Closet", "Purchases", "How you dress", "Value", "Worth it?"] as const;
 type Tab = (typeof TABS)[number];
+
+const today = () => new Date().toISOString().slice(0, 10);
+const when = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
@@ -205,7 +217,11 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
   );
 }
 
-function PieceCard({ piece }: { piece: ClosetPiece }) {
+function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string) => void }) {
+  // Optimistic: a wear tap has to feel free, or nobody logs the fifth one.
+  const [extra, setExtra] = useState(0);
+  const wears = piece.wears + extra;
+  const perWear = wears > 0 ? piece.paid / wears : null;
   return (
     <article className="piece">
       <div className="piecepic">
@@ -214,30 +230,90 @@ function PieceCard({ piece }: { piece: ClosetPiece }) {
       </div>
       <h4>{piece.title}</h4>
       <div className="piecemeta">
-        {piece.wears} wear{piece.wears === 1 ? "" : "s"}
+        {wears} wear{wears === 1 ? "" : "s"}
         {piece.size ? ` · size ${piece.size}` : ""}
       </div>
+      {piece.tags.length > 0 && (
+        <div className="tags">
+          {piece.tags.slice(0, 3).map((t) => (
+            <span key={t}>{t}</span>
+          ))}
+        </div>
+      )}
       <div className="piecenums">
         <div>
           <span>per wear</span>
-          <b>{piece.cost_per_wear === null ? "never worn" : money(piece.cost_per_wear)}</b>
+          <b>{perWear === null ? "never worn" : money(perWear)}</b>
         </div>
         <div>
           <span>worth now</span>
           <b>{round(piece.worth_now)}</b>
         </div>
       </div>
+      <button
+        className="worebtn"
+        onClick={() => {
+          setExtra((n) => n + 1);
+          onWear(piece.id);
+        }}
+      >
+        + Wore today
+      </button>
     </article>
   );
 }
 
-function ClosetTab({ me }: { me: Me }) {
+/* ------------------------------------------------------ closet coverage */
+
+function CoveragePanel({ coverage }: { coverage: Coverage }) {
+  return (
+    <section className="cover">
+      <h3 className="sub2">What your closet covers</h3>
+      <p className="coverhead">{coverage.headline}</p>
+      <div className="coverrows">
+        {coverage.occasions.map((o) => (
+          <div className="coverrow" key={o.state}>
+            <span>{o.label}</span>
+            <div>
+              <i className={o.strength} style={{ width: `${Math.round(Math.min(o.score, 1) * 100)}%` }} />
+            </div>
+            <b>
+              {o.options === 0
+                ? "nothing"
+                : `${o.options} option${o.options === 1 ? "" : "s"}`}
+            </b>
+          </div>
+        ))}
+      </div>
+      <div className="coversplit">
+        <div>
+          <h4>You're well covered</h4>
+          <p>{coverage.well_covered.join(" · ") || "Nothing stands out yet."}</p>
+        </div>
+        <div>
+          <h4>Could use more options</h4>
+          <p>{coverage.gaps.join(" · ") || "No real gaps right now."}</p>
+        </div>
+      </div>
+      {coverage.advice && (
+        <div className="note">
+          <Duck size={26} />
+          <p>{coverage.advice}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ClosetTab({ me, onWear }: { me: Me; onWear: (id: string) => void }) {
   const [filter, setFilter] = useState("all");
   const cats = me.shopping.categories;
   const shown = me.closet.filter((p) => filter === "all" || p.category === filter);
   const unworn = me.closet.filter((p) => p.wears === 0).length;
   return (
     <>
+      <CoveragePanel coverage={me.coverage} />
+      <h3 className="sub2">Everything you own</h3>
       <div className="chips">
         <button className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>
           Everything {me.closet.length}
@@ -259,65 +335,338 @@ function ClosetTab({ me }: { me: Me }) {
       )}
       <div className="grid">
         {shown.map((p) => (
-          <PieceCard key={p.id} piece={p} />
+          <PieceCard key={p.id} piece={p} onWear={onWear} />
         ))}
       </div>
     </>
   );
 }
 
-function PurchasesTab({ me }: { me: Me }) {
-  const when = (iso: string) =>
-    new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+/* ------------------------------------------------------------ purchases */
+
+const BLANK = {
+  title: "",
+  price: "",
+  bought_at: today(),
+  brand: "",
+  category: "",
+  size: "",
+  color: "",
+  source_url: "",
+  photo: "",
+  notes: "",
+  resale_estimate: "",
+  wears: "",
+};
+
+/** Adding a purchase: three fields that matter, the rest folded away.
+ *  Everything Puddle can work out from the name and the shop, it works out. */
+function AddPurchase({ onAdded }: { onAdded: () => void }) {
+  const [form, setForm] = useState({ ...BLANK });
+  const [more, setMore] = useState(false);
+  const [toCloset, setToCloset] = useState(true);
+  const [guess, setGuess] = useState<string>("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const set = (key: keyof typeof BLANK, value: string) => setForm((f) => ({ ...f, [key]: value }));
+
+  const look = () => {
+    guessItem(form.title, form.source_url).then((g) => {
+      if (!g) return setGuess("");
+      if (!g.recognised) return setGuess("Not sure what that is yet — pick a category below.");
+      const brand = g.brand && !form.brand ? ` · ${g.brand}` : "";
+      if (g.brand && !form.brand) set("brand", g.brand);
+      setGuess(`Looks like a ${(g.kind ?? g.category ?? "").replace(/_/g, " ")}${brand}.`);
+    });
+  };
+
+  const save = () => {
+    setSaving(true);
+    setError("");
+    addPurchase({
+      title: form.title.trim(),
+      price: Number(form.price) || 0,
+      bought_at: form.bought_at || undefined,
+      brand: form.brand || undefined,
+      category: form.category || undefined,
+      size: form.size || undefined,
+      color: form.color || undefined,
+      source_url: form.source_url || undefined,
+      photo: form.photo || undefined,
+      notes: form.notes || undefined,
+      resale_estimate: form.resale_estimate ? Number(form.resale_estimate) : undefined,
+      wears: form.wears ? Number(form.wears) : undefined,
+      add_to_closet: toCloset,
+    })
+      .then(() => {
+        setForm({ ...BLANK });
+        setGuess("");
+        setMore(false);
+        onAdded();
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setSaving(false));
+  };
+
   return (
-    <div className="buys">
-      {me.purchases.map((p) => {
-        // A returned purchase has nothing left to value, and the closet only
-        // tracks wears for things still in it.
-        const kept = !p.returned && p.in_closet;
-        return (
-          <div className={`buy${p.returned ? " returned" : ""}`} key={p.id}>
-            <div className="buypic">
-              <Garment category={p.category} colour="grey" size={54} />
-            </div>
-            <div className="buymain">
-              <h4>{p.title}</h4>
-              <span>
-                {when(p.bought_at)}
-                {p.returned
-                  ? ` · sent back${p.return_reason ? `, ${p.return_reason.replace(/_/g, " ")}` : ""}`
-                  : p.in_closet
-                    ? ""
-                    : " · not in your closet"}
-              </span>
-            </div>
-            <div className="buycol">
-              <span>paid</span>
-              <b>{round(p.price)}</b>
-            </div>
-            <div className="buycol">
-              <span>worn</span>
-              <b>{kept ? `${p.wears}×` : "—"}</b>
-            </div>
-            <div className="buycol">
-              <span>per wear</span>
-              <b>{kept && p.cost_per_wear !== null ? money(p.cost_per_wear) : "—"}</b>
-            </div>
-            <div className="buycol">
-              <span>worth now</span>
-              <b>{kept && p.worth_now !== null ? round(p.worth_now) : p.returned ? "refunded" : "—"}</b>
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <section className="addcard">
+      <h3>Add a purchase</h3>
+      <div className="addmain">
+        <label className="wide">
+          What did you buy?
+          <input
+            placeholder="Charcoal crewneck"
+            value={form.title}
+            onChange={(e) => set("title", e.target.value)}
+            onBlur={look}
+          />
+        </label>
+        <label>
+          Price paid
+          <input
+            inputMode="decimal"
+            placeholder="58"
+            value={form.price}
+            onChange={(e) => set("price", e.target.value)}
+          />
+        </label>
+        <label>
+          Bought on
+          <input type="date" value={form.bought_at} onChange={(e) => set("bought_at", e.target.value)} />
+        </label>
+      </div>
+      {guess && <p className="guess">{guess}</p>}
+
+      <button className="morebtn" onClick={() => setMore(!more)}>
+        {more ? "Fewer details" : "Add more details"}
+      </button>
+
+      {more && (
+        <div className="addmore">
+          <label>
+            Brand
+            <input value={form.brand} onChange={(e) => set("brand", e.target.value)} placeholder="Uniqlo" />
+          </label>
+          <label>
+            Category
+            <input
+              value={form.category}
+              onChange={(e) => set("category", e.target.value)}
+              placeholder="sweater"
+            />
+          </label>
+          <label>
+            Size
+            <input value={form.size} onChange={(e) => set("size", e.target.value)} placeholder="M" />
+          </label>
+          <label>
+            Colour
+            <input value={form.color} onChange={(e) => set("color", e.target.value)} placeholder="charcoal" />
+          </label>
+          <label className="wide">
+            Where you bought it
+            <input
+              value={form.source_url}
+              onChange={(e) => set("source_url", e.target.value)}
+              onBlur={look}
+              placeholder="https://uniqlo.com/…"
+            />
+          </label>
+          <label>
+            Worth now (if you know)
+            <input
+              inputMode="decimal"
+              value={form.resale_estimate}
+              onChange={(e) => set("resale_estimate", e.target.value)}
+            />
+          </label>
+          <label>
+            Times worn already
+            <input inputMode="numeric" value={form.wears} onChange={(e) => set("wears", e.target.value)} />
+          </label>
+          <label className="wide">
+            Photo link
+            <input value={form.photo} onChange={(e) => set("photo", e.target.value)} placeholder="https://…" />
+          </label>
+          <label className="wide">
+            Notes
+            <input value={form.notes} onChange={(e) => set("notes", e.target.value)} />
+          </label>
+        </div>
+      )}
+
+      <div className="addfoot">
+        <label className="check">
+          <input type="checkbox" checked={toCloset} onChange={(e) => setToCloset(e.target.checked)} />
+          Put it in my closet
+        </label>
+        <button className="cta small" disabled={!form.title.trim() || saving} onClick={save}>
+          {saving ? "Saving…" : "Add purchase"}
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+    </section>
   );
 }
 
-function ShoppingTab({ me }: { me: Me }) {
-  const s = me.shopping;
+function PurchaseCard({ p, onChange }: { p: PurchaseRow; onChange: () => void }) {
+  const [wears, setWears] = useState(p.wears ?? 0);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(p.wears ?? 0));
+  const kept = p.in_closet && !p.archived;
+  const perWear = wears > 0 ? p.price / wears : null;
+
+  const bump = () => {
+    setWears(wears + 1);
+    logWears([p.id]).then(onChange);
+  };
+  const commit = () => {
+    const n = Math.max(0, Math.round(Number(draft) || 0));
+    setEditing(false);
+    setWears(n);
+    editPurchase(p.id, { wears: n }).then(onChange);
+  };
+  const archive = (reason: string) => editPurchase(p.id, { archived: true, archive_reason: reason }).then(onChange);
+
+  return (
+    <article className={`buycard${kept ? "" : " gone"}`}>
+      <div className="buypic">
+        <Garment category={p.category} colour={p.color || "grey"} size={64} />
+      </div>
+      <div className="buybody">
+        <h4>{p.title}</h4>
+        <div className="buyline">
+          {round(p.price)}
+          {p.brand ? ` · ${p.brand}` : ""}
+          {p.category ? ` · ${p.category.replace(/_/g, " ")}` : ""}
+        </div>
+        {(p.size || p.color) && (
+          <div className="buysub">{[p.size && `Size ${p.size}`, p.color].filter(Boolean).join(" · ")}</div>
+        )}
+        <div className="buysub">Purchased {when(p.bought_at)}</div>
+        <div className="buystats">
+          {editing ? (
+            <input
+              className="wearedit"
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => e.key === "Enter" && commit()}
+            />
+          ) : (
+            <button
+              className="linkish"
+              disabled={!p.yours}
+              onClick={() => {
+                setDraft(String(wears));
+                setEditing(true);
+              }}
+            >
+              Worn {wears} time{wears === 1 ? "" : "s"}
+            </button>
+          )}
+          <span>{perWear === null ? "not worn yet" : `${money(perWear)} per wear`}</span>
+          {p.worth_now !== null && kept && <span>worth about {round(p.worth_now)}</span>}
+          {!kept && <span className="gonetag">{p.archive_reason?.replace(/_/g, " ") ?? "not in your closet"}</span>}
+        </div>
+        {p.notes && <p className="buynotes">{p.notes}</p>}
+      </div>
+      {p.yours && (
+        <div className="buyacts">
+          {kept && (
+            <>
+              <button className="cta small" onClick={bump}>
+                + Wore today
+              </button>
+              <select defaultValue="" onChange={(e) => e.target.value && archive(e.target.value)}>
+                <option value="">No longer own it…</option>
+                <option value="returned">Returned it</option>
+                <option value="sold">Sold it</option>
+                <option value="donated">Donated it</option>
+                <option value="discarded">Threw it out</option>
+              </select>
+            </>
+          )}
+          {!kept && (
+            <button
+              className="ghost small"
+              onClick={() =>
+                editPurchase(p.id, { archived: false, in_closet: true, archive_reason: "" }).then(onChange)
+              }
+            >
+              Back in my closet
+            </button>
+          )}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function PurchasesTab({ me, onChange }: { me: Me; onChange: () => void }) {
+  const [showGone, setShowGone] = useState(false);
+  const kept = me.purchases.filter((p) => p.in_closet && !p.archived);
+  const gone = me.purchases.filter((p) => !p.in_closet || p.archived);
   return (
     <>
+      <AddPurchase onAdded={onChange} />
+      <h3 className="sub2">What you've bought</h3>
+      <div className="buys">
+        {kept.map((p) => (
+          <PurchaseCard key={p.id} p={p} onChange={onChange} />
+        ))}
+      </div>
+      {gone.length > 0 && (
+        <>
+          <button className="morebtn" onClick={() => setShowGone(!showGone)}>
+            {showGone ? "Hide" : "Show"} {gone.length} thing{gone.length === 1 ? "" : "s"} you no longer own
+          </button>
+          {showGone && (
+            <div className="buys">
+              {gone.map((p) => (
+                <PurchaseCard key={p.id} p={p} onChange={onChange} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+/* ------------------------------------------------------- how you dress */
+
+function DressTab({ me, usage }: { me: Me; usage: Usage }) {
+  const s = me.shopping;
+  const top = usage.rows[0]?.wears || 1;
+  return (
+    <>
+      <h3 className="sub2">How you actually dress</h3>
+      {usage.lines.map((line) => (
+        <div className="note" key={line}>
+          <Duck size={26} />
+          <p>{line}</p>
+        </div>
+      ))}
+      <div className="bars dressbars">
+        {usage.rows.map((r) => (
+          <div className="bar" key={r.state}>
+            <span>{r.label}</span>
+            <div>
+              <i style={{ width: `${Math.round((100 * r.wears) / top)}%` }} />
+            </div>
+            <b>{usage.enough_data ? `${Math.round(r.share * 100)}%` : `${r.wears}`}</b>
+          </div>
+        ))}
+      </div>
+      <p className="hint">
+        {usage.enough_data
+          ? `Based on ${usage.total_wears} recorded wears.`
+          : "Counts, not percentages — there isn't enough recorded wear to put a number on it yet."}
+      </p>
+      <h3 className="sub2">What Puddle has noticed about your shopping</h3>
       <div className="notes">
         {s.lines.map((line) => (
           <div className="note" key={line}>
@@ -412,12 +761,15 @@ function WorthIt({ items }: { items: CatalogItem[] }) {
     };
   }, [itemId, hour]);
 
-  if (!quote || !score) return <p className="hint">Asking the duck…</p>;
+  if (!quote || !score) return <p className="hint">Asking Puddle…</p>;
 
   const ask = quote.ask;
-  const shopping = score.shopping;
+  const advice = score.advice;
   const perWear = ask / Math.max(wears, 1);
   const good = perWear <= quote.your_cost_per_wear;
+  const ladder = Object.keys(advice.per_wear)
+    .map(Number)
+    .sort((a, b) => a - b);
 
   return (
     <div className="worth">
@@ -442,26 +794,27 @@ function WorthIt({ items }: { items: CatalogItem[] }) {
       <div className="verdictcard">
         <div className="duckhead">
           <Duck size={34} />
-          <b>Quant Quack</b>
+          <b>Worth it?</b>
         </div>
-        <p className="say">{score.headline}</p>
-        {shopping && shopping.owned_count > 0 && shopping.closest && (
-          <p>
-            You already own {shopping.owned_count} of these. You've worn the closest one{" "}
-            {shopping.closest.wears} times.
-          </p>
-        )}
-        {shopping && shopping.typical_price !== null && shopping.difference !== null && (
-          <p>
-            {round(ask)} is{" "}
-            <b>
-              {shopping.difference === 0
-                ? "exactly"
-                : `${money(Math.abs(shopping.difference))} ${shopping.difference > 0 ? "below" : "above"}`}
-            </b>{" "}
-            {shopping.verdict === "no read" ? "unusual for you" : `what you usually pay (${shopping.basis})`}.
-          </p>
-        )}
+        <p className={`say ${advice.stance}`}>{advice.verdict}</p>
+        <p className="subhead">{advice.subhead}</p>
+
+        <ul className="reasons">
+          {advice.reasons.map((r) => (
+            <li className={r.tone} key={r.kind + r.text}>
+              {r.text}
+            </li>
+          ))}
+        </ul>
+
+        <div className="ladder">
+          {ladder.map((n) => (
+            <button key={n} className={wears === n ? "on" : ""} onClick={() => setWears(n)}>
+              <span>{n} wears</span>
+              <b>{money(advice.per_wear[String(n)])}</b>
+            </button>
+          ))}
+        </div>
 
         <div className="wearslider">
           <label>
@@ -478,10 +831,27 @@ function WorthIt({ items }: { items: CatalogItem[] }) {
           </div>
         </div>
         <p className="honest">
-          Going on your history, you'd realistically wear it about{" "}
-          <b>{quote.expected_wears}</b> times — that's {money(ask / Math.max(quote.expected_wears, 0.1))} a
-          wear. You've sent back {Math.round(quote.return_prob * 100)}% of things like this ({quote.return_evidence}).
+          Going on how you wear things, about <b>{Math.round(advice.expected_wears)}</b> wears is realistic.
+          {advice.resale ? ` Similar things resell for around ${round(advice.resale)}.` : ""} It's advice from
+          your own history, not a guarantee.
         </p>
+
+        <div className="quickasks">
+          {advice.questions.map((q) => (
+            <button
+              key={q}
+              onClick={() => {
+                setQuestion(q);
+                setAsking(true);
+                askDuck(itemId, q, hour)
+                  .then(setAnswer)
+                  .finally(() => setAsking(false));
+              }}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
 
         <div className="askrow">
           <input
@@ -511,26 +881,44 @@ function WorthIt({ items }: { items: CatalogItem[] }) {
         {answer && <p className="answer">{answer}</p>}
 
         <button className="detailtoggle" onClick={() => setDetails(!details)}>
-          {details ? "Hide the numbers" : "Show the numbers"}
+          {details ? "Hide the numbers" : "View numbers"}
         </button>
         {details && (
-          <div className="details">
-            <div>
-              <span>Expected value of buying</span>
-              <b>{quote.ev >= 0 ? `+${money(quote.ev)}` : `-${money(-quote.ev)}`}</b>
-              <em>what it's worth on average once returns are priced in</em>
+          <>
+            <p className="quackhead">Quant Quack — the working behind the advice</p>
+            <div className="details">
+              <div>
+                <span>Expected value of buying</span>
+                <b>{quote.ev >= 0 ? `+${money(quote.ev)}` : `-${money(-quote.ev)}`}</b>
+                <em>what it's worth on average once returns are priced in</em>
+              </div>
+              <div>
+                <span>Most it's worth paying</span>
+                <b>{quote.no_price ? "nothing" : round(quote.fair_bid)}</b>
+                <em>above this you're paying for wears you won't get</em>
+              </div>
+              <div>
+                <span>Resale estimate</span>
+                <b>{advice.numbers.resale === null ? "—" : round(advice.numbers.resale)}</b>
+                <em>roughly what it'd fetch secondhand, unworn</em>
+              </div>
+              <div>
+                <span>Similar things you own</span>
+                <b>{advice.numbers.similar_owned}</b>
+                <em>averaging {advice.numbers.similar_wears} wears each</em>
+              </div>
+              <div>
+                <span>You send back</span>
+                <b>{Math.round(advice.numbers.return_prob * 100)}%</b>
+                <em>of things like this ({quote.return_evidence})</em>
+              </div>
+              <div>
+                <span>What it adds to your closet</span>
+                <b>{advice.numbers.alpha >= 0 ? `+${advice.numbers.alpha.toFixed(2)}` : advice.numbers.alpha.toFixed(2)}</b>
+                <em>above zero means it covers days nothing else does</em>
+              </div>
             </div>
-            <div>
-              <span>Most it's worth paying</span>
-              <b>{quote.no_price ? "nothing" : round(quote.fair_bid)}</b>
-              <em>above this you're paying for wears you won't get</em>
-            </div>
-            <div>
-              <span>Resale estimate</span>
-              <b>{shopping ? round(shopping.resale) : "—"}</b>
-              <em>roughly what it'd fetch secondhand, unworn</em>
-            </div>
-          </div>
+          </>
         )}
       </div>
     </div>
@@ -546,19 +934,41 @@ function Dashboard() {
   const [tab, setTab] = useState<Tab>("Closet");
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     getMe().then(setMe).catch(() => setFailed(true));
+  }, []);
+
+  useEffect(() => {
+    reload();
     getStorefront().then(setItems);
     getStatus().then(setStatus);
-  }, []);
+  }, [reload]);
+
+  // A wear is fire-and-forget on screen; the refresh only catches the
+  // knock-on numbers up.
+  const wear = useCallback(
+    (id: string) => {
+      logWears([id]).then(reload).catch(() => undefined);
+    },
+    [reload],
+  );
 
   const summary = useMemo(() => {
     if (!me) return null;
+    const best = me.shopping.best_value;
     return [
-      { label: "Things you own", value: String(me.shopping.items_owned) },
-      { label: "Spent on them", value: round(me.value.spent) },
-      { label: "Worth today", value: round(me.value.worth_now) },
-      { label: "Saved by skipping", value: round(me.value.saved) },
+      { label: "Your closet", value: `${me.shopping.items_owned} items`, note: "things you own" },
+      {
+        label: "Actually in rotation",
+        value: `${me.shopping.in_rotation} items`,
+        note: "worn at least once",
+      },
+      { label: "Wears recorded", value: String(me.usage.total_wears), note: "across your closet" },
+      {
+        label: "Best value",
+        value: best ? money(best.cost_per_wear) : round(me.value.saved),
+        note: best ? `${best.title} per wear` : "saved by skipping",
+      },
     ];
   }, [me]);
 
@@ -578,7 +988,7 @@ function Dashboard() {
       <nav className="nav">
         <a className="brand" href="#/home">
           <Duck size={28} />
-          <span>Quant Quack</span>
+          <span>Puddle</span>
         </a>
         <div className="navlinks">
           <a href="/demo">Live demo</a>
@@ -591,13 +1001,31 @@ function Dashboard() {
 
       <header className="dashhead">
         <h1>Your closet</h1>
-        <p>What you own, what you've been buying, and whether you're getting your money's worth.</p>
+        <p>What you own, what you actually wear, and whether the next thing is worth it.</p>
         <div className="statrow">
           {summary.map((s) => (
-            <Stat key={s.label} label={s.label} value={s.value} />
+            <Stat key={s.label} label={s.label} value={s.value} note={s.note} />
           ))}
         </div>
       </header>
+
+      {me.notices.length > 0 && (
+        <section className="noticed">
+          <h3 className="sub2">Puddle noticed…</h3>
+          <div className="notes">
+            {me.notices.map((n) => (
+              <div className="note" key={n.title}>
+                <Duck size={26} />
+                <p>
+                  <b>{n.title}</b>
+                  <br />
+                  {n.detail}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="tabs">
         {TABS.map((t) => (
@@ -608,16 +1036,16 @@ function Dashboard() {
       </div>
 
       <main className="tabbody">
-        {tab === "Closet" && <ClosetTab me={me} />}
-        {tab === "Purchases" && <PurchasesTab me={me} />}
-        {tab === "Your shopping" && <ShoppingTab me={me} />}
+        {tab === "Closet" && <ClosetTab me={me} onWear={wear} />}
+        {tab === "Purchases" && <PurchasesTab me={me} onChange={reload} />}
+        {tab === "How you dress" && <DressTab me={me} usage={me.usage} />}
         {tab === "Value" && <ValueTab me={me} />}
         {tab === "Worth it?" && (items.length ? <WorthIt items={items} /> : <p className="hint">No shop connected.</p>)}
       </main>
 
       <footer className="foot">
         <Duck size={22} />
-        <span>Quant Quack — built at HackMIT.</span>
+        <span>Puddle — built at HackMIT.</span>
       </footer>
     </div>
   );
