@@ -40,7 +40,6 @@
   .row { display:flex; gap:10px; align-items:center; margin:14px 0; }
   select { padding:8px 10px; border-radius:8px; border:1px solid var(--line); }
   .checkout { width:100%; background:var(--accent); color:#fff; border:0; border-radius:12px; padding:15px; font-size:16px; font-weight:700; cursor:pointer; margin-top:10px; }
-  .hint { max-width:900px; margin:0 auto 30px; padding:12px 24px; color:var(--muted); font-size:13px; }
 @media(max-width:600px){.wrap{grid-template-columns:1fr;gap:20px;margin:20px auto}.photo{max-height:180px;aspect-ratio:auto}.photo svg{width:150px}.seg{flex-wrap:wrap}}
 </style>
 </head>
@@ -79,8 +78,6 @@
       <div class="muted" style="font-size:12px;margin-top:8px">Visa &bull;&bull;&bull;&bull; 6154 on file. Puddle reviews the item before anything is charged.</div>
     </div>
   </div>
-  <div class="hint">Load the <b>Puddle</b> extension (chrome://extensions → Load unpacked → <code>extension/</code>) and start the brain (<code>uvicorn brain.app:app --port 8000</code>). Then click Checkout.</div>
-
 <script>
   // The garment silhouettes the dashboard draws (web/src/Garment.tsx): d is the
   // shape, det the seam layer, lite the pale layer. One fill per colour, no
@@ -155,9 +152,6 @@
   };
 
   paint();
-  if (document.body.dataset.puddleMode === "web") {
-    document.querySelector(".hint").remove();
-  }
   // Embedded in the landing page: the site's own nav is already there.
   if (new URLSearchParams(location.search).has("embed")) {
     document.querySelector(".puddlebar").remove();
