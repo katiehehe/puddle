@@ -28,12 +28,12 @@
         @media(prefers-reduced-motion:reduce){.card{animation:none!important}}
       </style>
       <div class="voice-controls">
-        <button type="button" class="voice-mic" aria-pressed="false">Talk to Puddle</button>
+        <button type="button" class="voice-mic" aria-pressed="false">Ask the duck</button>
         <button type="button" class="voice-cancel" hidden>Cancel recording</button>
         <button type="button" class="voice-mute" aria-pressed="false">Mute replies</button>
       </div>
-      <p class="voice-status" role="status" aria-live="polite">Checking microphone setup...</p>
-      <label class="voice-label" for="puddle-question">Or type a question</label>
+      <p class="voice-status" role="status" aria-live="polite">Checking microphone...</p>
+      <label class="voice-label" for="puddle-question">Or type</label>
       <form class="voice-form">
         <input id="puddle-question" maxlength="1000" autocomplete="off" placeholder="Why should I skip these?">
         <button type="submit">Ask</button>
@@ -65,7 +65,7 @@
       clearTimeout(timer);
       stream?.getTracks().forEach(track => track.stop());
       stream = null;
-      mic.textContent = "Talk to Puddle";
+      mic.textContent = "Ask the duck";
       mic.setAttribute("aria-pressed", "false");
       cancel.hidden = true;
     }
@@ -200,9 +200,9 @@
       if (disposed) return;
       configured = result.configured && Boolean(navigator.mediaDevices?.getUserMedia && globalThis.MediaRecorder);
       if (!busy) mic.disabled = !configured;
-      status.textContent = !result.configured ? "Voice is not connected yet. You can type a question below." :
-        !configured ? "Microphone recording is unavailable here. Type a question below." :
-        "Tap to record. Audio is sent to Deepgram after you stop.";
+      status.textContent = !result.configured ? "Voice not connected. Type instead." :
+        !configured ? "No microphone here. Type instead." :
+        "Tap to record.";
     }).catch(error => { if (!disposed) status.textContent = error.message; });
     return () => {
       disposed = true; generation += 1; pendingMic = false;

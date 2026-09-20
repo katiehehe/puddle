@@ -1,415 +1,633 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  CatalogItem, Score, Status,
-  getPortfolio, getStatus, getStorefront, gradePrediction, scoreItem,
+  askDuck,
+  getMe,
+  getQuote,
+  getStatus,
+  getStorefront,
+  scoreItem,
+  CatalogItem,
+  ClosetPiece,
+  Me,
+  Quote,
+  Score,
+  Status,
 } from "./api";
-import { FIXTURE, Portfolio } from "./fixtures";
+import { Garment } from "./Garment";
 
-// docs/theme.md — Field Guide palette, kept in sync with extension/content.js.
-const THEME = {
-  duck: "#c98a2b", duckDeep: "#8a5a17",
-  water: "#3e6b8e", waterDeep: "#2f5570", ripple: "#b9c8cf",
-  reed: "#5b7a4b", warning: "#a63d2f", muted: "#8a8270", line: "#cfc5a8",
-};
+const money = (n: number) => `$${n.toFixed(2)}`;
+const round = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
-// The mascot: the duck emoji floating on a ripple.
-function DuckLogo() {
-  return <div className="ducklogo" aria-hidden="true">🦆</div>;
+function useHash(): string {
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const on = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+  return hash;
 }
 
-function CoverageRadar({ coverage }: { coverage: Portfolio["coverage"] }) {
-  const size = 320, cx = size / 2, cy = size / 2, R = 120;
-  const n = coverage.length;
-  const pt = (i: number, r: number) => {
-    const a = -Math.PI / 2 + (i * 2 * Math.PI) / n;
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-  };
-  const poly = coverage.map((c, i) => pt(i, R * c.coverage).join(",")).join(" ");
-  const rings = [0.25, 0.5, 0.75, 1].map((f) => coverage.map((_, i) => pt(i, R * f).join(",")).join(" "));
+function Duck({ size = 40 }: { size?: number }) {
   return (
-    <svg width={size + 130} height={size} viewBox={`-65 0 ${size + 130} ${size}`}>
-      {rings.map((r, i) => (
-        <polygon key={i} points={r} fill="none" stroke={THEME.line} />
-      ))}
-      {coverage.map((_, i) => {
-        const [x, y] = pt(i, R);
-        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={THEME.ripple} />;
-      })}
-      <polygon points={poly} fill="rgba(62,107,142,.16)" stroke={THEME.water} strokeWidth={2} />
-      {coverage.map((c, i) => {
-        const [lx, ly] = pt(i, R + 20);
-        const gap = c.coverage < 0.45;
-        const [dx, dy] = pt(i, R * c.coverage);
-        // Labels are long; anchor them away from the wheel and wrap on the slash.
-        const anchor = lx - cx > 8 ? "start" : lx - cx < -8 ? "end" : "middle";
-        const lines = c.state.split(" / ");
-        return (
-          <g key={i}>
-            <circle cx={dx} cy={dy} r={3.5} fill={gap ? THEME.warning : THEME.water} />
-            <text x={lx} y={ly - (lines.length - 1) * 6} fontSize={11} textAnchor={anchor}
-              fill={gap ? THEME.warning : THEME.muted} fontWeight={gap ? 700 : 400}>
-              {lines.map((l, k) => (
-                <tspan key={k} x={lx} dy={k === 0 ? 0 : 12}>{l}</tspan>
-              ))}
-            </text>
-          </g>
-        );
-      })}
+    <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
+      <circle cx="32" cy="34" r="20" fill="#ffd166" />
+      <circle cx="44" cy="20" r="12" fill="#ffd166" />
+      <circle cx="48" cy="17" r="2.2" fill="#23262d" />
+      <path d="M56 21 h9 l-3 5 h-6 z" fill="#f1893b" />
     </svg>
   );
 }
 
+/* ------------------------------------------------------------------ home */
 
-const DUCK_FACE: Record<string, string> = {
-  idle: "quiet", curious: "curious", concerned: "concerned", approving: "approving",
-};
-
-const INSIGHT_LABEL: Record<string, string> = {
-  return_pattern: "Return pattern",
-  time_pattern: "Time of day",
-  redundancy: "Redundancy",
-  coverage_gap: "Coverage gap",
-  overexposure: "Overexposure",
-};
-
-/** How often each occasion actually happens, from recorded wears. Derived, not
- *  typed in, which is the point of showing it beside the coverage wheel. */
-function LifeMix({ coverage }: { coverage: Portfolio["coverage"] }) {
-  const max = Math.max(...coverage.map((c) => c.p), 0.0001);
+function CheckoutMock() {
   return (
-    <div className="mix">
-      {[...coverage].sort((a, b) => b.p - a.p).map((c) => (
-        <div className="mixrow" key={c.state}>
-          <span className="mixname">{c.state}</span>
-          <span className="mixbar"><i style={{ width: `${(c.p / max) * 100}%` }} /></span>
-          <span className="mixval">{(c.p * 100).toFixed(1)}%</span>
+    <div className="mock" aria-hidden="true">
+      <div className="mockbar">
+        <span /> <span /> <span />
+        <div className="mockurl">westridge.com/boots/suede-chelsea</div>
+      </div>
+      <div className="mockbody">
+        <div className="mockshot">
+          <Garment category="shoes" colour="brown" size={150} />
         </div>
-      ))}
+        <div className="mockinfo">
+          <div className="mockbrand">WESTRIDGE</div>
+          <h4>Suede Chelsea boots</h4>
+          <div className="mockprice">$128.00</div>
+          <div className="mockbtn">Add to cart</div>
+        </div>
+        <div className="duckcard">
+          <div className="duckhead">
+            <Duck size={30} />
+            <b>Quant Quack</b>
+          </div>
+          <p>
+            You already own <b>3 pairs of black boots</b>. You've worn the closest pair 7 times
+            this year.
+          </p>
+          <p>
+            $128 is <b>$18 below</b> what you usually pay for boots. Wear these 20 times and
+            they cost <b>$6.40 a wear</b>.
+          </p>
+          <div className="duckask">Still worth it?</div>
+          <div className="duckbtns">
+            <span className="db">Skip it</span>
+            <span className="db alt">Buy anyway</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-/** The exact call the extension makes at checkout, run on demand. The hour
- *  slider is what makes the time-of-day rule inspectable: past 23:00 it
- *  appears, and it still never outranks the item-specific verdict. */
-function LiveScorer({ items }: { items: CatalogItem[] }) {
-  const [id, setId] = useState("");
-  const [hour, setHour] = useState(23);
-  const [res, setRes] = useState<Score | null>(null);
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
+const TELLS = [
+  ["Do I already own this?", "Counts the near-duplicates hiding in your closet, and how much you actually wear them."],
+  ["Is this a good price?", "Compares it to what you've paid for the same kind of thing before."],
+  ["What will it cost me per wear?", "$128 you wear twice is expensive. $128 you wear fifty times isn't."],
+  ["Will I actually use it?", "Your own history says how often things like this get worn."],
+  ["What's it worth later?", "An estimate of what it resells for once you've owned it."],
+  ["What have I saved?", "Every skip goes in the pond, so not buying feels like something."],
+];
 
-  useEffect(() => { if (!id && items.length) setId(items[0].id); }, [items, id]);
-
-  async function run(nextId = id, nextHour = hour) {
-    if (!nextId) return;
-    setBusy(true); setErr("");
-    try { setRes(await scoreItem(nextId, nextHour)); }
-    catch (e) { setErr(e instanceof Error ? e.message : "could not reach the brain"); setRes(null); }
-    finally { setBusy(false); }
-  }
-
-  const pf = res?.portfolio;
-
+function Home() {
   return (
-    <section className="card">
-      <h2>Ask the duck</h2>
-      <p className="muted">
-        This is the same call the extension makes at checkout. Drag the hour past 23:00
-        and the late-night pattern shows up. It never overrides what the item itself is.
-      </p>
-
-      <div className="controls">
-        <select value={id} onChange={(e) => { setId(e.target.value); run(e.target.value, hour); }}>
-          {items.map((i) => <option key={i.id} value={i.id}>{i.title} (${i.price})</option>)}
-          {!items.length && <option value="">brain offline</option>}
-        </select>
-        <label className="hourlab">
-          <span className="muted">hour</span>
-          <input type="range" min={0} max={23} value={hour}
-                 onChange={(e) => setHour(+e.target.value)}
-                 onMouseUp={() => run()} onTouchEnd={() => run()} />
-          <b className="hourval">{String(hour).padStart(2, "0")}:40</b>
-        </label>
-        <button onClick={() => run()} disabled={busy || !id}>{busy ? "scoring…" : "Score it"}</button>
-      </div>
-
-      {err && <p className="err">{err}</p>}
-
-      {res && (
-        <div className={"verdict " + res.duck_state}>
-          <div className="vhead">
-            <span className={"face " + res.duck_state}>{DUCK_FACE[res.duck_state] ?? res.duck_state}</span>
-            <span className={"call " + res.decision}>{res.decision}</span>
-            <span className="muted">
-              {res.speak ? "speaks out loud" : "stays silent"}, confidence {(res.confidence * 100).toFixed(0)}%
-            </span>
-          </div>
-          <p className="headline">“{res.headline}”</p>
-
-          {res.insights.length > 0 && (
-            <div className="insights">
-              {res.insights.map((i, k) => (
-                <div className="insight" key={k}>
-                  <div className="itop">
-                    <span className={"ilabel " + i.type}>{INSIGHT_LABEL[i.type] ?? i.type}</span>
-                    <span className="muted">weight {i.weight > 0 ? "+" : ""}{i.weight.toFixed(2)}</span>
-                  </div>
-                  <div className="iline">{i.line}</div>
-                  <div className="istat">
-                    {Object.entries(i.stat).map(([k2, v]) => (
-                      <span className="kv" key={k2}>
-                        <em>{k2}</em>{String(typeof v === "number" ? Math.round(v * 1000) / 1000 : v)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {pf && (
-            <div className="mathrow">
-              <div><span className="lbl">alpha</span><b className={pf.alpha > 0 ? "good" : "bad"}>{pf.alpha > 0 ? "+" : ""}{pf.alpha}</b></div>
-              <div><span className="lbl">beta</span><b>{pf.beta}</b></div>
-              <div><span className="lbl">Sharpe before</span><b>{pf.style_sharpe_before}</b></div>
-              <div><span className="lbl">Sharpe after</span><b className={pf.style_sharpe_after >= pf.style_sharpe_before ? "good" : "bad"}>{pf.style_sharpe_after}</b></div>
-              <div><span className="lbl">covers</span><b>{pf.covers_gap?.label ?? "—"}</b></div>
-            </div>
-          )}
+    <div className="home">
+      <nav className="nav">
+        <a className="brand" href="#/">
+          <Duck size={28} />
+          <span>Quant Quack</span>
+        </a>
+        <div className="navlinks">
+          <a href="#how">How it works</a>
+          <a href="/demo">Live demo</a>
+          <a href="#/closet">My closet</a>
+          <a className="cta small" href="#install">
+            Add to Chrome
+          </a>
         </div>
-      )}
-    </section>
-  );
-}
+      </nav>
 
-export default function App() {
-  const [p, setP] = useState<Portfolio>(FIXTURE);
-  const [live, setLive] = useState(false);
-  const [items, setItems] = useState<CatalogItem[]>([]);
-  const [status, setStatus] = useState<Status | null>(null);
-  const [grading, setGrading] = useState("");
-
-  async function refresh() {
-    const r = await getPortfolio();
-    setP(r.data); setLive(r.live);
-  }
-
-  useEffect(() => {
-    refresh();
-    getStorefront().then(setItems);
-    getStatus().then(setStatus);
-  }, []);
-
-  async function grade(id: string, correct: boolean) {
-    setGrading(id);
-    try { await gradePrediction(id, correct); await refresh(); }
-    finally { setGrading(""); }
-  }
-
-  const over = p.overexposure;
-  const gaps = p.coverage.filter((c) => !c.covered);
-  const ungraded = p.ledger.predictions.filter((x) => !x.graded).length;
-
-  // Same $800 pond scale as the duck card and popup.
-  const pondPct = Math.min(100, (p.pond.saved / 800) * 100);
-
-  return (
-    <div className="page">
       <header className="hero">
-        <div className="hero-main">
-          <DuckLogo />
-          <div>
-            <div className="tag">PUDDLE</div>
-            <h1>Your wardrobe, as an <span>investment portfolio</span></h1>
-            <p className="sub">Everything you own, priced by how much you actually wear it. Plus what to buy next and what to let go.</p>
+        <div>
+          <div className="pill">Chrome extension</div>
+          <h1>Know if it's worth it before you buy it.</h1>
+          <p>
+            Quant Quack remembers what you own, checks the numbers, and talks the purchase
+            through with you at checkout.
+          </p>
+          <div className="herobtns">
+            <a className="cta" href="#install">
+              Add to Chrome — free
+            </a>
+            <a className="ghost" href="/demo">
+              Try the live demo
+            </a>
           </div>
+          <div className="herofoot">Works on any shop. Your closet stays yours.</div>
         </div>
-        <div className="badges">
-          <div className={"badge " + (live ? "on" : "off")}>{live ? "brain connected" : "demo data"}</div>
-          {status && (
-            <>
-              <div className={"badge " + (status.payments === "mock" ? "off" : "on")}>
-                Visa: {status.payments === "mock" ? "simulated" : status.payments}
-              </div>
-              <div className={"badge " + (status.voice.configured ? "on" : "off")}>
-                Voice: {status.voice.configured ? status.voice.provider : "no key"}
-              </div>
-            </>
-          )}
-        </div>
+        <CheckoutMock />
       </header>
 
-      <section className="stats">
-        <div className="stat big">
-          <div className="lbl">Style Sharpe</div>
-          <div className="val">{p.style_sharpe.toFixed(2)}</div>
-          <div className="hint">return per unit of risk, against a loungewear baseline of {p.risk_free}</div>
-        </div>
-        <div className="stat">
-          <div className="lbl">Saved from regret buys</div>
-          <div className="val water">${p.pond.saved}</div>
-          <div className="pond"><div className="fill" style={{ width: pondPct + "%" }} /></div>
-          <div className="hint">{p.pond.skips} skip{p.pond.skips === 1 ? "" : "s"} recorded</div>
-        </div>
-        <div className="stat">
-          <div className="lbl">Duck's track record</div>
-          <div className="val">{p.ledger.accuracy}</div>
-          <div className="hint">{ungraded} call{ungraded === 1 ? "" : "s"} still open</div>
-        </div>
-      </section>
-
-      {over && (
-        <section className="card conc">
-          <div>
-            <h2>Concentration</h2>
-            <p className="muted">
-              Herfindahl over which occasion each item is <em>for</em>. High means your closet
-              is piled into a few days of the week.
-            </p>
+      <section className="steps" id="how">
+        <h2>Three things, then it's out of your way</h2>
+        <div className="stepgrid">
+          <div className="step">
+            <span>1</span>
+            <h3>It learns your closet</h3>
+            <p>What you own, what you paid, and what you actually reach for.</p>
           </div>
-          <div className="concnums">
-            <div><span className="lbl">HHI</span><b>{over.hhi}</b></div>
-            <div><span className="lbl">busiest occasion</span><b>{over.top_label}</b></div>
-            <div><span className="lbl">its share</span><b>{(over.top_share * 100).toFixed(0)}%</b></div>
-            <div><span className="lbl">items for it</span><b>{over.top_count}</b></div>
+          <div className="step">
+            <span>2</span>
+            <h3>It watches the page, not you</h3>
+            <p>When you're about to buy, it reads the item off the shop and does the maths.</p>
           </div>
-          {gaps.length > 0 && (
-            <p className="concline">
-              <b>{over.top_count}</b> things for <b>{over.top_label.toLowerCase()}</b>, and nothing
-              for <b>{gaps.map((g) => g.state.toLowerCase()).join(", ")}</b>.
-            </p>
-          )}
-        </section>
-      )}
-
-      <LiveScorer items={items} />
-
-      <section className="grid2">
-        <div className="card">
-          <h2>What your closet covers</h2>
-          <p className="muted">Red points are gaps. You own nothing good for those days.</p>
-          <div className="radarwrap"><CoverageRadar coverage={p.coverage} /></div>
-          <h3>Life mix</h3>
-          <p className="muted">Derived from recorded wears, not a table someone typed.</p>
-          <LifeMix coverage={p.coverage} />
+          <div className="step">
+            <span>3</span>
+            <h3>It says something useful</h3>
+            <p>A sentence you can argue with — not a block, not a lecture. You still decide.</p>
+          </div>
         </div>
+      </section>
 
-        <div className="card">
-          <h2>Rebalance</h2>
-          <p className="muted">Ranked by marginal Sharpe per dollar, then picked greedily under budget.</p>
-          <h3 className="good">Buy (${p.rebalance.spent} of ${p.rebalance.budget})</h3>
-          {p.rebalance.buy.map((b) => (
-            <div className="rec" key={b.id}>
-              <div>
-                <b>{b.title}</b> <span className="muted">${b.price}</span>
-                {b.covers_gap && <div className="quote">covers {b.covers_gap}</div>}
-              </div>
-              <div className="why good">α +{b.alpha}<span className="sub2">{b.sharpe_per_dollar}/$</span></div>
-            </div>
-          ))}
-          <h3 className="bad">Skip</h3>
-          {p.rebalance.skip.map((s) => (
-            <div className="rec" key={s.id}>
-              <div>
-                <b>{s.title}</b> <span className="muted">${s.price}</span>
-                {s.reasons?.[0] ? <div className="quote">“{s.reasons[0]}”</div> : null}
-              </div>
-              <div className="why bad">
-                α {s.alpha}
-                {s.redundant_with.length ? <span className="sub2">{s.redundant_with.length} similar owned</span> : null}
-              </div>
-            </div>
-          ))}
-          {p.rebalance.neutral.length > 0 && (
-            <>
-              <h3 className="muted">No strong opinion</h3>
-              {p.rebalance.neutral.map((nv) => (
-                <div className="rec" key={nv.id}>
-                  <div><b>{nv.title}</b> <span className="muted">${nv.price}</span></div>
-                  <div className="why muted">α {nv.alpha}</div>
-                </div>
-              ))}
-            </>
-          )}
-          <h3 className="muted">Donate</h3>
-          <p className="muted">Only items whose removal leaves every covered occasion covered.</p>
-          {p.rebalance.donate.map((d) => (
-            <div className="rec" key={d.id}>
-              <div><b>{d.title}</b> <span className="muted">${d.cost_per_wear}/wear</span></div>
-              <div className="why muted">payoff {d.expected_payoff}</div>
+      <section className="tells">
+        <h2>What it tells you</h2>
+        <div className="tellgrid">
+          {TELLS.map(([q, a]) => (
+            <div className="tell" key={q}>
+              <h3>{q}</h3>
+              <p>{a}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="card">
-        <h2>Holdings</h2>
-        <p className="muted">
-          <em>Weight</em> is the share of wears mean-variance gives each item. <em>Payoff</em> is
-          its expected usefulness across your occasions.
-        </p>
-        <div className="tablewrap">
-        <table>
-          <thead><tr>
-            <th>Item</th><th>Category</th><th className="num">Wears</th>
-            <th className="num">Cost / wear</th><th className="num">Payoff</th>
-            <th className="num">Weight</th><th>Flag</th>
-          </tr></thead>
-          <tbody>
-            {[...p.holdings].sort((a, b) => b.weight - a.weight).map((h) => (
-              <tr key={h.id}>
-                <td>{h.title}</td><td className="muted">{h.category}</td>
-                <td className="num">{h.wears}</td>
-                <td className="num">${h.cost_per_wear}</td><td className="num">{h.expected_payoff}</td>
-                <td className="num">
-                  <span className="wbar" title={String(h.weight)}>
-                    <i style={{ width: `${Math.min(100, h.weight * 400)}%` }} />
-                  </span>
-                </td>
-                <td>{h.redundant_with.length ? <span className="pill bad">{h.redundant_with.length} dupes</span> : ""}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      </section>
-
-      <section className="card">
-        <h2>Prediction ledger</h2>
-        <p className="muted">
-          Every call the duck has made, in its own words. Grade one and the score above moves.
-        </p>
-        <div className="ledger">
-          {p.ledger.predictions.map((pr) => (
-            <div className={"lrow " + (pr.correct ? "ok" : pr.graded ? "no" : "pending")} key={pr.id}>
-              <div className="lmain">
-                <b>{pr.item}</b>
-                {pr.line && <div className="quote">“{pr.line}”</div>}
-              </div>
-              <div className="lmeta">
-                <span className={"call " + pr.call}>{pr.call}</span>
-                {pr.user_action && <span className="muted">you {pr.user_action}</span>}
-                <span className="muted">{(pr.confidence * 100).toFixed(0)}%</span>
-              </div>
-              <div className="lgrade">
-                {pr.graded ? <span>{pr.correct ? "✓ right" : "✗ wrong"}</span>
-                  : live ? (
-                    <>
-                      <button className="tiny" disabled={grading === pr.id} onClick={() => grade(pr.id, true)}>right</button>
-                      <button className="tiny" disabled={grading === pr.id} onClick={() => grade(pr.id, false)}>wrong</button>
-                    </>
-                  ) : <span className="muted">…pending</span>}
-              </div>
-            </div>
-          ))}
-          {!p.ledger.predictions.length && <p className="muted">No calls yet. Check out on the shop and one appears here.</p>}
+      <section className="install" id="install">
+        <div>
+          <h2>Add it to Chrome</h2>
+          <p>
+            The extension isn't in the Web Store yet. Grab the folder, open{" "}
+            <code>chrome://extensions</code>, turn on Developer mode, and choose{" "}
+            <b>Load unpacked</b>.
+          </p>
+          <div className="herobtns">
+            <a className="cta" href="https://github.com/katiehehe/puddle">
+              Get the extension
+            </a>
+            <a className="ghost" href="#/closet">
+              See my closet
+            </a>
+          </div>
         </div>
       </section>
 
       <footer className="foot">
-        Puddle. Built at HackMIT 2026 on FastAPI and numpy.
+        <Duck size={22} />
+        <span>Quant Quack — built at HackMIT.</span>
       </footer>
     </div>
   );
+}
+
+/* ------------------------------------------------------------- dashboard */
+
+const TABS = ["Closet", "Purchases", "Your shopping", "Value", "Worth it?"] as const;
+type Tab = (typeof TABS)[number];
+
+function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <div className="stat">
+      <span>{label}</span>
+      <b>{value}</b>
+      {note && <em>{note}</em>}
+    </div>
+  );
+}
+
+function PieceCard({ piece }: { piece: ClosetPiece }) {
+  return (
+    <article className="piece">
+      <div className="piecepic">
+        <Garment category={piece.category} colour={piece.color} />
+        {piece.duplicates.length > 0 && <span className="dupe">+{piece.duplicates.length} similar</span>}
+      </div>
+      <h4>{piece.title}</h4>
+      <div className="piecemeta">
+        {piece.wears} wear{piece.wears === 1 ? "" : "s"}
+        {piece.size ? ` · size ${piece.size}` : ""}
+      </div>
+      <div className="piecenums">
+        <div>
+          <span>per wear</span>
+          <b>{piece.cost_per_wear === null ? "never worn" : money(piece.cost_per_wear)}</b>
+        </div>
+        <div>
+          <span>worth now</span>
+          <b>{round(piece.worth_now)}</b>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ClosetTab({ me }: { me: Me }) {
+  const [filter, setFilter] = useState("all");
+  const cats = me.shopping.categories;
+  const shown = me.closet.filter((p) => filter === "all" || p.category === filter);
+  const unworn = me.closet.filter((p) => p.wears === 0).length;
+  return (
+    <>
+      <div className="chips">
+        <button className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>
+          Everything {me.closet.length}
+        </button>
+        {cats.map((c) => (
+          <button
+            key={c.category}
+            className={filter === c.category ? "on" : ""}
+            onClick={() => setFilter(c.category)}
+          >
+            {c.label} {c.count}
+          </button>
+        ))}
+      </div>
+      {unworn > 0 && (
+        <p className="hint">
+          {unworn} thing{unworn === 1 ? "" : "s"} in here you've never worn.
+        </p>
+      )}
+      <div className="grid">
+        {shown.map((p) => (
+          <PieceCard key={p.id} piece={p} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function PurchasesTab({ me }: { me: Me }) {
+  const when = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return (
+    <div className="buys">
+      {me.purchases.map((p) => {
+        // A returned purchase has nothing left to value, and the closet only
+        // tracks wears for things still in it.
+        const kept = !p.returned && p.in_closet;
+        return (
+          <div className={`buy${p.returned ? " returned" : ""}`} key={p.id}>
+            <div className="buypic">
+              <Garment category={p.category} colour="grey" size={54} />
+            </div>
+            <div className="buymain">
+              <h4>{p.title}</h4>
+              <span>
+                {when(p.bought_at)}
+                {p.returned
+                  ? ` · sent back${p.return_reason ? `, ${p.return_reason.replace(/_/g, " ")}` : ""}`
+                  : p.in_closet
+                    ? ""
+                    : " · not in your closet"}
+              </span>
+            </div>
+            <div className="buycol">
+              <span>paid</span>
+              <b>{round(p.price)}</b>
+            </div>
+            <div className="buycol">
+              <span>worn</span>
+              <b>{kept ? `${p.wears}×` : "—"}</b>
+            </div>
+            <div className="buycol">
+              <span>per wear</span>
+              <b>{kept && p.cost_per_wear !== null ? money(p.cost_per_wear) : "—"}</b>
+            </div>
+            <div className="buycol">
+              <span>worth now</span>
+              <b>{kept && p.worth_now !== null ? round(p.worth_now) : p.returned ? "refunded" : "—"}</b>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ShoppingTab({ me }: { me: Me }) {
+  const s = me.shopping;
+  return (
+    <>
+      <div className="notes">
+        {s.lines.map((line) => (
+          <div className="note" key={line}>
+            <Duck size={26} />
+            <p>{line}</p>
+          </div>
+        ))}
+      </div>
+      <h3 className="sub2">What your closet is made of</h3>
+      <div className="bars">
+        {s.categories.map((c) => (
+          <div className="bar" key={c.category}>
+            <span>{c.label}</span>
+            <div>
+              <i style={{ width: `${(100 * c.count) / s.items_owned}%` }} />
+            </div>
+            <b>{c.count}</b>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function ValueTab({ me }: { me: Me }) {
+  const worn = me.closet.filter((p) => p.cost_per_wear !== null);
+  const best = [...worn].sort((a, b) => (a.cost_per_wear ?? 0) - (b.cost_per_wear ?? 0)).slice(0, 5);
+  const worst = [...me.closet]
+    .sort((a, b) => (b.cost_per_wear ?? 1e9) - (a.cost_per_wear ?? 1e9))
+    .slice(0, 5);
+  const v = me.value;
+  return (
+    <>
+      <div className="valuetop">
+        <Stat label="You've spent" value={round(v.spent)} note="on everything you still own" />
+        <Stat label="It's worth about" value={round(v.worth_now)} note="if you resold it today" />
+        <Stat label="Value kept" value={`${Math.round(v.value_retained * 100)}%`} />
+        <Stat label="Saved by skipping" value={round(v.saved)} note="sitting in your pond" />
+      </div>
+      <p className="hint">Resale figures are estimates, based on category and how worn a thing is.</p>
+      <div className="two">
+        <div>
+          <h3 className="sub2">Money best spent</h3>
+          {best.map((p) => (
+            <div className="line" key={p.id}>
+              <span>{p.title}</span>
+              <b>{money(p.cost_per_wear ?? 0)} a wear</b>
+            </div>
+          ))}
+        </div>
+        <div>
+          <h3 className="sub2">Money doing nothing</h3>
+          {worst.map((p) => (
+            <div className="line" key={p.id}>
+              <span>{p.title}</span>
+              <b>{p.cost_per_wear === null ? `${round(p.paid)}, never worn` : `${money(p.cost_per_wear)} a wear`}</b>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ---------------------------------------------------------- worth it tab */
+
+function WorthIt({ items }: { items: CatalogItem[] }) {
+  const [itemId, setItemId] = useState(items[0]?.id ?? "");
+  const [hour, setHour] = useState(23);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [score, setScore] = useState<Score | null>(null);
+  const [wears, setWears] = useState(20);
+  const [details, setDetails] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [asking, setAsking] = useState(false);
+
+  useEffect(() => {
+    if (!itemId) return;
+    let live = true;
+    Promise.all([getQuote(itemId, hour), scoreItem(itemId, hour)])
+      .then(([q, s]) => {
+        if (!live) return;
+        setQuote(q);
+        setScore(s);
+        setWears(Math.max(5, Math.round(q.expected_wears)));
+        setAnswer("");
+      })
+      .catch(() => live && setQuote(null));
+    return () => {
+      live = false;
+    };
+  }, [itemId, hour]);
+
+  if (!quote || !score) return <p className="hint">Asking the duck…</p>;
+
+  const ask = quote.ask;
+  const shopping = score.shopping;
+  const perWear = ask / Math.max(wears, 1);
+  const good = perWear <= quote.your_cost_per_wear;
+
+  return (
+    <div className="worth">
+      <div className="pickrow">
+        <label>
+          Thinking about
+          <select value={itemId} onChange={(e) => setItemId(e.target.value)}>
+            {items.map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.title} — {round(i.price)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          at
+          <input type="range" min={0} max={23} value={hour} onChange={(e) => setHour(+e.target.value)} />
+          <b>{String(hour).padStart(2, "0")}:40</b>
+        </label>
+      </div>
+
+      <div className="verdictcard">
+        <div className="duckhead">
+          <Duck size={34} />
+          <b>Quant Quack</b>
+        </div>
+        <p className="say">{score.headline}</p>
+        {shopping && shopping.owned_count > 0 && shopping.closest && (
+          <p>
+            You already own {shopping.owned_count} of these. You've worn the closest one{" "}
+            {shopping.closest.wears} times.
+          </p>
+        )}
+        {shopping && shopping.typical_price !== null && shopping.difference !== null && (
+          <p>
+            {round(ask)} is{" "}
+            <b>
+              {shopping.difference === 0
+                ? "exactly"
+                : `${money(Math.abs(shopping.difference))} ${shopping.difference > 0 ? "below" : "above"}`}
+            </b>{" "}
+            {shopping.verdict === "no read" ? "unusual for you" : `what you usually pay (${shopping.basis})`}.
+          </p>
+        )}
+
+        <div className="wearslider">
+          <label>
+            If you wear it <b>{wears}</b> times
+            <input type="range" min={1} max={60} value={wears} onChange={(e) => setWears(+e.target.value)} />
+          </label>
+          <div className={`perwear${good ? " good" : " bad"}`}>
+            {money(perWear)} a wear
+            <em>
+              {good
+                ? `cheaper than the ${money(quote.your_cost_per_wear)} a wear you normally get`
+                : `your closet averages ${money(quote.your_cost_per_wear)} a wear`}
+            </em>
+          </div>
+        </div>
+        <p className="honest">
+          Going on your history, you'd realistically wear it about{" "}
+          <b>{quote.expected_wears}</b> times — that's {money(ask / Math.max(quote.expected_wears, 0.1))} a
+          wear. You've sent back {Math.round(quote.return_prob * 100)}% of things like this ({quote.return_evidence}).
+        </p>
+
+        <div className="askrow">
+          <input
+            placeholder="Ask about it — “will I actually wear these?”"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" || !question.trim()) return;
+              setAsking(true);
+              askDuck(itemId, question, hour)
+                .then(setAnswer)
+                .finally(() => setAsking(false));
+            }}
+          />
+          <button
+            disabled={!question.trim() || asking}
+            onClick={() => {
+              setAsking(true);
+              askDuck(itemId, question, hour)
+                .then(setAnswer)
+                .finally(() => setAsking(false));
+            }}
+          >
+            Ask
+          </button>
+        </div>
+        {answer && <p className="answer">{answer}</p>}
+
+        <button className="detailtoggle" onClick={() => setDetails(!details)}>
+          {details ? "Hide the numbers" : "Show the numbers"}
+        </button>
+        {details && (
+          <div className="details">
+            <div>
+              <span>Expected value of buying</span>
+              <b>{quote.ev >= 0 ? `+${money(quote.ev)}` : `-${money(-quote.ev)}`}</b>
+              <em>what it's worth on average once returns are priced in</em>
+            </div>
+            <div>
+              <span>Most it's worth paying</span>
+              <b>{quote.no_price ? "nothing" : round(quote.fair_bid)}</b>
+              <em>above this you're paying for wears you won't get</em>
+            </div>
+            <div>
+              <span>Resale estimate</span>
+              <b>{shopping ? round(shopping.resale) : "—"}</b>
+              <em>roughly what it'd fetch secondhand, unworn</em>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- shell */
+
+function Dashboard() {
+  const [me, setMe] = useState<Me | null>(null);
+  const [items, setItems] = useState<CatalogItem[]>([]);
+  const [status, setStatus] = useState<Status | null>(null);
+  const [tab, setTab] = useState<Tab>("Closet");
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    getMe().then(setMe).catch(() => setFailed(true));
+    getStorefront().then(setItems);
+    getStatus().then(setStatus);
+  }, []);
+
+  const summary = useMemo(() => {
+    if (!me) return null;
+    return [
+      { label: "Things you own", value: String(me.shopping.items_owned) },
+      { label: "Spent on them", value: round(me.value.spent) },
+      { label: "Worth today", value: round(me.value.worth_now) },
+      { label: "Saved by skipping", value: round(me.value.saved) },
+    ];
+  }, [me]);
+
+  if (failed) {
+    return (
+      <div className="shell">
+        <p className="hint">
+          Can't reach your account right now. Start the brain with <code>./run.sh</code> and refresh.
+        </p>
+      </div>
+    );
+  }
+  if (!me || !summary) return <div className="shell"><p className="hint">Loading your closet…</p></div>;
+
+  return (
+    <div className="shell">
+      <nav className="nav">
+        <a className="brand" href="#/home">
+          <Duck size={28} />
+          <span>Quant Quack</span>
+        </a>
+        <div className="navlinks">
+          <a href="/demo">Live demo</a>
+          {status && <span className="live">{status.voice.configured ? "voice on" : "voice off"}</span>}
+          <a className="cta small" href="#/home">
+            Add to Chrome
+          </a>
+        </div>
+      </nav>
+
+      <header className="dashhead">
+        <h1>Your closet</h1>
+        <p>What you own, what you've been buying, and whether you're getting your money's worth.</p>
+        <div className="statrow">
+          {summary.map((s) => (
+            <Stat key={s.label} label={s.label} value={s.value} />
+          ))}
+        </div>
+      </header>
+
+      <div className="tabs">
+        {TABS.map((t) => (
+          <button key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      <main className="tabbody">
+        {tab === "Closet" && <ClosetTab me={me} />}
+        {tab === "Purchases" && <PurchasesTab me={me} />}
+        {tab === "Your shopping" && <ShoppingTab me={me} />}
+        {tab === "Value" && <ValueTab me={me} />}
+        {tab === "Worth it?" && (items.length ? <WorthIt items={items} /> : <p className="hint">No shop connected.</p>)}
+      </main>
+
+      <footer className="foot">
+        <Duck size={22} />
+        <span>Quant Quack — built at HackMIT.</span>
+      </footer>
+    </div>
+  );
+}
+
+export default function App() {
+  const hash = useHash();
+  // The brain serves the same bundle at / and at /dashboard/, so the path
+  // decides which side you land on and the hash lets you cross over.
+  const onDashboardPath = window.location.pathname.startsWith("/dashboard");
+  const closet = hash.startsWith("#/closet") || (onDashboardPath && !hash.startsWith("#/home"));
+  return closet ? <Dashboard /> : <Home />;
 }

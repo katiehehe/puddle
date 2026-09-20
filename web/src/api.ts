@@ -1,6 +1,7 @@
 import { FIXTURE, Portfolio } from "./fixtures";
 
-const BRAIN = "http://localhost:8000";
+// Empty base = same origin, for the build the brain serves at /dashboard.
+const BRAIN = import.meta.env.VITE_BRAIN ?? "http://localhost:8000";
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(`${BRAIN}${path}`, init);
@@ -39,6 +40,7 @@ export type Score = {
     covers_gap: { label: string } | null;
   };
   item: { title: string; price: number };
+  shopping?: ShoppingContext;
 };
 
 /** The live brain, scoring one item. This is the same call the duck makes at
@@ -79,6 +81,113 @@ export async function getStatus(): Promise<Status | null> {
   } catch {
     return null;
   }
+}
+
+export type Quote = {
+  ask: number;
+  fair_bid: number;
+  no_price: boolean;
+  fair_value: number;
+  expected_wears: number;
+  wears_logged: number;
+  your_cost_per_wear: number;
+  cost_per_wear_if_bought: number | null;
+  return_prob: number;
+  return_evidence: string;
+  friction: number;
+  ev: number;
+  ev_if_skipped: number;
+  units_held: number;
+  units: { id: string; title: string; wears: number }[];
+  unit_wears: number;
+  alpha: number;
+  covers_gap: { label: string } | null;
+};
+
+/** The same item, quoted as a trade: what it's offered at, what it's worth here. */
+export async function getQuote(itemId: string, nowHour: number): Promise<Quote> {
+  return call<Quote>(`/desk/${encodeURIComponent(itemId)}?now_hour=${nowHour}`);
+}
+
+export type ClosetPiece = {
+  id: string;
+  title: string;
+  category: string;
+  kind: string;
+  color: string;
+  material: string;
+  size: string | null;
+  paid: number;
+  worth_now: number;
+  value_retained: number;
+  lost: number;
+  cost_per_wear: number | null;
+  wears: number;
+  typical_price: number | null;
+  difference: number | null;
+  verdict: string;
+  duplicates: string[];
+};
+
+export type PurchaseRow = {
+  id: string;
+  title: string;
+  category: string;
+  price: number;
+  bought_at: string;
+  returned: boolean;
+  return_reason: string | null;
+  in_closet: boolean;
+  wears: number | null;
+  worth_now: number | null;
+  cost_per_wear: number | null;
+};
+
+export type Me = {
+  closet: ClosetPiece[];
+  purchases: PurchaseRow[];
+  shopping: {
+    lines: string[];
+    categories: { category: string; label: string; count: number }[];
+    items_owned: number;
+    in_rotation: number;
+    spent_recently: number;
+    recent_days: number;
+    best_value: { title: string; cost_per_wear: number } | null;
+    least_used: { title: string; price: number } | null;
+    returned_count: number;
+    purchase_count: number;
+  };
+  value: { spent: number; worth_now: number; value_retained: number; saved: number };
+};
+
+/** Everything the closet dashboard shows: what you own, what you bought, what
+ *  it's worth, and what your own history says about how you shop. */
+export async function getMe(): Promise<Me> {
+  return call<Me>("/me");
+}
+
+export type ShoppingContext = {
+  owned_count: number;
+  owned_titles: string[];
+  owned_wears: number;
+  closest: { title: string; wears: number } | null;
+  resale: number;
+  per_wear_at: Record<string, number>;
+  typical_price: number | null;
+  difference: number | null;
+  verdict: string;
+  basis: string;
+};
+
+/** The duck, answering in text. The extension uses this too, then speaks it. */
+export async function askDuck(itemId: string, question: string, nowHour: number): Promise<string> {
+  const r = await call<{ answer?: string }>("/voice/respond", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transcript: question, item_id: itemId, now_hour: nowHour }),
+  });
+  return r.answer ?? "I don't have a read on that one.";
 }
 
 export async function gradePrediction(id: string, correct: boolean): Promise<void> {

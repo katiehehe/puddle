@@ -12,7 +12,7 @@
   .brand { font-weight:800; letter-spacing:.18em; }
   .cart { color:var(--muted); font-size:14px; }
   .wrap { max-width:900px; margin:36px auto; display:grid; grid-template-columns:1fr 1fr; gap:40px; padding:0 24px; }
-  .photo { background:#eef1f4; border-radius:18px; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:120px; }
+  .photo { background:#eef1f4; border-radius:12px; aspect-ratio:1; display:flex; align-items:flex-end; padding:20px; color:#9aa4ae; font-size:13px; letter-spacing:.14em; text-transform:uppercase; }
   h1 { font-size:26px; margin:6px 0; }
   .price { font-size:22px; font-weight:700; margin:10px 0 18px; }
   .muted { color:var(--muted); font-size:14px; }
@@ -29,18 +29,18 @@
 <body>
   <header>
     <div class="brand">NORTHWICK</div>
-    <div class="cart">🛒 Cart (1)</div>
+    <div class="cart">Cart (1)</div>
   </header>
 
   <div class="wrap">
-    <div class="photo" id="emoji">🥾</div>
+    <div class="photo" id="photo">Product image</div>
     <div>
-      <div class="muted">Demo item. Switch between them to see the duck change its mind.</div>
+      <div class="muted">Demo item</div>
       <div class="seg" id="seg"></div>
 
       <h1 id="title">Chelsea Boots</h1>
       <div class="price" id="price">$128.00</div>
-      <p class="muted" id="desc">Handsome, and you'll probably send them back. Full-grain leather.</p>
+      <p class="muted" id="desc">Full-grain leather. Runs narrow.</p>
 
       <div class="row"><span class="muted">Size</span> <select id="size"><option>8</option><option>9</option><option>10</option></select></div>
 
@@ -51,11 +51,11 @@
 
 <script>
   const ITEMS = {
-    boots: { emoji:"🥾", desc:"Handsome, and you'll probably send them back. Full-grain leather.",
+    boots: { desc:"Full-grain leather. Runs narrow.",
       item:{ id:"cand_boots", title:"Chelsea boots", category:"boots", formality:3, warmth:3, price:128, q:0.6, waterproof:false, size:"8", now_hour:23 } },
-    crewneck: { emoji:"🧥", desc:"Another charcoal crewneck. You have a type.",
+    crewneck: { desc:"Heavyweight charcoal crewneck.",
       item:{ id:"cand_crew4", title:"Charcoal crewneck", category:"top", formality:2, warmth:3, price:68, q:0.7 } },
-    suit: { emoji:"🤵", desc:"Charcoal wool suit. Interview season is coming.",
+    suit: { desc:"Charcoal wool. Two-button.",
       item:{ id:"cand_suit", title:"Charcoal wool suit", category:"formal", formality:5, warmth:3, price:320, q:0.85 } },
   };
   let current = "boots";
@@ -71,7 +71,6 @@
 
   function paint() {
     const it = ITEMS[current].item;
-    document.getElementById("emoji").textContent = ITEMS[current].emoji;
     document.getElementById("title").textContent = it.title;
     document.getElementById("price").textContent = "$" + it.price.toFixed(2);
     document.getElementById("desc").textContent = ITEMS[current].desc;
@@ -90,7 +89,7 @@
 
   paint();
   if (document.body.dataset.puddleMode === "web") {
-    document.querySelector(".hint").textContent = "Click Checkout, then Talk to Puddle. Ask why, try another size, or ask what to get instead.";
+    document.querySelector(".hint").textContent = "Click Checkout.";
   }
 </script>
 </body>
