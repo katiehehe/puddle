@@ -51,8 +51,8 @@
       mic.disabled = value || !configured;
     }
     function say(text) {
-      if (muted || disposed || !globalThis.speechSynthesis) return;
-      speechSynthesis.cancel();
+      if (muted || disposed || !globalThis.speechSynthesis || !globalThis.SpeechSynthesisUtterance) return;
+      globalThis.speechSynthesis?.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.02;
       speechSynthesis.speak(utterance);
@@ -79,7 +79,7 @@
     }
     function beginQuestion() {
       generation += 1;
-      speechSynthesis.cancel();
+      globalThis.speechSynthesis?.cancel();
       confirm.hidden = true;
       answer.hidden = true;
       heard.hidden = true;
@@ -100,7 +100,7 @@
       muted = !muted;
       mute.setAttribute("aria-pressed", String(muted));
       mute.textContent = muted ? "Unmute replies" : "Mute replies";
-      if (muted) speechSynthesis.cancel();
+      if (muted) globalThis.speechSynthesis?.cancel();
     };
     function stopRecording(discard) {
       cancelled = discard;
@@ -168,6 +168,7 @@
         status.textContent = "Listening. Recording stops after 20 seconds.";
         timer = setTimeout(() => stopRecording(false), 20000);
       } catch (error) {
+        if (disposed || token !== generation) return;
         releaseMic();
         if (!disposed && token === generation) {
           setBusy(false);
@@ -201,7 +202,7 @@
     }).catch(error => { if (!disposed) status.textContent = error.message; });
     return () => {
       disposed = true; generation += 1; pendingMic = false;
-      stopRecording(true); speechSynthesis.cancel(); panel.remove();
+      stopRecording(true); globalThis.speechSynthesis?.cancel(); panel.remove();
     };
   }
   globalThis.PuddleVoice = { attach };
