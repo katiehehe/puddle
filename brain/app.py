@@ -44,6 +44,7 @@ def voice_demo():
     page = page.replace("<body>", '<body data-puddle-mode="web">')
     # Same shop, duck and voice controller as the extension. Only transport differs.
     scripts = '<script src="/demo-assets/transport.js"></script>'
+    scripts += '<script src="/demo-assets/speech.js"></script>'
     scripts += '<script src="/demo-assets/voice.js"></script>'
     scripts += '<script src="/demo-assets/content.js"></script>'
     return page.replace("</body>", scripts + "</body>")

@@ -1,3 +1,6 @@
+import base64
+import json
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -80,6 +83,55 @@ def test_audio_validation():
         ).status_code
         == 413
     )
+
+
+def mock_elevenlabs(monkeypatch, handler):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "test-secret-not-real")
+    original = httpx.AsyncClient
+    monkeypatch.setattr(voice.httpx, "AsyncClient", lambda **kw: original(transport=httpx.MockTransport(handler), **kw))
+
+
+def test_speech_is_browser_only_without_a_key(monkeypatch):
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    assert client.get("/voice/status").json()["speech"] == "browser"
+    response = client.post("/voice/speak", json={"text": "You returned four pairs."})
+    assert response.status_code == 503
+
+
+def test_speech_renders_audio(monkeypatch):
+    def handler(request):
+        assert request.url.host == "api.elevenlabs.io"
+        assert request.url.path.endswith(f"/v1/text-to-speech/{voice.DEFAULT_VOICE_ID}")
+        assert request.headers["xi-api-key"] == "test-secret-not-real"
+        assert json.loads(request.content)["model_id"] == voice.ELEVENLABS_MODEL
+        return httpx.Response(200, content=b"ID3-audio-bytes")
+
+    mock_elevenlabs(monkeypatch, handler)
+    assert client.get("/voice/status").json()["speech"] == "elevenlabs"
+    body = client.post("/voice/speak", json={"text": "You returned four pairs."}).json()
+    assert base64.b64decode(body["audio"]) == b"ID3-audio-bytes"
+    assert body["mime"] == "audio/mpeg"
+
+
+def test_speech_uses_the_configured_voice(monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_VOICE_ID", "duck-voice")
+    mock_elevenlabs(monkeypatch, lambda request: httpx.Response(200, content=request.url.path.encode()))
+    body = client.post("/voice/speak", json={"text": "Quack."}).json()
+    assert base64.b64decode(body["audio"]).endswith(b"/duck-voice")
+
+
+@pytest.mark.parametrize("status,expected", [(401, 502), (429, 503), (500, 502)])
+def test_speech_errors_do_not_leak_secrets(monkeypatch, status, expected):
+    mock_elevenlabs(monkeypatch, lambda _: httpx.Response(status, text="test-secret-not-real private details"))
+    response = client.post("/voice/speak", json={"text": "Quack."})
+    assert response.status_code == expected
+    assert "test-secret" not in response.text
+
+
+def test_speech_rejects_empty_and_oversized_text(monkeypatch):
+    mock_elevenlabs(monkeypatch, lambda _: httpx.Response(200, content=b"audio"))
+    assert client.post("/voice/speak", json={"text": "   "}).status_code == 422
+    assert client.post("/voice/speak", json={"text": "x" * (voice.MAX_SPEECH_CHARS + 1)}).status_code == 422
 
 
 def test_other_size_does_not_change_cart():

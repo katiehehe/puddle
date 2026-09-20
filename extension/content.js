@@ -97,12 +97,7 @@
   const send = msg => globalThis.PuddleSend(msg);
 
   function speak(text) {
-    try {
-      // Fallback TTS. Production: ElevenLabs stream (eleven_flash_v2_5).
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1.02; u.pitch = 1.15;
-      speechSynthesis.cancel(); speechSynthesis.speak(u);
-    } catch (e) {}
+    globalThis.PuddleSpeech?.speak(text);
   }
 
   const pondPct = (saved) => Math.min(100, (saved / 800) * 100);
