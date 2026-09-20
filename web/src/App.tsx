@@ -133,7 +133,6 @@ function Home() {
               Try the live demo
             </a>
           </div>
-          <div className="herofoot">Works on any shop. Your closet stays yours.</div>
         </div>
         <CheckoutMock />
       </header>
