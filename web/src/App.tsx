@@ -993,7 +993,6 @@ function Dashboard() {
         </a>
         <div className="navlinks">
           <a href="/demo">Live demo</a>
-          {status && <span className="live">{status.voice.configured ? "voice on" : "voice off"}</span>}
           <a className="cta small" href="#/home">
             Add to Chrome
           </a>
