@@ -76,7 +76,7 @@ async def speak(req: SpeechRequest):
                     "text": text,
                     "model_id": ELEVENLABS_MODEL,
                     "voice_settings": (
-                        {"stability": 0.6, "similarity_boost": 0.9, "style": 0.35, "speed": 0.7}
+                        {"stability": 0.75, "similarity_boost": 0.95, "style": 0.2, "speed": 0.72}
                         if req.ducky
                         else {"stability": 0.45, "similarity_boost": 0.75, "speed": 1.05}
                     ),

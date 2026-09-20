@@ -21,13 +21,13 @@ type Turn = { question: string; answer: string; intent: string };
 
 // Donald-duck playback: the clip is rendered slow and warm, then sped up
 // without pitch correction, which lifts the pitch but keeps the pace gentle.
-const DUCKY_RATE = 1.4;
+const DUCKY_RATE = 1.28;
 
 function browserSpeak(text: string, ducky: boolean) {
   if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = ducky ? 0.82 : 1.02;
-  utterance.pitch = ducky ? 1.9 : 1.15;
+  utterance.rate = ducky ? 0.78 : 1.02;
+  utterance.pitch = ducky ? 1.6 : 1.15;
   window.speechSynthesis.speak(utterance);
 }
 
