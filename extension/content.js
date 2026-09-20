@@ -2,14 +2,14 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
-  // web/src/styles.css — light cards on warm paper: ink text, duck-yellow accents.
+  // web/src/styles.css, light cards on warm paper: ink text, duck-yellow accents.
   const PALETTE = {
     ink: "#1d2026", muted: "#6b7280", line: "#e7e3da", track: "#eceadf",
     duck: "#ffd166", beak: "#f1893b",
     good: "#2f8f5b", bad: "#c8493f",
   };
 
-  // The same mascot the app draws — a yellow circle duck, not an emoji.
+  // The same mascot the app draws: a yellow circle duck, not an emoji.
   const DUCK = `<svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true">
     <circle cx="32" cy="34" r="20" fill="${PALETTE.duck}"/>
     <circle cx="44" cy="20" r="12" fill="${PALETTE.duck}"/>
@@ -42,7 +42,7 @@
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
   ));
 
-  // Escaped text with the numbers that matter picked out — prices and
+  // Escaped text with the numbers that matter picked out, meaning prices and
   // percentages get a duck-yellow underline.
   const emph = (text) => esc(text).replace(
     /(\$\d[\d,]*(?:\.\d+)?|\b\d+(?:\.\d+)?%)/g,
@@ -232,7 +232,7 @@
     }, result.prediction_id);
     if (result.speak) speak(line);
 
-    // The voice panel starts tucked away — "Ask the duck" opens it.
+    // The voice panel starts tucked away until "Ask the duck" opens it.
     const slot = shadow.getElementById("voiceslot");
     const panelEl = shadow.querySelector(".voice-panel");
     if (slot && panelEl) slot.appendChild(panelEl);

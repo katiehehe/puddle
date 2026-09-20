@@ -1,4 +1,4 @@
-/* Quant Quack — a shopping app, not a terminal.
+/* Quant Quack, a shopping app rather than a terminal.
    Warm paper, one yellow accent from the duck, generous space, no charts. */
 
 :root {
@@ -85,8 +85,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 
 /* --- hero --------------------------------------------------------------- */
 .hero {
-  display: grid; grid-template-columns: 1fr 1.05fr; gap: 56px; align-items: center;
-  padding: 40px 0 96px;
+  text-align: center;
+  padding: 56px 0 48px;
 }
 .pill {
   display: inline-block; background: var(--duck); color: var(--ink);
@@ -94,8 +94,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   border-radius: 99px; padding: 5px 12px; margin-bottom: 18px;
 }
 .hero h1 { font-size: 66px; line-height: 1.05; margin-bottom: 18px; }
-.hero > div > p { font-size: 19px; color: var(--muted); margin: 0 0 28px; max-width: 30em; }
-.herobtns { display: flex; gap: 12px; flex-wrap: wrap; }
+.hero > div > p { font-size: 19px; color: var(--muted); margin: 0 auto 28px; max-width: 30em; }
+.herobtns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 
 /* --- the live demo frame ------------------------------------------------- */
 .mock {
@@ -110,8 +110,15 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .mockurl {
   margin-left: 10px; background: #fff; border-radius: 99px; padding: 4px 14px;
   font-size: 12px; color: var(--muted); flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.demoframe { display: block; width: 100%; height: 620px; border: 0; }
+.demoframe { display: block; width: 100%; height: 600px; border: 0; }
+/* The demo gets its own row and can span the whole screen. */
+.demosec {
+  width: 100vw; position: relative; left: 50%; transform: translateX(-50%);
+  padding: 0 24px 80px;
+}
+.demosec .mock { max-width: 1600px; margin: 0 auto; }
 .duckhead { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
 
 /* --- home sections ------------------------------------------------------ */
@@ -461,7 +468,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   .coverrow { grid-template-columns: 110px 1fr 66px; }
 }
 
-/* Ask Puddle — the duck, answering about the whole closet. */
+/* Ask Puddle: the duck, answering about the whole closet. */
 .askfab {
   position: fixed; right: 24px; bottom: 24px; z-index: 30;
   display: flex; align-items: center; gap: 8px;
@@ -511,7 +518,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 }
 
 @media (max-width: 900px) {
-  .hero, .stepgrid, .tellgrid, .statrow, .valuetop, .notes, .two, .details { grid-template-columns: 1fr; }
+  .stepgrid, .tellgrid, .statrow, .valuetop, .notes, .two, .details { grid-template-columns: 1fr; }
   .hero h1 { font-size: 46px; }
   .dashhead h1 { font-size: 36px; }
   .buy { grid-template-columns: 52px 1fr 80px 80px; }
