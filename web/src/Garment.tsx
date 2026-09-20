@@ -187,6 +187,15 @@ export function kindGuess(title: string): string | undefined {
   return undefined;
 }
 
+/** Purchases carry no colour field, but people name clothes by colour: a
+ *  "Black slip dress" should not be drawn grey. */
+export function colourGuess(title: string): string | undefined {
+  return title
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .find((word) => FILL[word] !== undefined);
+}
+
 export function garmentShape(category: string, kind?: string) {
   const key = (kind && KIND[kind]) || CATEGORY[category] || "beanie";
   return SHAPES[key] ?? SHAPES.beanie;

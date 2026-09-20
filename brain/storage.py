@@ -120,8 +120,10 @@ def act(event_id, item, action, prediction_id=None, pay=None):
             if previous["fingerprint"] != fingerprint:
                 raise Conflict("event_id already belongs to a different request")
             return {"event": json.loads(previous["data"]), "duplicate": True, "pond": pond(db)}
-        if db.execute("SELECT 1 FROM purchases WHERE variant=?", (variant(item),)).fetchone():
-            raise Conflict("item is already purchased")
+        # Owning the item already does not block either decision: buying it
+        # again is a real second purchase, and skipping it just means not
+        # buying another one. The variant's latest action is what counts.
+
         prediction = None
         if prediction_id:
             row = db.execute("SELECT data FROM predictions WHERE id=?", (prediction_id,)).fetchone()

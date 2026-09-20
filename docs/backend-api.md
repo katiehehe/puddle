@@ -92,8 +92,9 @@ The response includes the full resolved item. Identical retries return the store
 event with `duplicate: true` and the current pond. Reusing an event ID for a
 different payload returns **409**. A missing prediction returns **404**, and a
 prediction for another item/size returns **409**. Invalid action/hour/item values
-return **422**. Buying or skipping an already purchased variant returns **409**
-(except an identical replay of the original event).
+return **422**. Owning the variant already does not block either action:
+re-buying is a real second purchase, and skipping counts as not buying
+another one.
 
 The compatibility route `POST /skip` accepts `item_id` or `item`, optional
 `prediction_id`, and optional `event_id`. `POST /checkout` returns **410** so an
