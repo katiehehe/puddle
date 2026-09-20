@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addPurchase,
   askDuck,
@@ -207,11 +207,55 @@ const today = () => new Date().toISOString().slice(0, 10);
 const when = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
+const REVEAL_MS = 200;
+
+function RevealNumber({ value }: { value: string }) {
+  const chars = [...value];
+  const [shown, setShown] = useState(chars.length);
+  const timer = useRef<number | null>(null);
+
+  const stop = useCallback(() => {
+    if (timer.current !== null) {
+      window.clearInterval(timer.current);
+      timer.current = null;
+    }
+  }, []);
+
+  useEffect(() => stop, [stop]);
+  useEffect(() => setShown(value.length), [value]);
+
+  const play = () => {
+    stop();
+    setShown(1);
+    timer.current = window.setInterval(() => {
+      setShown((n) => {
+        if (n + 1 >= chars.length) stop();
+        return Math.min(n + 1, chars.length);
+      });
+    }, REVEAL_MS);
+  };
+
+  const reset = () => {
+    stop();
+    setShown(chars.length);
+  };
+
+  return (
+    <span className="reveal" onMouseEnter={play} onMouseLeave={reset}>
+      {chars.map((c, i) => (
+        <span key={i} style={{ visibility: i < shown ? "visible" : "hidden" }}>
+          {c}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
     <div className="stat">
       <span>{label}</span>
-      <b>{value}</b>
+      <b><RevealNumber value={value} /></b>
       {note && <em>{note}</em>}
     </div>
   );
