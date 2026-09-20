@@ -17,6 +17,8 @@
 
 * { box-sizing: border-box; }
 
+img, svg { max-width: 100%; height: auto; }
+
 body {
   margin: 0;
   background: var(--paper);
@@ -144,10 +146,21 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .dashhead { padding: 18px 0 8px; }
 .dashhead h1 { font-size: 44px; }
 .dashhead > p { color: var(--muted); margin: 8px 0 26px; }
-.statrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.statrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
 .stat {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 18px 20px; box-shadow: var(--shadow);
+  padding: 18px 20px; box-shadow: var(--shadow); min-width: 0;
+}
+@keyframes statreveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.statrow:hover .stat { animation: statreveal .38s ease both; }
+.statrow:hover .stat:nth-child(2) { animation-delay: .1s; }
+.statrow:hover .stat:nth-child(3) { animation-delay: .2s; }
+.statrow:hover .stat:nth-child(4) { animation-delay: .3s; }
+@media (prefers-reduced-motion: reduce) {
+  .statrow:hover .stat { animation: none; }
 }
 .stat span { display: block; font-size: 13px; color: var(--muted); }
 .stat b { display: block; font-size: 26px; letter-spacing: -.03em; margin-top: 4px; }
@@ -213,7 +226,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .bar b { text-align: right; color: var(--muted); font-weight: 600; }
 
 /* value */
-.valuetop { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
+.valuetop { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 14px; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; }
 .line {
   display: flex; justify-content: space-between; gap: 16px;
@@ -444,7 +457,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 }
 
 @media (max-width: 900px) {
-  .hero, .stepgrid, .tellgrid, .statrow, .valuetop, .notes, .two, .details { grid-template-columns: 1fr; }
+  .hero, .stepgrid, .tellgrid, .notes, .two, .details { grid-template-columns: 1fr; }
   .hero h1 { font-size: 46px; }
   .dashhead h1 { font-size: 36px; }
   .duckcard { width: auto; margin: 6px 0 0; }
