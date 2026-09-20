@@ -107,6 +107,9 @@
     const verdictTone = advice
       ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.ink
       : PALETTE.ink;
+    const verdictBg = advice
+      ? advice.stance === "for" ? "#e7f4ec" : advice.stance === "against" ? "#faecea" : "#f2efe7"
+      : "#f2efe7";
     // One event_id per intentional action; the brain dedupes retries on it.
     const skipEvent = crypto.randomUUID(), buyEvent = crypto.randomUUID();
 
@@ -121,14 +124,15 @@
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
         .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px}
         .duckhead b{color:${PALETTE.muted};font-weight:700}
-        .verdict{font-size:20px;font-weight:800;color:${verdictTone};margin:0 0 6px}
+        .verdict{display:inline-block;font-size:15px;font-weight:800;color:${verdictTone};
+          background:${verdictBg};border-radius:99px;padding:5px 14px;margin:0 0 12px}
         .line{font-size:14px;line-height:1.5;color:${PALETTE.ink};margin:0 0 10px}
         .chip{display:inline-block;border:1px solid ${PALETTE.line};
           padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
           color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:99px}
         .btns{display:flex;gap:8px}
-        .btns button{flex:1;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;
-          border-radius:9px;transition:all .15s}
+        .btns button{flex:1;padding:11px 0;font-size:14px;font-weight:700;cursor:pointer;
+          border-radius:12px;transition:all .15s}
         button:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
         .skip{background:${PALETTE.duck};color:${PALETTE.ink};border:0}
         .skip:hover{transform:translateY(-1px)}

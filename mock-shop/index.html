@@ -46,7 +46,6 @@
         <span>Puddle</span>
       </a>
       <div class="pl">
-        <a href="/demo">Live demo</a>
         <a href="/dashboard/">My closet</a>
         <a class="pc" href="/#/home?install">Add to Chrome</a>
       </div>
@@ -133,6 +132,10 @@
   paint();
   if (document.body.dataset.puddleMode === "web") {
     document.querySelector(".hint").remove();
+  }
+  // Embedded in the landing page: the site's own nav is already there.
+  if (new URLSearchParams(location.search).has("embed")) {
+    document.querySelector(".puddlebar").remove();
   }
 </script>
 </body>
