@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import history, ledger, payments, pond, storage, voice
+from . import history, ledger, payment_intents, payments, pond, storage, voice
 from .catalog import CLOSET, STOREFRONT, Item, coerce_item
 from .miner import Miner, rank, verdict
 from .portfolio import Closet
@@ -78,6 +78,18 @@ class CheckoutRequest(BaseModel):
     event_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
+class PaymentIntentRequest(BaseModel):
+    item_id: str | None = None
+    item: dict | None = None
+    prediction_id: str | None = Field(default=None, max_length=128)
+    budget_limit: float = Field(default=payments.BUDGET_CAP, gt=0, le=payments.BUDGET_CAP)
+
+
+class PaymentIntentConfirmation(BaseModel):
+    token: str = Field(min_length=20, max_length=10000)
+    confirmed: bool
+
+
 class SkipRequest(BaseModel):
     item_id: str | None = None
     item: dict | None = None
@@ -90,7 +102,7 @@ class ActionRequest(BaseModel):
     item_id: str | None = None
     item: dict | None = None
     prediction_id: str | None = None
-    action: Literal["skip", "buy"]
+    action: Literal["skip"]
 
 
 def _resolve(req) -> Item:
@@ -208,8 +220,48 @@ def action_history():
 
 @app.post("/checkout")
 def checkout(req: CheckoutRequest) -> dict:
-    result = _act(req, "buy")
-    return {**result["event"]["payment"], **result}
+    del req
+    raise HTTPException(410, "Create and confirm a signed payment intent to check out.")
+
+
+@app.post("/payment-intents")
+def create_payment_intent(req: PaymentIntentRequest) -> dict:
+    item = _resolve(req)
+    closet, miner, _ = _context()
+    recommendation = recommend(item, closet, miner, datetime.now())
+    return payment_intents.create(item, req.prediction_id, req.budget_limit, recommendation["reasons"])
+
+
+@app.post("/payment-intents/confirm")
+def confirm_payment_intent(req: PaymentIntentConfirmation) -> dict:
+    if not req.confirmed:
+        raise HTTPException(422, "Checkout requires explicit confirmation.")
+    try:
+        intent = payment_intents.verify(req.token)
+    except payment_intents.InvalidIntent as exc:
+        raise HTTPException(400, str(exc)) from exc
+    status = payments.provider_status()
+    if status["mode"] != intent["provider_mode"]:
+        raise HTTPException(409, "Payment setup changed. Review checkout again.")
+    if not status["ready"]:
+        raise HTTPException(503, "Visa setup is incomplete.")
+    if intent["amount_cents"] > intent["budget_cents"] or payments._capped(intent["amount_cents"] / 100):
+        raise HTTPException(409, "Payment intent exceeds its checkout limit.")
+    checkout_request = CheckoutRequest(
+        item=intent["item"],
+        prediction_id=intent.get("prediction_id"),
+        event_id=intent["event_id"],
+    )
+    result = _act(checkout_request, "buy")
+    result = {**result["event"]["payment"], **result}
+    result["receipt"] = {
+        "intent_id": intent["intent_id"],
+        "amount": intent["amount_cents"] / 100,
+        "currency": intent["currency"],
+        "provider": status["label"],
+        "simulated": status["simulated"],
+    }
+    return result
 
 
 @app.post("/skip")
