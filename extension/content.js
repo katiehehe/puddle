@@ -119,7 +119,7 @@
         <div class="row">
           <div class="duckwrap">${DUCK()}</div>
           <div class="bubble">
-            <div class="quack">Puddle</div>
+            <div class="quack">Mallard</div>
             <div class="line">${esc(line)}</div>
             ${c ? `<span class="chip">${esc(c)}</span>` : ""}
             <a class="why" target="_blank" rel="noopener"

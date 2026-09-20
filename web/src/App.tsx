@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import {
   CatalogItem, Quote, Score, Status,
   askDuck, getPortfolio, getQuote, getStatus, getStorefront, gradePrediction, scoreItem,
@@ -86,6 +86,25 @@ function LifeMix({ coverage }: { coverage: Portfolio["coverage"] }) {
 
 const money = (n: number) => (n < 0 ? `-$${Math.abs(n).toFixed(2)}` : `$${n.toFixed(2)}`);
 
+/** Quant Quack: the trading word stays on screen, the lesson stays out of the way
+ *  until someone taps it. */
+function Term({ label, children }: { label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="term">
+      <button type="button" className="termbtn" onClick={() => setOpen(!open)} aria-expanded={open}>
+        {label}
+      </button>
+      {open && (
+        <span className="termpop">
+          <em>Quant Quack</em>
+          {children}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** The exercise. One item, priced the way anything else with a price is:
  *  what's it offered at, what's it worth to you, will you take the other side.
  *  Every number on it comes from the same brain call the duck makes. */
@@ -149,7 +168,10 @@ function Ticket({ items }: { items: CatalogItem[] }) {
 
   return (
     <section className="card ticket">
-      <h2>Price it yourself</h2>
+      <div className="tickethead">
+        <h2>Price it yourself</h2>
+        <span className="qq">Quant Quack — tap any underlined word</span>
+      </div>
       <p className="muted">
         A shop shows you one number: what it wants. Everything else — how much you'd
         wear it, what that's worth, how often you send this kind of thing back — is
@@ -215,10 +237,32 @@ function Ticket({ items }: { items: CatalogItem[] }) {
               <div className="tbody">
                 <h3>The ask, and what it actually costs</h3>
                 <div className="quoterow">
-                  <div><span className="lbl">they ask</span><b>{money(q.ask)}</b></div>
-                  <div><span className="lbl">wears you'd get</span><b>{q.expected_wears}</b></div>
                   <div>
-                    <span className="lbl">so, per wear</span>
+                    <span className="lbl">
+                      <Term label="they ask">
+                        The ask is the price the seller will trade at. It is an offer, not a
+                        valuation — nothing about it says the thing is worth that to you.
+                      </Term>
+                    </span>
+                    <b>{money(q.ask)}</b>
+                  </div>
+                  <div>
+                    <span className="lbl">
+                      <Term label="wears you'd get">
+                        Your wardrobe only has so many days in it. This is the share of your
+                        {" "}{q.wears_logged} logged wears this item would realistically take,
+                        given everything it competes with.
+                      </Term>
+                    </span>
+                    <b>{q.expected_wears}</b>
+                  </div>
+                  <div>
+                    <span className="lbl">
+                      <Term label="so, per wear">
+                        Cost per wear is the real unit price: the ask divided by the wears you
+                        get out of it. Cheap things you never wear are expensive.
+                      </Term>
+                    </span>
                     <b className={(q.cost_per_wear_if_bought ?? 0) > q.your_cost_per_wear ? "bad" : "good"}>
                       {q.cost_per_wear_if_bought === null ? "—" : money(q.cost_per_wear_if_bought)}
                     </b>
@@ -244,10 +288,24 @@ function Ticket({ items }: { items: CatalogItem[] }) {
                   : (
                     <div className="fair">
                       <div className="quoterow">
-                        <div><span className="lbl">those wears are worth</span><b>{money(q.fair_value)}</b></div>
+                        <div>
+                    <span className="lbl">
+                      <Term label="those wears are worth">
+                        Fair value: what the wears are worth at the {money(q.your_cost_per_wear)}
+                        {" "}a wear you already pay across your closet. That is your own price,
+                        not the shop's.
+                      </Term>
+                    </span>
+                    <b>{money(q.fair_value)}</b>
+                  </div>
                         <div><span className="lbl">it comes back</span><b className="bad">{Math.round(q.return_prob * 100)}%</b></div>
                         <div>
-                          <span className="lbl">so pay at most</span>
+                          <span className="lbl">
+                            <Term label="so pay at most">
+                              Your bid is the highest price at which the trade still makes you
+                              money. Above it you are paying someone to take your money.
+                            </Term>
+                          </span>
                           <b className={q.no_price ? "bad" : ""}>{q.no_price ? "nothing" : money(q.fair_bid)}</b>
                         </div>
                         <div><span className="lbl">your bid</span><b>{money(bid)}</b></div>
@@ -262,7 +320,7 @@ function Ticket({ items }: { items: CatalogItem[] }) {
                       </p>
                       <p className={"verdictline " + (bid > q.fair_bid ? "bad" : "good")}>
                         {bid > q.fair_bid
-                          ? `You bid ${money(bid)} — more than it is worth to you. That gap is the whole reason the duck says anything.`
+                          ? `You bid ${money(bid)} — more than it is worth to you. That gap is the whole reason Mallard says anything.`
                           : `You bid ${money(bid)}, at or below what it is worth — but the shop is asking ${money(q.ask)}, so there is no trade.`}
                       </p>
                     </div>
@@ -283,7 +341,7 @@ function Ticket({ items }: { items: CatalogItem[] }) {
                   <button className={"big-btn skip" + (call === "skip" ? " on" : "")} onClick={() => decide("skip")}>Skip it</button>
                 </div>
                 <div className="whybox">
-                  <input value={question} placeholder="Why? Ask the duck — “why not?”, “what about size 9?”"
+                  <input value={question} placeholder="Why? Ask Mallard — “why not?”, “what about size 9?”"
                     onChange={(e) => setQuestion(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") ask(); }} />
                   <button onClick={ask} disabled={asking || !question.trim()}>{asking ? "asking…" : "Ask"}</button>
@@ -300,11 +358,25 @@ function Ticket({ items }: { items: CatalogItem[] }) {
               <div className="tbody">
                 <h3>What that decision was worth</h3>
                 <div className="quoterow">
-                  <div><span className="lbl">buying pays</span><b className={q.ev >= 0 ? "good" : "bad"}>{money(q.ev)}</b></div>
+                  <div>
+                    <span className="lbl">
+                      <Term label="buying pays">
+                        Expected value: every outcome weighted by how likely it is. Here, keeping
+                        it ({Math.round((1 - q.return_prob) * 100)}%) versus returning it and
+                        eating {money(q.friction)} of friction.
+                      </Term>
+                    </span>
+                    <b className={q.ev >= 0 ? "good" : "bad"}>{money(q.ev)}</b>
+                  </div>
                   <div><span className="lbl">skipping pays</span><b className={q.ev_if_skipped >= 0 ? "good" : "bad"}>{money(q.ev_if_skipped)}</b></div>
                   <div><span className="lbl">you</span><b>{call === "buy" ? "bought" : "skipped"}</b></div>
                   <div>
-                    <span className="lbl">P&amp;L on this one</span>
+                    <span className="lbl">
+                      <Term label="P&L on this one">
+                        Profit and loss: what the decision you actually made is worth. Skipping
+                        is a position too — not losing money counts.
+                      </Term>
+                    </span>
                     <b className={(call === "buy" ? q.ev : q.ev_if_skipped) >= 0 ? "good" : "bad"}>
                       {money(call === "buy" ? q.ev : q.ev_if_skipped)}
                     </b>
@@ -314,7 +386,7 @@ function Ticket({ items }: { items: CatalogItem[] }) {
                   Worth, minus what it costs, weighted by how often it comes back:
                   {" "}{Math.round((1 - q.return_prob) * 100)}% of the time you keep it and you're
                   {" "}{money(q.fair_value - q.ask)} up or down on use; the rest of the time you return
-                  it and eat {money(q.friction)}. That single number is what the duck's one line at
+                  it and eat {money(q.friction)}. That single number is what Mallard's one line at
                   checkout is standing on.
                 </p>
                 {book.length > 1 && (
@@ -339,7 +411,7 @@ function Ticket({ items }: { items: CatalogItem[] }) {
 
           {/* what the duck would have said, kept last so it doesn't lead */}
           <details className="ducksays">
-            <summary>What the duck says at checkout</summary>
+            <summary>What Mallard says at checkout</summary>
             <p className="headline">“{score.headline}”</p>
             <div className="insights">
               {score.insights.map((i, k) => (
@@ -400,7 +472,7 @@ export default function App() {
             <div className="tag">PUDDLE</div>
             <h1>You already own a <span>portfolio</span>. It's your closet.</h1>
             <p className="sub">
-              Every purchase is a position: you pay once and collect wears for years. Puddle
+              Every purchase is a position: you pay once and collect wears for years. Mallard
               prices the next one before you pay for it.
             </p>
           </div>
@@ -438,7 +510,7 @@ export default function App() {
           <div className="hint">{p.pond.skips} skip{p.pond.skips === 1 ? "" : "s"} recorded</div>
         </div>
         <div className="stat">
-          <div className="lbl">Was the duck right?</div>
+          <div className="lbl">Was Mallard right?</div>
           <div className="val">{p.ledger.accuracy}</div>
           <div className="hint">{ungraded} call{ungraded === 1 ? "" : "s"} still open</div>
         </div>
@@ -571,7 +643,7 @@ export default function App() {
       </section>
 
       <section className="card">
-        <h2>Every call the duck has made</h2>
+        <h2>Mallard's book</h2>
         <p className="muted">
           In its own words, kept whether it was right or wrong. Grade one and the score above moves.
         </p>
