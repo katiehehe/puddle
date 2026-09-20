@@ -1,4 +1,4 @@
-/* Quant Quack — a shopping app, not a terminal.
+/* Quant Quack, a shopping app rather than a terminal.
    Warm paper, one yellow accent from the duck, generous space, no charts. */
 
 :root {
@@ -433,7 +433,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   .coverrow { grid-template-columns: 110px 1fr 66px; }
 }
 
-/* Ask Puddle — the duck, answering about the whole closet. */
+/* Ask Puddle: the duck, answering about the whole closet. */
 .askfab {
   position: fixed; right: 24px; bottom: 24px; z-index: 30;
   display: flex; align-items: center; gap: 8px;
