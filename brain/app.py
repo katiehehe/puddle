@@ -523,7 +523,7 @@ def me() -> dict:
                 "cost_per_wear": market.cost_per_wear(p.price, wears) if owned else None,
                 "brand": "",
                 "size": p.size,
-                "color": "",
+                "color": (owned.color if owned else "") or p.color,
                 "photo": "",
                 "notes": "",
                 "source_url": "",
