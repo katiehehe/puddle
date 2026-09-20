@@ -16,6 +16,7 @@ function harness({ reply, error } = {}) {
       constructor(url) { this.url = url; played.push(this); }
       play() { return Promise.resolve(); }
       pause() { this.paused = true; }
+      removeAttribute(name) { this.removed = name; }
     },
     SpeechSynthesisUtterance: class { constructor(text) { this.text = text; } },
     speechSynthesis: { cancelled: 0, cancel() { this.cancelled += 1; }, speak(u) { spoken.push(u.text); } },
@@ -61,6 +62,7 @@ test('a new reply cancels the audio still playing and drops its blob', async () 
   await h.speech.speak('First line.');
   await h.speech.speak('Second line.');
   assert.equal(h.played[0].paused, true);
+  assert.equal(h.played[0].removed, 'src');
   assert.deepEqual([...h.revoked], ['blob:duck']);
   assert.equal(h.played.length, 2);
 });

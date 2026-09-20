@@ -9,7 +9,7 @@
     globalThis.speechSynthesis?.cancel();
     if (current) {
       current.pause();
-      current.src = "";
+      current.removeAttribute("src");
       current = null;
     }
     if (currentUrl) {
