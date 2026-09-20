@@ -41,6 +41,10 @@ SYSTEM = (
 _cache: OrderedDict[str, dict] = OrderedDict()
 
 
+def _anthropic_key() -> str:
+    return os.environ.get("PUDDLE_ANTHROPIC_KEY") or os.environ.get("ANTHROPIC_API_KEY") or ""
+
+
 def configured() -> dict:
     """Which provider will answer, without touching the network.
 
@@ -51,13 +55,13 @@ def configured() -> dict:
     anthropic = {"provider": "anthropic", "model": os.environ.get("ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL)}
     if pick == "none":
         return {"provider": None, "model": None}
-    if pick == "anthropic" and os.environ.get("ANTHROPIC_API_KEY"):
+    if pick == "anthropic" and _anthropic_key():
         return anthropic
     if pick == "openai" and os.environ.get("OPENAI_API_KEY"):
         return openai
     if os.environ.get("OPENAI_API_KEY"):
         return openai
-    if os.environ.get("ANTHROPIC_API_KEY"):
+    if _anthropic_key():
         return anthropic
     return {"provider": None, "model": None}
 
@@ -101,7 +105,7 @@ def _openai(prompt: str, model: str) -> str:
 def _anthropic(prompt: str, model: str) -> str:
     res = httpx.post(
         ANTHROPIC_URL,
-        headers={"x-api-key": os.environ["ANTHROPIC_API_KEY"], "anthropic-version": "2023-06-01"},
+        headers={"x-api-key": _anthropic_key(), "anthropic-version": "2023-06-01"},
         json={
             "model": model,
             "system": SYSTEM,

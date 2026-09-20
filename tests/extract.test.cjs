@@ -136,6 +136,37 @@ test('omits size entirely when the page does not express one', () => {
   assert.equal('size' in found, false);
 });
 
+test('reads an Amazon buy box, which publishes neither JSON-LD nor price meta', () => {
+  // Amazon serves no ld+json and no og:price, so the DOM arm is the only one
+  // that can answer. Its price lives in a `.a-price` component -- the inner
+  // `.a-offscreen` span is empty in the served HTML, so a selector aimed there
+  // silently yields no price and the duck never speaks.
+  const found = extract(doc({
+    nodes: {
+      '#productTitle': { text: '  COOFANDY Mens Crew Neck Sweaters Long Sleeve \n' },
+      '#corePriceDisplay_desktop_feature_div .a-price': { text: ' $14.99' },
+    },
+  }));
+  assert.equal(found.title, 'COOFANDY Mens Crew Neck Sweaters Long Sleeve');
+  assert.equal(found.price, 14.99);
+  assert.equal(found._source, 'dom');
+});
+
+test('flags a title it settled for, so an uninvited caller can stay quiet', () => {
+  // A listing page has an h1 and plenty of prices, and answers as confidently
+  // as a product page. The only tell is that the title came from the widest
+  // hint in the list, so that is the one thing the extractor has to report.
+  const listing = extract(doc({
+    nodes: { h1: { text: '1-48 of over 50,000 results for "crewneck"' }, '.price': { text: '$14.99' } },
+  }));
+  assert.equal(listing._guessedTitle, true);
+
+  const product = extract(doc({
+    nodes: { '#productTitle': { text: 'Merino crewneck' }, '.price': { text: '$14.99' } },
+  }));
+  assert.equal(product._guessedTitle, false);
+});
+
 test('survives malformed JSON-LD instead of throwing', () => {
   const found = extract(doc({
     ld: ['{ not json at all'],

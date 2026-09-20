@@ -170,6 +170,8 @@ export type ClosetPiece = {
   tags: string[];
   brand: string;
   photo: string;
+  notes: string;
+  source_url: string;
   yours: boolean;
 };
 
@@ -294,13 +296,10 @@ export async function logWears(itemIds: string[]): Promise<Record<string, number
 
 /* The staging rail: things you're thinking about, reviewed but not owned. */
 
-export type StagedReview = {
-  decision: string;
-  verdict: string;
-  stance: "for" | "think" | "against";
-  subhead: string;
-  reasons: string[];
-};
+// The full advice, the same shape a checkout score carries, plus the decision
+// the recommender reached. A cart item opens up to these numbers exactly as
+// the "worth it" desk does, rather than a trimmed one-line summary.
+export type StagedReview = Advice & { decision: string };
 
 export type StagedItem = {
   id: string;
@@ -313,6 +312,7 @@ export type StagedItem = {
   color: string;
   source_url: string;
   notes: string;
+  photo: string;
   staged_at: string;
   review: StagedReview;
 };
@@ -339,6 +339,14 @@ export async function stageItem(row: NewStaged): Promise<StagedItem> {
 
 export async function unstageItem(id: string): Promise<void> {
   await send(`/cart/${encodeURIComponent(id)}`, "DELETE");
+}
+
+export async function editStaged(
+  id: string,
+  patch: Partial<Pick<NewStaged, "title" | "price" | "brand" | "size" | "color" | "source_url" | "notes">>,
+): Promise<StagedItem> {
+  const r = await send<{ item: StagedItem }>(`/cart/${encodeURIComponent(id)}`, "PATCH", patch);
+  return r.item;
 }
 
 export async function buyStaged(id: string): Promise<PurchaseRow> {

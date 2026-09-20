@@ -5,6 +5,7 @@ import {
   addPurchase,
   askDuck,
   editPurchase,
+  editStaged,
   getMe,
   getQuote,
   getStorefront,
@@ -26,6 +27,7 @@ import {
   Usage,
 } from "./api";
 import { AskPuddle } from "./AskPuddle";
+import { ItemDetail } from "./ItemDetail";
 import { Garment, colourGuess, kindGuess } from "./Garment";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -57,20 +59,30 @@ function Duck({ size = 40 }: { size?: number }) {
 // Elements on the landing page that hide until scrolled into view.
 const REVEAL =
   ".hero > div > *, .hero > .mock, .steps h2, .step, .tells h2, .tell, .install > div > *";
-// Same on the dashboard — .piece and .cartline individually, so each purchase
-// pops in separately as you scroll the closet.
+// Same on the dashboard: .piece and .buycard individually, so each thing pops
+// in separately as you scroll the closet or the cart.
 const DASH_REVEAL =
-  ".dashhead h1, .dashhead > p, .statrow, .tabs, .tabbody > *, .piece, .cartline, .note";
+  ".dashhead h1, .dashhead > p, .statrow, .tabs, .tabbody > *, .piece, .buycard, .note";
 
-// Scroll-triggered reveal both ways: .in while on screen, off again once it
-// leaves. Re-scans after every render so async content and tab swaps get
-// watched too; observing an already-watched node is a no-op.
+// How long after landing the page still counts as "arriving": content that
+// shows up later (tab swaps, async loads) appears in place without popping.
+const ARRIVAL_MS = 1500;
+
+// One-shot reveal: each element pops in the first time it scrolls into view
+// during the page's arrival, then stays put. Re-scans after every render so
+// async content gets handled too; observing an already-watched node is a no-op.
 function useReveal(ref: RefObject<HTMLElement | null>, selector: string) {
   const ioRef = useRef<IntersectionObserver | null>(null);
+  const arrivedAt = useRef(0);
   useEffect(() => {
+    arrivedAt.current = Date.now();
     const io = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) e.target.classList.toggle("in", e.isIntersecting);
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        }
       },
       { threshold: 0.1 },
     );
@@ -81,7 +93,12 @@ function useReveal(ref: RefObject<HTMLElement | null>, selector: string) {
     const io = ioRef.current;
     const root = ref.current;
     if (!io || !root) return;
-    root.querySelectorAll(selector).forEach((n) => io.observe(n));
+    const settled = Date.now() - arrivedAt.current > ARRIVAL_MS;
+    root.querySelectorAll(selector).forEach((n) => {
+      if (n.classList.contains("in")) return;
+      if (settled) n.classList.add("in", "still");
+      else io.observe(n);
+    });
   });
   return ioRef;
 }
@@ -131,23 +148,9 @@ function Home() {
     window.scrollTo(0, 0);
   }, [hash]);
   const homeRef = useRef<HTMLDivElement>(null);
-  const ioRef = useReveal(homeRef, REVEAL);
-  // Clicking the brand or Add to Chrome while already here: hide everything
-  // instantly, then force a fresh observation so it pops back in as the
-  // scroll lands. (Re-observing is a no-op unless we unobserve first.)
-  const replay = () => {
-    const els = homeRef.current?.querySelectorAll(REVEAL);
-    const io = ioRef.current;
-    if (!els || !io) return;
-    els.forEach((n) => {
-      n.classList.remove("in");
-      io.unobserve(n);
-    });
-    setTimeout(() => els.forEach((n) => io.observe(n)), 420);
-  };
+  useReveal(homeRef, REVEAL);
   const goInstall = () => {
     document.getElementById("install")?.scrollIntoView({ behavior: "smooth" });
-    replay();
   };
   return (
     <div className="home" ref={homeRef}>
@@ -157,7 +160,6 @@ function Home() {
           href="#/home"
           onClick={() => {
             window.scrollTo({ top: 0, behavior: "smooth" });
-            replay();
           }}
         >
           <Duck size={54} />
@@ -233,9 +235,6 @@ function Home() {
             <a className="cta" href="https://github.com/katiehehe/puddle">
               Get the extension
             </a>
-            <a className="ghost" href="#/closet">
-              See my closet
-            </a>
           </div>
         </div>
       </section>
@@ -305,7 +304,14 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
   );
 }
 
-function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string) => void }) {
+function PieceCard({
+  piece, onWear, onOpen, onRemove,
+}: {
+  piece: ClosetPiece;
+  onWear: (id: string) => void;
+  onOpen: () => void;
+  onRemove: (id: string) => void;
+}) {
   // Optimistic: a wear tap has to feel free, or nobody logs the fifth one. The
   // tap is forgotten the moment the server's own count moves, so the two never
   // add up to one wear twice.
@@ -314,10 +320,21 @@ function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string)
   const wears = piece.wears + extra;
   const perWear = wears > 0 ? piece.paid / wears : null;
   return (
-    <article className="piece">
+    <article className="piece open" onClick={onOpen} role="button" tabIndex={0}
+             onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()}>
       <div className="piecepic">
         <Garment category={piece.category} colour={piece.color} kind={piece.kind} />
         {piece.duplicates.length > 0 && <span className="dupe">+{piece.duplicates.length} similar</span>}
+        {piece.yours && (
+          <button
+            className="xbtn onpic"
+            aria-label={`Remove ${piece.title} from your closet`}
+            title="Remove from closet"
+            onClick={(e) => { e.stopPropagation(); onRemove(piece.id); }}
+          >
+            ×
+          </button>
+        )}
       </div>
       <h4>{piece.title}</h4>
       <div className="piecemeta">
@@ -343,7 +360,8 @@ function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string)
       </div>
       <button
         className="worebtn"
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           setTapped({ counted: piece.wears, extra: extra + 1 });
           onWear(piece.id);
         }}
@@ -396,11 +414,28 @@ function CoveragePanel({ coverage }: { coverage: Coverage }) {
   );
 }
 
-function ClosetTab({ me, onWear }: { me: Me; onWear: (id: string) => void }) {
+function ClosetTab({
+  me, onWear, onChange,
+}: { me: Me; onWear: (id: string) => void; onChange: () => void }) {
   const [filter, setFilter] = useState("all");
+  const [open, setOpen] = useState<number | null>(null);
   const cats = me.shopping.categories;
   const shown = me.closet.filter((p) => filter === "all" || p.category === filter);
   const unworn = me.closet.filter((p) => p.wears === 0).length;
+
+  // Arrows walk the filtered list, in display order, and wrap. Whichever
+  // subset you are looking at is the one you page through.
+  const step = (by: number) =>
+    setOpen((i) => (i === null ? null : (i + by + shown.length) % shown.length));
+
+  async function remove(id: string) {
+    // Archived, not deleted. What you bought stays true even once the thing
+    // has been sold, returned or given away, and the spending history the
+    // duck reasons from would be wrong without it.
+    await editPurchase(id, { archived: true, archive_reason: "removed from closet" });
+    setOpen(null);
+    onChange();
+  }
   return (
     <>
       <h3 className="sub2">Everything you own</h3>
@@ -424,15 +459,32 @@ function ClosetTab({ me, onWear }: { me: Me; onWear: (id: string) => void }) {
         </p>
       )}
       <div className="grid">
-        {shown.map((p) => (
-          <PieceCard key={p.id} piece={p} onWear={onWear} />
+        {shown.map((p, i) => (
+          <PieceCard
+            key={p.id}
+            piece={p}
+            onWear={onWear}
+            onOpen={() => setOpen(i)}
+            onRemove={remove}
+          />
         ))}
       </div>
+      {open !== null && shown[open] && (
+        <ItemDetail
+          piece={shown[open]}
+          index={open}
+          total={shown.length}
+          onPrev={() => step(-1)}
+          onNext={() => step(1)}
+          onClose={() => setOpen(null)}
+          onWear={onWear}
+          onRemove={remove}
+          onSaved={onChange}
+        />
+      )}
     </>
   );
 }
-
-/* ------------------------------------------------------------ purchases */
 
 const BLANK = {
   title: "",
@@ -729,7 +781,6 @@ function PurchasesTab({ me, onChange }: { me: Me; onChange: () => void }) {
 /* ------------------------------------------------------- how you dress */
 
 function DressTab({ me, usage }: { me: Me; usage: Usage }) {
-  const s = me.shopping;
   const top = usage.rows[0]?.wears || 1;
   return (
     <>
@@ -760,50 +811,36 @@ function DressTab({ me, usage }: { me: Me; usage: Usage }) {
           ? `Based on ${usage.total_wears} recorded wears.`
           : "These are counts rather than percentages, because there isn't enough recorded wear to put a number on it yet."}
       </p>
-      <h3 className="sub2">What Puddle has noticed about your shopping</h3>
-      <div className="notes">
-        {/* The headline observations and the one-line ones are the same kind
-            of thing, so they read as one list rather than two sections. */}
-        {me.notices.map((n) => (
-          <div className="note" key={n.title}>
-            <Duck size={26} />
-            <p>
-              <b>{n.title}</b>
-              <br />
-              {n.detail}
-            </p>
-          </div>
-        ))}
-        {s.lines.map((line) => (
-          <div className="note" key={line}>
-            <Duck size={26} />
-            <p>{line}</p>
-          </div>
-        ))}
-      </div>
-      <h3 className="sub2">What your closet is made of</h3>
-      <div className="bars">
-        {s.categories.map((c) => (
-          <div className="bar" key={c.category}>
-            <span>{c.label}</span>
-            <div>
-              <i style={{ width: `${(100 * c.count) / s.items_owned}%` }} />
-            </div>
-            <b>{c.count}</b>
-          </div>
-        ))}
-      </div>
     </>
   );
 }
 
-function ValueTab({ me }: { me: Me }) {
+function ValueTab({ me, onWear, onChange }: { me: Me; onWear: (id: string) => void; onChange: () => void }) {
   const worn = me.closet.filter((p) => p.cost_per_wear !== null);
   const best = [...worn].sort((a, b) => (a.cost_per_wear ?? 0) - (b.cost_per_wear ?? 0)).slice(0, 5);
   const worst = [...me.closet]
     .sort((a, b) => (b.cost_per_wear ?? 1e9) - (a.cost_per_wear ?? 1e9))
     .slice(0, 5);
   const v = me.value;
+
+  // Which of the two lists is open, and where in it. Left/right walks
+  // whichever list you opened from rather than hopping between them.
+  const [open, setOpen] = useState<{ list: "best" | "worst"; index: number } | null>(null);
+  const lists = { best, worst };
+  const active = open ? lists[open.list] : null;
+
+  const step = (by: number) =>
+    setOpen((o) => {
+      if (!o) return o;
+      const list = lists[o.list];
+      return { ...o, index: (o.index + by + list.length) % list.length };
+    });
+
+  async function remove(id: string) {
+    await editPurchase(id, { archived: true, archive_reason: "removed from closet" });
+    setOpen(null);
+    onChange();
+  }
   return (
     <>
       <div className="valuetop">
@@ -816,28 +853,26 @@ function ValueTab({ me }: { me: Me }) {
       <div className="two">
         <div>
           <h3 className="sub2">Money best spent</h3>
-          {best.map((p) => (
-            <div className="line" key={p.id}>
+          {best.map((p, i) => (
+            <button className="line linkline" key={p.id} onClick={() => setOpen({ list: "best", index: i })}>
               <span>{p.title}</span>
               <b>{money(p.cost_per_wear ?? 0)} a wear</b>
-            </div>
+            </button>
           ))}
         </div>
         <div>
           <h3 className="sub2">Money doing nothing</h3>
-          {worst.map((p) => (
-            <div className="line" key={p.id}>
+          {worst.map((p, i) => (
+            <button className="line linkline" key={p.id} onClick={() => setOpen({ list: "worst", index: i })}>
               <span>{p.title}</span>
               <b>{p.cost_per_wear === null ? `${round(p.paid)}, never worn` : `${money(p.cost_per_wear)} a wear`}</b>
-            </div>
+            </button>
           ))}
         </div>
       </div>
     </>
   );
 }
-
-/* ---------------------------------------------------------- worth it tab */
 
 function WorthIt({ items }: { items: CatalogItem[] }) {
   const [itemId, setItemId] = useState(items[0]?.id ?? "");
@@ -1108,41 +1143,242 @@ function StageForm({ onStaged }: { onStaged: () => void }) {
   );
 }
 
-function StagedCard({ item, onChange }: { item: StagedItem; onChange: () => void }) {
+const CART_EDIT_FIELDS = ["title", "price", "brand", "size", "color", "notes"] as const;
+
+/** One cart row, styled like a purchase: a photo, the facts, the duck's
+ *  headline reason, and the two actions that matter. Clicking the row (not
+ *  a button) opens the full picture. */
+function CartRow({ item, onOpen, onChange }: {
+  item: StagedItem; onOpen: () => void; onChange: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const review = item.review;
-  const act = (fn: () => Promise<unknown>) => () => {
+  const act = (fn: () => Promise<unknown>) => (e: React.MouseEvent) => {
+    e.stopPropagation();
     setBusy(true);
     fn().then(onChange).finally(() => setBusy(false));
   };
   return (
-    <article className="piece">
-      <div className="piecepic">
-        <Garment category={item.category} colour={item.color || colourGuess(item.title) || "grey"} kind={item.kind} />
-        <span className={`railverdict ${review.stance}`}>{review.verdict}</span>
+    <article className="buycard cartcard" onClick={onOpen} role="button" tabIndex={0}
+             onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()}>
+      <div className="buypic">
+        <Garment category={item.category} colour={item.color || colourGuess(item.title) || "grey"} kind={item.kind} size={64} />
       </div>
-      <h4>{item.title}</h4>
-      <div className="piecemeta">
-        {round(item.price)}
-        {item.brand ? ` · ${item.brand}` : ""}
+      <div className="buybody">
+        <h4>{item.title}</h4>
+        <div className="buyline">
+          {round(item.price)}
+          {item.brand ? ` · ${item.brand}` : ""}
+          {item.category ? ` · ${item.category.replace(/_/g, " ")}` : ""}
+        </div>
+        {(item.size || item.color) && (
+          <div className="buysub">{[item.size && `Size ${item.size}`, item.color].filter(Boolean).join(" · ")}</div>
+        )}
+        <div className={`buyverdict ${review.stance}`}>
+          <b>{review.verdict}</b>
+          {review.reasons[0] && <p>{review.reasons[0].text}</p>}
+        </div>
       </div>
-      {review.reasons.map((r) => (
-        <p className="railreason" key={r}>{r}</p>
-      ))}
-      <div className="railbtns">
+      <div className="buyacts">
         <button className="cta small" disabled={busy} onClick={act(() => buyStaged(item.id))}>
-          Bought it
+          I bought it
         </button>
-        <button className="ghostbtn" disabled={busy} onClick={act(() => unstageItem(item.id))}>
-          Take it off
+        <button className="ghost small" disabled={busy} onClick={act(() => unstageItem(item.id))}>
+          Remove
         </button>
       </div>
     </article>
   );
 }
 
+/** The full picture on a staged item: the same reasons and numbers the
+ *  "worth it" desk shows, plus the ability to fix a detail that was typed
+ *  wrong, walk to the next thing on the rail, buy it, or take it off. */
+function CartDetail({
+  items, index, onPrev, onNext, onClose, onChanged, onRemoved,
+}: {
+  items: StagedItem[]; index: number;
+  onPrev: () => void; onNext: () => void; onClose: () => void;
+  onChanged: () => void; onRemoved: () => void;
+}) {
+  const item = items[index];
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const key = useCallback((e: KeyboardEvent) => {
+    if (editing) return;
+    if (e.key === "Escape") onClose();
+    if (e.key === "ArrowLeft") onPrev();
+    if (e.key === "ArrowRight") onNext();
+  }, [editing, onClose, onPrev, onNext]);
+  useEffect(() => {
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [key]);
+
+  if (!item) return null;
+  const review = item.review;
+
+  function startEdit() {
+    setDraft({
+      title: item.title, price: String(item.price), brand: item.brand,
+      size: item.size ?? "", color: item.color, notes: item.notes,
+    });
+    setError("");
+    setEditing(true);
+  }
+
+  async function save() {
+    setSaving(true);
+    setError("");
+    try {
+      await editStaged(item.id, {
+        title: draft.title.trim(),
+        price: Number(draft.price) || 0,
+        brand: draft.brand.trim(),
+        size: draft.size.trim() || undefined,
+        color: draft.color.trim(),
+        notes: draft.notes.trim(),
+      });
+      setEditing(false);
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "That did not save.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Buying or removing takes the item off the rail, so the modal has nothing
+  // left to show at this index; closing it is the only sound thing to do.
+  const act = (fn: () => Promise<unknown>) => () => {
+    setBusy(true);
+    fn().then(onRemoved).finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="detailwrap" role="dialog" aria-label={item.title} onClick={onClose}>
+      <button className="detailnav left" onClick={(e) => { e.stopPropagation(); onPrev(); }}
+              aria-label="Previous item">‹</button>
+
+      <div className="detail cartdetail" onClick={(e) => e.stopPropagation()}>
+        <button className="xbtn detailclose" onClick={onClose} aria-label="Close">×</button>
+
+        <div className="detailpic">
+          {item.photo
+            ? <img src={item.photo} alt="" />
+            : <Garment category={item.category} colour={item.color || colourGuess(item.title) || "grey"} kind={item.kind} />}
+        </div>
+
+        <div className="detailbody">
+          {editing ? (
+            <div className="editform">
+              {CART_EDIT_FIELDS.map((f) => (
+                <label key={f}>
+                  <span>{f === "notes" ? "Notes" : f[0].toUpperCase() + f.slice(1)}</span>
+                  {f === "notes" ? (
+                    <textarea rows={3} value={draft[f] ?? ""}
+                              onChange={(e) => setDraft({ ...draft, [f]: e.target.value })} />
+                  ) : (
+                    <input value={draft[f] ?? ""}
+                           inputMode={f === "price" ? "decimal" : undefined}
+                           onChange={(e) => setDraft({ ...draft, [f]: e.target.value })} />
+                  )}
+                </label>
+              ))}
+              {error && <p className="formerror">{error}</p>}
+              <div className="editbtns">
+                <button className="cta small" disabled={saving} onClick={save}>
+                  {saving ? "Saving…" : "Save"}
+                </button>
+                <button className="ghost small" disabled={saving} onClick={() => setEditing(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="detailhead">
+                <h3>{item.title}</h3>
+                <button className="ghost small" onClick={startEdit}>Edit</button>
+              </div>
+              <p className="piecemeta">
+                {[item.brand, item.size ? `size ${item.size}` : "", item.color]
+                  .filter(Boolean).join(" · ")}
+              </p>
+
+              <p className={`say ${review.stance}`}>{review.verdict}</p>
+              <p className="subhead">{review.subhead}</p>
+
+              <ul className="reasons">
+                {review.reasons.map((r) => (
+                  <li className={r.tone} key={r.kind + r.text}>{r.text}</li>
+                ))}
+              </ul>
+
+              {item.notes && <p className="buynotes">{item.notes}</p>}
+
+              <p className="quackhead">Quant Quack, the working behind the advice</p>
+              <div className="details">
+                <div>
+                  <span>Expected value of buying</span>
+                  <b>{review.numbers.ev >= 0 ? `+${money(review.numbers.ev)}` : `-${money(-review.numbers.ev)}`}</b>
+                  <em>what it's worth on average once returns are priced in</em>
+                </div>
+                <div>
+                  <span>Most it's worth paying</span>
+                  <b>{review.numbers.no_price ? "nothing" : round(review.numbers.fair_bid)}</b>
+                  <em>above this you're paying for wears you won't get</em>
+                </div>
+                <div>
+                  <span>Resale estimate</span>
+                  <b>{review.numbers.resale === null ? "not known" : round(review.numbers.resale)}</b>
+                  <em>roughly what it'd fetch secondhand, unworn</em>
+                </div>
+                <div>
+                  <span>Similar things you own</span>
+                  <b>{review.numbers.similar_owned}</b>
+                  <em>averaging {review.numbers.similar_wears} wears each</em>
+                </div>
+                <div>
+                  <span>You send back</span>
+                  <b>{Math.round(review.numbers.return_prob * 100)}%</b>
+                  <em>of things like this</em>
+                </div>
+                <div>
+                  <span>What it adds to your closet</span>
+                  <b>{review.numbers.alpha >= 0 ? `+${review.numbers.alpha.toFixed(2)}` : review.numbers.alpha.toFixed(2)}</b>
+                  <em>above zero means it covers days nothing else does</em>
+                </div>
+              </div>
+
+              <div className="detailbtns">
+                <button className="cta small" disabled={busy} onClick={act(() => buyStaged(item.id))}>
+                  I bought it
+                </button>
+                <button className="ghostbtn" disabled={busy} onClick={act(() => unstageItem(item.id))}>
+                  Remove from cart
+                </button>
+              </div>
+            </>
+          )}
+
+          <p className="detailcount">{index + 1} of {items.length}. Use the arrow keys to look through.</p>
+        </div>
+      </div>
+
+      <button className="detailnav right" onClick={(e) => { e.stopPropagation(); onNext(); }}
+              aria-label="Next item">›</button>
+    </div>
+  );
+}
+
 function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => void }) {
   const [cart, setCart] = useState<StagedItem[] | null>(null);
+  const [open, setOpen] = useState<number | null>(null);
   const reload = useCallback(() => {
     getCart().then((c) => setCart(c.items)).catch(() => setCart([]));
   }, []);
@@ -1153,21 +1389,66 @@ function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => vo
     onChange();
   };
 
+  const lines = cart ?? [];
+  const total = lines.reduce((n, i) => n + i.price, 0);
+  const worthIt = lines.filter((i) => i.review.stance === "for").length;
+  const skip = lines.filter((i) => i.review.stance === "against").length;
+
+  const step = (by: number) =>
+    setOpen((i) => (i === null ? null : (i + by + lines.length) % lines.length));
+
   return (
     <>
-      <h2>Thinking it over</h2>
-      <p className="hint">The rail: things you're considering. Puddle reviews every one.</p>
-      <StageForm onStaged={reload} />
-      {cart && cart.length > 0 && (
-        <div className="grid">
-          {cart.map((i) => (
-            <StagedCard key={i.id} item={i} onChange={changed} />
+      <h2>Your cart</h2>
+      <p className="hint tight">
+        Everything you are thinking about buying, with what Puddle makes of each one. Click a
+        thing to see the full case for or against it.
+      </p>
+
+      {lines.length > 0 ? (
+        <div className="buys">
+          {lines.map((i, idx) => (
+            <CartRow key={i.id} item={i} onOpen={() => setOpen(idx)} onChange={changed} />
           ))}
+          <div className="carttotal">
+            <div>
+              <span>
+                {lines.length} item{lines.length === 1 ? "" : "s"}
+              </span>
+              {skip > 0 && (
+                <b className="bad">
+                  Puddle would skip {skip} of {lines.length}
+                </b>
+              )}
+              {skip === 0 && worthIt > 0 && <b className="good">Puddle is happy with all of these</b>}
+            </div>
+            <div className="totalval">{round(total)}</div>
+          </div>
         </div>
+      ) : (
+        cart && (
+          <p className="hint">
+            Your cart is empty. Add something below, or let the extension put things here from the
+            shops you visit.
+          </p>
+        )
       )}
-      {cart && cart.length === 0 && (
-        <p className="hint">Nothing parked. Something catch your eye? Add it above and see what the duck says.</p>
+
+      {open !== null && lines[open] && (
+        <CartDetail
+          items={lines}
+          index={open}
+          onPrev={() => step(-1)}
+          onNext={() => step(1)}
+          onClose={() => setOpen(null)}
+          onChanged={changed}
+          onRemoved={() => { setOpen(null); changed(); }}
+        />
       )}
+
+      <h2 className="railgap">Add something you are considering</h2>
+      <StageForm onStaged={reload} />
+
       {items.length > 0 && (
         <>
           <h2 className="railgap">Or check something from the shop</h2>
@@ -1177,6 +1458,7 @@ function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => vo
     </>
   );
 }
+
 
 /* -------------------------------------------------------------- shell */
 
@@ -1264,10 +1546,10 @@ function Dashboard() {
       </div>
 
       <main className="tabbody">
-        {tab === "Closet" && <ClosetTab me={me} onWear={wear} />}
+        {tab === "Closet" && <ClosetTab me={me} onWear={wear} onChange={reload} />}
         {tab === "Purchases" && <PurchasesTab me={me} onChange={reload} />}
         {tab === "How you dress" && <DressTab me={me} usage={me.usage} />}
-        {tab === "Value" && <ValueTab me={me} />}
+        {tab === "Value" && <ValueTab me={me} onWear={wear} onChange={reload} />}
         {tab === "Cart" && <CartTab items={items} onChange={reload} />}
       </main>
 

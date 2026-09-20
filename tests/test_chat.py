@@ -13,16 +13,27 @@ def ask(question, **kwargs):
     return client.post("/ask", json={"question": question, **kwargs}).json()
 
 
-def fake_openai(monkeypatch, content=None, status=200):
+def fake_model(monkeypatch, content=None, status=200, provider="anthropic"):
     seen = {}
 
     def post(url, headers, json, timeout):
-        seen["body"] = json
-        payload = {"choices": [{"message": {"content": content}}]} if status == 200 else {"error": {}}
+        seen["url"], seen["headers"], seen["body"] = url, headers, json
+        if status != 200:
+            payload = {"error": {}}
+        elif url == chat.ANTHROPIC_URL:
+            payload = {"content": [{"type": "text", "text": content}]}
+        else:
+            payload = {"choices": [{"message": {"content": content}}]}
         return httpx.Response(status, json=payload, request=httpx.Request("POST", url))
 
     monkeypatch.setattr(chat.httpx, "post", post)
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("PUDDLE_ANTHROPIC_KEY", raising=False)
+    if provider == "anthropic":
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-key")
+    else:
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     return seen
 
 
@@ -36,6 +47,8 @@ def test_facts_endpoint_carries_the_numbers_the_rules_use():
 
 def test_without_a_key_the_rules_answer_alone(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("PUDDLE_ANTHROPIC_KEY", raising=False)
     reply = ask("What do I never wear?")
     assert reply["source"] == "rules"
     assert reply["intent"] == "unworn"
@@ -43,7 +56,7 @@ def test_without_a_key_the_rules_answer_alone(monkeypatch):
 
 
 def test_model_phrases_the_computed_line_and_history_rides_along(monkeypatch):
-    seen = fake_openai(
+    seen = fake_model(
         monkeypatch,
         json.dumps({"answer": "Just the strappy heels, $78 sitting unworn.", "followups": ["Should I sell them?"]}),
     )
@@ -53,18 +66,33 @@ def test_model_phrases_the_computed_line_and_history_rides_along(monkeypatch):
     assert reply["answer"].startswith("Just the strappy heels")
     assert "Strappy heels" in reply["computed"]
     assert reply["followups"] == ["Should I sell them?"]
-    roles = [m["role"] for m in seen["body"]["messages"]]
-    assert roles[-3:] == ["user", "assistant", "user"]
+    assert seen["url"] == chat.ANTHROPIC_URL
+    assert seen["headers"]["x-api-key"] == "sk-ant-test-key"
+    assert "Closet facts" in seen["body"]["system"]
+    assert [m["role"] for m in seen["body"]["messages"]] == ["user", "assistant", "user"]
+
+
+def test_openai_is_used_when_only_its_key_is_set(monkeypatch):
+    seen = fake_model(monkeypatch, json.dumps({"answer": "Heels.", "followups": []}), provider="openai")
+    reply = ask("Anything I never wear?")
+    assert reply["source"] == "chat"
+    assert seen["url"] == chat.OPENAI_URL
+    assert seen["body"]["messages"][0]["role"] == "system"
+
+
+def test_prose_around_the_json_is_tolerated(monkeypatch):
+    fake_model(monkeypatch, 'Sure! {"answer": "Heels.", "followups": []} hope that helps')
+    assert ask("Anything I never wear?")["answer"] == "Heels."
 
 
 def test_model_failure_falls_back_to_the_rules(monkeypatch):
-    fake_openai(monkeypatch, status=429)
+    fake_model(monkeypatch, status=429)
     reply = ask("What do I never wear?")
     assert reply["source"] == "rules"
     assert reply["intent"] == "unworn"
 
 
 def test_garbled_model_output_falls_back(monkeypatch):
-    fake_openai(monkeypatch, "not json")
+    fake_model(monkeypatch, "not json")
     reply = ask("What do I never wear?")
     assert reply["source"] == "rules"
