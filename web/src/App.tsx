@@ -64,15 +64,25 @@ const REVEAL =
 const DASH_REVEAL =
   ".dashhead h1, .dashhead > p, .statrow, .tabs, .tabbody > *, .piece, .buycard, .note";
 
-// Scroll-triggered reveal both ways: .in while on screen, off again once it
-// leaves. Re-scans after every render so async content and tab swaps get
-// watched too; observing an already-watched node is a no-op.
+// How long after landing the page still counts as "arriving": content that
+// shows up later (tab swaps, async loads) appears in place without popping.
+const ARRIVAL_MS = 1500;
+
+// One-shot reveal: each element pops in the first time it scrolls into view
+// during the page's arrival, then stays put. Re-scans after every render so
+// async content gets handled too; observing an already-watched node is a no-op.
 function useReveal(ref: RefObject<HTMLElement | null>, selector: string) {
   const ioRef = useRef<IntersectionObserver | null>(null);
+  const arrivedAt = useRef(0);
   useEffect(() => {
+    arrivedAt.current = Date.now();
     const io = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) e.target.classList.toggle("in", e.isIntersecting);
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        }
       },
       { threshold: 0.1 },
     );
@@ -83,7 +93,12 @@ function useReveal(ref: RefObject<HTMLElement | null>, selector: string) {
     const io = ioRef.current;
     const root = ref.current;
     if (!io || !root) return;
-    root.querySelectorAll(selector).forEach((n) => io.observe(n));
+    const settled = Date.now() - arrivedAt.current > ARRIVAL_MS;
+    root.querySelectorAll(selector).forEach((n) => {
+      if (n.classList.contains("in")) return;
+      if (settled) n.classList.add("in", "still");
+      else io.observe(n);
+    });
   });
   return ioRef;
 }
@@ -133,23 +148,9 @@ function Home() {
     window.scrollTo(0, 0);
   }, [hash]);
   const homeRef = useRef<HTMLDivElement>(null);
-  const ioRef = useReveal(homeRef, REVEAL);
-  // Clicking the brand or Add to Chrome while already here: hide everything
-  // instantly, then force a fresh observation so it pops back in as the
-  // scroll lands. (Re-observing is a no-op unless we unobserve first.)
-  const replay = () => {
-    const els = homeRef.current?.querySelectorAll(REVEAL);
-    const io = ioRef.current;
-    if (!els || !io) return;
-    els.forEach((n) => {
-      n.classList.remove("in");
-      io.unobserve(n);
-    });
-    setTimeout(() => els.forEach((n) => io.observe(n)), 420);
-  };
+  useReveal(homeRef, REVEAL);
   const goInstall = () => {
     document.getElementById("install")?.scrollIntoView({ behavior: "smooth" });
-    replay();
   };
   return (
     <div className="home" ref={homeRef}>
@@ -159,7 +160,6 @@ function Home() {
           href="#/home"
           onClick={() => {
             window.scrollTo({ top: 0, behavior: "smooth" });
-            replay();
           }}
         >
           <Duck size={54} />
@@ -234,9 +234,6 @@ function Home() {
           <div className="herobtns">
             <a className="cta" href="https://github.com/katiehehe/puddle">
               Get the extension
-            </a>
-            <a className="ghost" href="#/closet">
-              See my closet
             </a>
           </div>
         </div>
