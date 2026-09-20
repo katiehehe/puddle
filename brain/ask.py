@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from . import insights, ledger, market, pond
-from .catalog import STOREFRONT, Item
+from .catalog import CLOSET, STOREFRONT, Item
 from .miner import Miner
 from .portfolio import Closet
 from .states import STATES
@@ -48,6 +48,66 @@ _MINE = re.compile(
     r"own|owned|wear|worn|wearing|buy|bought|purchase|purchases|spend|spent|return|returns|"
     r"returned|saved|savings|pond|skip|skipped|donate)\b"
 )
+
+# Words that name nothing in particular: question words, verbs about shopping,
+# units of time. Anything outside these and the catalogue's own vocabulary is a
+# subject this brain has never heard of -- Tesla stock, Mars, Bitcoin -- and
+# borrowing wardrobe grammar around it must not buy an answer.
+_GENERIC = set(
+    """a an the this that these those there here my mine me you your yours we our us i im ive
+    of to for in on at from with without about into over under by off out up down between
+    and or but not no nor if then than as so such too very also else own owns owned
+    do does did doing done have has had having am is are was were be been being get got
+    can could should would will shall may might must let lets
+    what which who whose when where why how much many more most less least fewer
+    often ever never always again still yet just only same other another anything something
+    everything nothing thing things stuff item items piece pieces bit lot lots bunch few couple
+    clothes clothing outfit outfits closet wardrobe rotation style wear wears wearing worn
+    buy buys buying bought purchase purchases purchased shop shopping shopped order ordered
+    spend spends spending spent cost costs costing money budget price prices paid pay worth value
+    return returns returned refund refunds send sent back keep keeping rid dead idle
+    save saves saved saving savings pond skip skips skipped donate donating
+    gap gaps hole holes missing uncovered need needs needed cover covers covered serve serves
+    duplicate duplicates dupes redundant copies overexposed unbalanced balance lopsided
+    concentrated summary summarise summarize overview tell told say said show shows
+    right wrong accurate accuracy track record score trust often times
+    day days night nights morning afternoon evening late later time today tomorrow yesterday
+    week weeks month months year years season seasons now recently lately ago
+    happen happens happened doing well good bad better worse best worst first last next
+    per each all any some enough really actually please thanks ok okay
+    dont doesnt didnt wont cant isnt arent wasnt havent hasnt shouldnt couldnt wouldnt
+    whats thats theres heres lets youre theyre
+    size sizes fit fits color colors colour colours brand brands""".split()
+)
+
+
+def _vocabulary() -> set[str]:
+    """Every word the catalogue and the state model can speak about."""
+    words: set[str] = set()
+    for item in CLOSET + STOREFRONT:
+        for field in (item.title, item.category, item.color, item.material, item.kind or ""):
+            words.update(re.findall(r"\w+", field.lower()))
+    for group in STATE_WORDS.values():
+        words.update(word for phrase in group for word in phrase.split())
+    for state in STATES:
+        words.update(re.findall(r"\w+", state.label.lower()))
+    return words
+
+
+_VOCABULARY = _vocabulary()
+
+
+def _known(text: str) -> bool:
+    """False as soon as the question names something the closet has never seen."""
+    for raw in text.split():
+        word = raw.replace("'", "")
+        if len(word) <= 2 or word.isdigit():
+            continue
+        stem = word.rstrip("s")
+        if {word, stem} & (_GENERIC | _VOCABULARY):
+            continue
+        return False
+    return True
 
 
 def money(value: float) -> str:
@@ -387,7 +447,7 @@ EXAMPLES = [
 def answer(question: str, closet: Closet, miner: Miner, counts: dict[str, int]) -> dict | None:
     """The best-supported wardrobe answer, or None if nothing here fits."""
     text = re.sub(r"[^\w\s']", " ", question.lower()).strip()
-    if not text or not _MINE.search(text):
+    if not text or not _MINE.search(text) or not _known(text):
         return None
     wardrobe = Wardrobe(closet, miner, counts)
     for intent, handler in ANSWERS:

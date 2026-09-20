@@ -76,8 +76,25 @@ def test_wardrobe_words_in_another_subject_are_not_an_answer():
         "Will it rain tomorrow in Boston?",
         "What is Tesla stock value?",
         "Tell me about quantum physics",
+        "What do I need to buy Tesla stock?",
+        "What is my best buy in cryptocurrency?",
+        "How much have I spent on Bitcoin?",
+        "What do I own for rain on Mars?",
     ):
         assert ask(question)["intent"] == "unknown", question
+
+
+def test_the_questions_it_does_answer_survive_that_guard():
+    answerable = {
+        "What am I missing?": "gaps",
+        "What's my best buy?": "value",
+        "What should I wear to an interview?": "occasion",
+        "Can I donate anything?": "unworn",
+        "How much is my closet worth?": "spend",
+        "Tell me about my closet": "summary",
+    }
+    for question, intent in answerable.items():
+        assert ask(question)["intent"] == intent, question
 
 
 def test_item_questions_still_go_to_the_checkout_handler():
