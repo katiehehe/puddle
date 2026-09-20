@@ -15,19 +15,27 @@ contract — keep the two declarations in sync.
 | Token        | Value     | Role                                                        |
 |--------------|-----------|-------------------------------------------------------------|
 | `duck`       | `#f2b431` | Duck feathers, brand marks. Fill only — never text on white. |
+| `duck-shade` | `#e8a317` | Tail, wing, head tuft — the duck's shadow color.            |
 | `duck-deep`  | `#a97c12` | Duck accents that need contrast: brows, small text, strokes.|
 | `bill`       | `#ef7a2c` | The bill. Sparingly: it's loud.                             |
+| `bill-shade` | `#d96414` | Bill seam line.                                             |
 | `water`      | `#2a7fb8` | Primary action + data color. Pond fill, links, live state.  |
 | `water-deep` | `#1d5f8a` | Gradient anchor for water, hover on primary.                |
 | `ripple`     | `#dceaf4` | Water shadows, rings, track of the pond bar.                |
-| `foam`       | `#f4fafd` | Lightest water tint: hero gradients, card washes.           |
+| `foam`       | `#f4fafd` | Lightest water tint: radar/table zones, card washes.        |
 | `reed`       | `#0d7a4a` | "Good" / approving state, buy recommendations.              |
 | `warning`    | `#b3261e` | "Bad" / concerned state, gaps, declines.                    |
 | `ink`        | `#16191c` | Text.                                                       |
 | `muted`      | `#5d6771` | Secondary text, captions.                                   |
 | `line`       | `#e4e8ec` | Borders, hairlines, chart rings.                            |
 | `surface`    | `#ffffff` | Cards.                                                      |
-| `page`       | `#f5f7f9` | App background.                                             |
+| `page`       | `#f5f7f9` | App background — under a `#d7eaf5 → foam → page` gradient.  |
+| `sunlit`     | `#ffedb8` | Warm duck-tinted light; hero/popup gradient start.          |
+| `sky`        | `#a8d6ef` | Saturated water tint; hero/popup gradient end.              |
+
+Named gradients: **pond-hero** = `sunlit → #d4ecf8 55% → sky` at 150deg,
+**duck-card** = `#fff8e6 → foam 45% → surface` at 165deg,
+**pond-fill** = `water-deep → water` at 90deg on a `ripple` track.
 
 ## Rules
 
@@ -50,9 +58,13 @@ contract — keep the two declarations in sync.
 ## The mascot
 
 The duck is a 110×110 SVG (`DUCK` in `content.js`, `DuckLogo` in
-`web/src/App.tsx`) sitting on two ripple ellipses. Eyes and brow carry the
-four moods — idle, curious, concerned, approving. Use `idle` for logos and
-empty states; the mood faces belong to the checkout card.
+`web/src/App.tsx`, inline in `popup.html`): a rubber-duck profile facing
+right — pointed tail flick, angled wing, neck bridge, head tuft, rounded
+two-tone bill, and a big eye with a white highlight, floating on two ripple
+ellipses. Eyes and brow carry the four moods — idle, curious, concerned,
+approving. Use `idle` for logos and empty states; the mood faces belong to
+the checkout card. Draw order matters: body → wing → neck → head → tuft →
+cheek → brow → eye → bill.
 
 Duck-related touches that stay tasteful:
 

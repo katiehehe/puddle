@@ -11,37 +11,45 @@
   };
 
   // One duck, four moods. Eyes and brow carry the whole expression.
+  // Rubber-duck profile facing the card text: tail flick, wing, neck, tuft,
+  // rounded two-tone bill, big eye with a highlight.
   const DUCK = (state) => {
     const face = {
       idle: {
-        eye: '<circle cx="64" cy="46" r="3.1" fill="#16191c"/>',
+        eye: '<circle cx="71" cy="38" r="4.2" fill="#16191c"/><circle cx="72.6" cy="36.4" r="1.5" fill="#fff"/>',
         brow: "",
       },
       curious: {
-        eye: '<circle cx="65" cy="45" r="3.3" fill="#16191c"/>',
-        brow: '<path d="M58 36 q7 -4 13 -1" stroke="#a97c12" stroke-width="3" fill="none" stroke-linecap="round"/>',
+        eye: '<circle cx="72" cy="37" r="4.4" fill="#16191c"/><circle cx="73.6" cy="35.4" r="1.5" fill="#fff"/>',
+        brow: '<path d="M62 27 q8 -5 15 -1" stroke="#a97c12" stroke-width="3" fill="none" stroke-linecap="round"/>',
       },
       concerned: {
-        eye: '<circle cx="64" cy="47" r="3.4" fill="#16191c"/>',
-        brow: '<path d="M57 34 l13 6" stroke="#a97c12" stroke-width="3" fill="none" stroke-linecap="round"/>',
+        eye: '<circle cx="71" cy="39" r="4.5" fill="#16191c"/><circle cx="72.6" cy="37.4" r="1.5" fill="#fff"/>',
+        brow: '<path d="M61 26 l15 8" stroke="#a97c12" stroke-width="3" fill="none" stroke-linecap="round"/>',
       },
       approving: {
-        eye: '<path d="M60 47 q4.5 -5 9 0" stroke="#16191c" stroke-width="3" fill="none" stroke-linecap="round"/>',
+        eye: '<path d="M65 39 q5.5 -6 11 0" stroke="#16191c" stroke-width="3" fill="none" stroke-linecap="round"/>',
         brow: "",
       },
-    }[state] || { eye: '<circle cx="64" cy="46" r="3.1" fill="#16191c"/>', brow: "" };
+    }[state] || {
+      eye: '<circle cx="71" cy="38" r="4.2" fill="#16191c"/><circle cx="72.6" cy="36.4" r="1.5" fill="#fff"/>',
+      brow: "",
+    };
 
     return `<svg width="74" height="74" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="55" cy="96" rx="34" ry="7" fill="#dceaf4"/>
-      <ellipse cx="55" cy="93" rx="22" ry="4" fill="#bcdcef"/>
-      <ellipse cx="38" cy="66" rx="17" ry="14" fill="#e3a521"/>
-      <circle cx="56" cy="60" r="30" fill="${PALETTE.duck}"/>
-      <circle cx="62" cy="44" r="21" fill="${PALETTE.duck}"/>
-      <circle cx="52" cy="53" r="5" fill="#f7c95e" opacity=".55"/>
-      <circle cx="73" cy="52" r="4.2" fill="#f08a8a" opacity=".5"/>
+      <ellipse cx="55" cy="97" rx="36" ry="6" fill="#dceaf4"/>
+      <ellipse cx="55" cy="94" rx="24" ry="4" fill="#bcdcef"/>
+      <path d="M24 60 Q13 57 9 47 Q21 48 28 55 Z" fill="#e8a317"/>
+      <ellipse cx="50" cy="68" rx="30" ry="23" fill="${PALETTE.duck}"/>
+      <ellipse cx="42" cy="69" rx="13" ry="8" fill="#e8a317" transform="rotate(-14 42 69)"/>
+      <ellipse cx="66" cy="56" rx="15" ry="11" fill="${PALETTE.duck}"/>
+      <circle cx="72" cy="42" r="20" fill="${PALETTE.duck}"/>
+      <path d="M70 23 q5 -7 10 -4" stroke="#e8a317" stroke-width="4" fill="none" stroke-linecap="round"/>
+      <circle cx="78" cy="48" r="4.5" fill="#f08a8a" opacity=".45"/>
       ${face.brow}
       ${face.eye}
-      <path d="M80 47 q14 2 13 7 q-1 5 -13 5 z" fill="${PALETTE.bill}"/>
+      <path d="M88 39 q15 1 15 7 q0 7 -15 6 q-5 -1 -5 -6 q0 -6 5 -7 z" fill="${PALETTE.bill}"/>
+      <path d="M90 46 q11 1 13 -1" stroke="#d96414" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".7"/>
     </svg>`;
   };
 
@@ -115,9 +123,10 @@
     shadow.innerHTML = `
       <style>
         *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-        .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;background:${PALETTE.surface};border:1px solid ${PALETTE.line};
-          border-left:4px solid ${accent};border-radius:16px;padding:14px 16px;
-          box-shadow:0 10px 28px rgba(20,25,28,.16);animation:pop .28s ease}
+        .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
+          background:linear-gradient(165deg,#fff8e6 0%,${PALETTE.foam} 45%,${PALETTE.surface} 100%);
+          border:1px solid ${PALETTE.ripple};border-left:4px solid ${accent};border-radius:16px;padding:14px 16px;
+          box-shadow:0 10px 28px rgba(29,95,138,.18);animation:pop .28s ease}
         @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
         .row{display:flex;gap:12px;align-items:flex-start}
         .bubble{flex:1}

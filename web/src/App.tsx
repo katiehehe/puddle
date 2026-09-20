@@ -13,16 +13,20 @@ const THEME = {
 function DuckLogo({ size = 88 }: { size?: number }) {
   return (
     <svg className="ducklogo" width={size} height={size} viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="55" cy="96" rx="38" ry="8" fill="none" stroke={THEME.ripple} strokeWidth="2.5" />
-      <ellipse cx="55" cy="94" rx="26" ry="5.5" fill={THEME.ripple} />
-      <ellipse cx="55" cy="93" rx="22" ry="4" fill="#bcdcef" />
-      <ellipse cx="38" cy="66" rx="17" ry="14" fill="#e3a521" />
-      <circle cx="56" cy="60" r="30" fill={THEME.duck} />
-      <circle cx="62" cy="44" r="21" fill={THEME.duck} />
-      <circle cx="52" cy="53" r="5" fill="#f7c95e" opacity=".55" />
-      <circle cx="73" cy="52" r="4.2" fill="#f08a8a" opacity=".5" />
-      <circle cx="64" cy="46" r="3.1" fill="#16191c" />
-      <path d="M80 47 q14 2 13 7 q-1 5 -13 5 z" fill={THEME.bill} />
+      <ellipse cx="55" cy="97" rx="38" ry="7" fill="none" stroke={THEME.water} strokeWidth="2" opacity=".35" />
+      <ellipse cx="55" cy="97" rx="36" ry="6" fill={THEME.ripple} />
+      <ellipse cx="55" cy="94" rx="24" ry="4" fill="#bcdcef" />
+      <path d="M24 60 Q13 57 9 47 Q21 48 28 55 Z" fill="#e8a317" />
+      <ellipse cx="50" cy="68" rx="30" ry="23" fill={THEME.duck} />
+      <ellipse cx="42" cy="69" rx="13" ry="8" fill="#e8a317" transform="rotate(-14 42 69)" />
+      <ellipse cx="66" cy="56" rx="15" ry="11" fill={THEME.duck} />
+      <circle cx="72" cy="42" r="20" fill={THEME.duck} />
+      <path d="M70 23 q5 -7 10 -4" stroke="#e8a317" strokeWidth="4" fill="none" strokeLinecap="round" />
+      <circle cx="78" cy="48" r="4.5" fill="#f08a8a" opacity=".45" />
+      <circle cx="71" cy="38" r="4.2" fill="#16191c" />
+      <circle cx="72.6" cy="36.4" r="1.5" fill="#fff" />
+      <path d="M88 39 q15 1 15 7 q0 7 -15 6 q-5 -1 -5 -6 q0 -6 5 -7 z" fill={THEME.bill} />
+      <path d="M90 46 q11 1 13 -1" stroke="#d96414" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity=".7" />
     </svg>
   );
 }
