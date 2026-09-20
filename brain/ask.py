@@ -56,8 +56,9 @@ _MINE = re.compile(
 # determiner, or a verb of owning and buying. "Spent on Bitcoin" and "own for
 # rain" are the same grammar, and only one of the two subjects exists here.
 _SUBJECT = re.compile(
-    r"\b(?:on|in|at|for|about|to|from|with|my|your|a|an|the|this|that|"
-    r"more|another|other|new|some|any|does|\w+ing|"
+    r"\b(?:on|in|at|for|about|to|from|with|by|near|among|between|versus|than|like|"
+    r"into|onto|off|out|via|during|before|after|inside|outside|around|"
+    r"my|your|a|an|the|this|that|more|another|other|new|some|any|does|\w+ing|"
     r"buy|bought|own|owns|wear|spend|spent)\s+(?=(\w+))"
 )
 
@@ -88,6 +89,7 @@ _GENERIC = set(
     happen happens happened doing well good bad better worse best worst first last next
     per each all any some enough really actually please thanks ok okay
     total altogether overall average percentage percent rate ratio share number count
+    one two three four five six seven eight nine ten dozen pair pairs half twice
     currently usually normally mostly suitable appropriate sensible useful
     suggest suggests suggestion recommend recommends advice think thoughts
     dont doesnt didnt wont cant isnt arent wasnt havent hasnt shouldnt couldnt wouldnt
@@ -112,16 +114,23 @@ def _vocabulary() -> set[str]:
 _VOCABULARY = _vocabulary()
 
 
-def _known(text: str) -> bool:
-    """False as soon as the question is about something the closet has never seen."""
-    for raw in _SUBJECT.findall(text):
-        word = raw.replace("'", "")
-        if len(word) <= 2 or word.isdigit():
-            continue
-        if {word, word.rstrip("s")} & (_GENERIC | _VOCABULARY):
-            continue
+def _stranger(word: str) -> bool:
+    """A word this closet has no reading of: Tesla, Mars, Bitcoin, Taylor."""
+    plain = word.replace("'", "").lower()
+    if len(plain) <= 2 or plain.isdigit():
         return False
-    return True
+    return not {plain, plain.rstrip("s")} & (_GENERIC | _VOCABULARY)
+
+
+def _known(question: str, text: str) -> bool:
+    """False as soon as the question names something the closet has never seen."""
+    if any(_stranger(word) for word in _SUBJECT.findall(text)):
+        return False
+    # A capital letter mid-sentence is a name, wherever it sits in the grammar.
+    words = re.findall(r"[A-Za-z']+", question)
+    if question.isupper():
+        return True
+    return not any(word[:1].isupper() and _stranger(word) for word in words[1:])
 
 
 def money(value: float) -> str:
@@ -465,7 +474,7 @@ EXAMPLES = [
 def answer(question: str, closet: Closet, miner: Miner, counts: dict[str, int]) -> dict | None:
     """The best-supported wardrobe answer, or None if nothing here fits."""
     text = re.sub(r"[^\w\s']", " ", question.lower()).strip()
-    if not text or not _MINE.search(text) or not _known(text):
+    if not text or not _MINE.search(text) or not _known(question, text):
         return None
     wardrobe = Wardrobe(closet, miner, counts)
     for intent, handler in ANSWERS:

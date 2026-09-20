@@ -84,6 +84,10 @@ def test_wardrobe_words_in_another_subject_are_not_an_answer():
         "What do I own for rain while visiting Mars?",
         "How many jackets does Elon Musk own?",
         "How much have I spent on groceries?",
+        "How many crewnecks did Taylor Swift buy?",
+        "What do I own for rain near Mars?",
+        "What is my best value among Tesla stocks?",
+        "What did I spend at Zara?",
     ):
         assert ask(question)["intent"] == "unknown", question
 
@@ -103,6 +107,8 @@ def test_the_questions_it_does_answer_survive_that_guard():
         "How much money have I saved altogether?": "saved",
         "Could you please count my crewnecks?": "count",
         "How many jackets do I own?": "count",
+        "Do I own more than one puffer jacket?": "count",
+        "WHAT DO I OWN FOR RAIN?": "occasion",
     }
     for question, intent in answerable.items():
         assert ask(question)["intent"] == intent, question
