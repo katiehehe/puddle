@@ -26,6 +26,13 @@ import {
 } from "./api";
 import { AskPuddle } from "./AskPuddle";
 import { Garment, kindGuess } from "./Garment";
+import { ItemDetail } from "./ItemDetail";
+
+/** Every "Add to Chrome" goes here. Until there is a Web Store listing, the
+ *  honest destination is the repository the folder lives in, and a button that
+ *  only scrolls to a heading about installing is not the same thing as one
+ *  that gets you the extension. */
+const EXTENSION_URL = "https://github.com/katiehehe/puddle";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const round = (n: number) => `$${Math.round(n).toLocaleString()}`;
@@ -106,7 +113,7 @@ function Home() {
         </a>
         <div className="navlinks">
           <a href="#/closet">My closet</a>
-          <a className="cta small" href="#/home?install">
+          <a className="cta small" href={EXTENSION_URL} target="_blank" rel="noreferrer">
             Add to Chrome
           </a>
         </div>
@@ -121,7 +128,7 @@ function Home() {
             purchase through with you at checkout.
           </p>
           <div className="herobtns">
-            <a className="cta" href="#/home?install">
+            <a className="cta" href={EXTENSION_URL} target="_blank" rel="noreferrer">
               Add to Chrome, free
             </a>
           </div>
@@ -171,7 +178,7 @@ function Home() {
             <b>Load unpacked</b>.
           </p>
           <div className="herobtns">
-            <a className="cta" href="https://github.com/katiehehe/puddle">
+            <a className="cta" href={EXTENSION_URL} target="_blank" rel="noreferrer">
               Get the extension
             </a>
             <a className="ghost" href="#/closet">
@@ -246,7 +253,14 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
   );
 }
 
-function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string) => void }) {
+function PieceCard({
+  piece, onWear, onOpen, onRemove,
+}: {
+  piece: ClosetPiece;
+  onWear: (id: string) => void;
+  onOpen: () => void;
+  onRemove: (id: string) => void;
+}) {
   // Optimistic: a wear tap has to feel free, or nobody logs the fifth one. The
   // tap is forgotten the moment the server's own count moves, so the two never
   // add up to one wear twice.
@@ -255,10 +269,19 @@ function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string)
   const wears = piece.wears + extra;
   const perWear = wears > 0 ? piece.paid / wears : null;
   return (
-    <article className="piece">
+    <article className="piece open" onClick={onOpen} role="button" tabIndex={0}
+             onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()}>
       <div className="piecepic">
         <Garment category={piece.category} colour={piece.color} kind={piece.kind} />
         {piece.duplicates.length > 0 && <span className="dupe">+{piece.duplicates.length} similar</span>}
+        <button
+          className="xbtn onpic"
+          aria-label={`Remove ${piece.title} from your closet`}
+          title="Remove from closet"
+          onClick={(e) => { e.stopPropagation(); onRemove(piece.id); }}
+        >
+          ×
+        </button>
       </div>
       <h4>{piece.title}</h4>
       <div className="piecemeta">
@@ -284,7 +307,8 @@ function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string)
       </div>
       <button
         className="worebtn"
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           setTapped({ counted: piece.wears, extra: extra + 1 });
           onWear(piece.id);
         }}
@@ -337,11 +361,28 @@ function CoveragePanel({ coverage }: { coverage: Coverage }) {
   );
 }
 
-function ClosetTab({ me, onWear }: { me: Me; onWear: (id: string) => void }) {
+function ClosetTab({
+  me, onWear, onChange,
+}: { me: Me; onWear: (id: string) => void; onChange: () => void }) {
   const [filter, setFilter] = useState("all");
+  const [open, setOpen] = useState<number | null>(null);
   const cats = me.shopping.categories;
   const shown = me.closet.filter((p) => filter === "all" || p.category === filter);
   const unworn = me.closet.filter((p) => p.wears === 0).length;
+
+  // Arrows walk the filtered list, in display order, and wrap. Whichever
+  // subset you are looking at is the one you page through.
+  const step = (by: number) =>
+    setOpen((i) => (i === null ? null : (i + by + shown.length) % shown.length));
+
+  async function remove(id: string) {
+    // Archived, not deleted. What you bought stays true even once the thing
+    // has been sold, returned or given away, and the spending history the
+    // duck reasons from would be wrong without it.
+    await editPurchase(id, { archived: true, archive_reason: "removed from closet" });
+    setOpen(null);
+    onChange();
+  }
   return (
     <>
       <h3 className="sub2">Everything you own</h3>
@@ -365,10 +406,28 @@ function ClosetTab({ me, onWear }: { me: Me; onWear: (id: string) => void }) {
         </p>
       )}
       <div className="grid">
-        {shown.map((p) => (
-          <PieceCard key={p.id} piece={p} onWear={onWear} />
+        {shown.map((p, i) => (
+          <PieceCard
+            key={p.id}
+            piece={p}
+            onWear={onWear}
+            onOpen={() => setOpen(i)}
+            onRemove={remove}
+          />
         ))}
       </div>
+      {open !== null && shown[open] && (
+        <ItemDetail
+          piece={shown[open]}
+          index={open}
+          total={shown.length}
+          onPrev={() => step(-1)}
+          onNext={() => step(1)}
+          onClose={() => setOpen(null)}
+          onWear={onWear}
+          onRemove={remove}
+        />
+      )}
     </>
   );
 }
@@ -1049,7 +1108,10 @@ function StageForm({ onStaged }: { onStaged: () => void }) {
   );
 }
 
-function StagedCard({ item, onChange }: { item: StagedItem; onChange: () => void }) {
+/** A cart line: the thing, what it costs, what Puddle makes of it, and a way
+ *  to take it out again. Laid out as a row rather than a card, because a cart
+ *  is a list you scan down and total up. */
+function CartLine({ item, onChange }: { item: StagedItem; onChange: () => void }) {
   const [busy, setBusy] = useState(false);
   const review = item.review;
   const act = (fn: () => Promise<unknown>) => () => {
@@ -1057,25 +1119,43 @@ function StagedCard({ item, onChange }: { item: StagedItem; onChange: () => void
     fn().then(onChange).finally(() => setBusy(false));
   };
   return (
-    <article className="piece">
-      <div className="piecepic">
+    <article className="cartline">
+      <div className="cartpic">
         <Garment category={item.category} colour={item.color || "grey"} kind={item.kind} />
-        <span className={`railverdict ${review.stance}`}>{review.verdict}</span>
       </div>
-      <h4>{item.title}</h4>
-      <div className="piecemeta">
-        {round(item.price)}
-        {item.brand ? ` · ${item.brand}` : ""}
+
+      <div className="cartmain">
+        <div className="carttop">
+          <h4>{item.title}</h4>
+          <button
+            className="xbtn"
+            disabled={busy}
+            aria-label={`Remove ${item.title} from your cart`}
+            title="Remove from cart"
+            onClick={act(() => unstageItem(item.id))}
+          >
+            ×
+          </button>
+        </div>
+        <div className="piecemeta">
+          {item.brand ? `${item.brand} · ` : ""}
+          {item.size ? `size ${item.size}` : item.category}
+        </div>
+        <div className={`cartverdict ${review.stance}`}>
+          <Duck size={22} />
+          <div>
+            <b>{review.verdict}</b>
+            {review.reasons.slice(0, 2).map((r) => (
+              <p key={r}>{r}</p>
+            ))}
+          </div>
+        </div>
       </div>
-      {review.reasons.map((r) => (
-        <p className="railreason" key={r}>{r}</p>
-      ))}
-      <div className="railbtns">
+
+      <div className="cartright">
+        <div className="cartprice">{round(item.price)}</div>
         <button className="cta small" disabled={busy} onClick={act(() => buyStaged(item.id))}>
-          Bought it
-        </button>
-        <button className="ghostbtn" disabled={busy} onClick={act(() => unstageItem(item.id))}>
-          Take it off
+          I bought it
         </button>
       </div>
     </article>
@@ -1094,21 +1174,50 @@ function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => vo
     onChange();
   };
 
+  const lines = cart ?? [];
+  const total = lines.reduce((n, i) => n + i.price, 0);
+  const worthIt = lines.filter((i) => i.review.stance === "for").length;
+  const skip = lines.filter((i) => i.review.stance === "against").length;
+
   return (
     <>
-      <h2>Thinking it over</h2>
-      <p className="hint">The rail: things you're considering. Puddle reviews every one.</p>
-      <StageForm onStaged={reload} />
-      {cart && cart.length > 0 && (
-        <div className="grid">
-          {cart.map((i) => (
-            <StagedCard key={i.id} item={i} onChange={changed} />
+      <h2>Your cart</h2>
+      <p className="hint">
+        Everything you are thinking about buying, with what Puddle makes of each one.
+      </p>
+
+      {lines.length > 0 ? (
+        <div className="cart">
+          {lines.map((i) => (
+            <CartLine key={i.id} item={i} onChange={changed} />
           ))}
+          <div className="carttotal">
+            <div>
+              <span>
+                {lines.length} item{lines.length === 1 ? "" : "s"}
+              </span>
+              {skip > 0 && (
+                <b className="bad">
+                  Puddle would skip {skip} of {lines.length}
+                </b>
+              )}
+              {skip === 0 && worthIt > 0 && <b className="good">Puddle is happy with all of these</b>}
+            </div>
+            <div className="totalval">{round(total)}</div>
+          </div>
         </div>
+      ) : (
+        cart && (
+          <p className="hint">
+            Your cart is empty. Add something below, or let the extension put things here from the
+            shops you visit.
+          </p>
+        )
       )}
-      {cart && cart.length === 0 && (
-        <p className="hint">Nothing parked. Something catch your eye? Add it above and see what the duck says.</p>
-      )}
+
+      <h2 className="railgap">Add something you are considering</h2>
+      <StageForm onStaged={reload} />
+
       {items.length > 0 && (
         <>
           <h2 className="railgap">Or check something from the shop</h2>
@@ -1177,7 +1286,7 @@ function Dashboard() {
         </a>
         <div className="navlinks">
           <a href="#/closet">My closet</a>
-          <a className="cta small" href="#/home?install">
+          <a className="cta small" href={EXTENSION_URL} target="_blank" rel="noreferrer">
             Add to Chrome
           </a>
         </div>
@@ -1202,7 +1311,7 @@ function Dashboard() {
       </div>
 
       <main className="tabbody">
-        {tab === "Closet" && <ClosetTab me={me} onWear={wear} />}
+        {tab === "Closet" && <ClosetTab me={me} onWear={wear} onChange={reload} />}
         {tab === "Purchases" && <PurchasesTab me={me} onChange={reload} />}
         {tab === "How you dress" && <DressTab me={me} usage={me.usage} />}
         {tab === "Value" && <ValueTab me={me} />}
