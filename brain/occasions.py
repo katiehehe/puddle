@@ -44,9 +44,18 @@ SUGGESTIONS: dict[str, str] = {
 ENOUGH_WEARS = 25
 
 
+# Gym and lounge are claims about clothes, not footwear or coats: the payoff
+# only reads formality and warmth, so without this a rain boot reads "Lounge".
+NOT_FOR = {"shoes": ("gym", "lounge"), "outer": ("gym", "lounge")}
+
+
 def tags(item: Item) -> list[str]:
     """The occasions this one garment genuinely works for."""
-    return [LABELS[s.key] for s in STATES if payoff(item, s) >= COVERED]
+    skip = NOT_FOR.get(item.category, ())
+    out = [LABELS[s.key] for s in STATES if s.key not in skip and payoff(item, s) >= COVERED]
+    if item.rain_ok and LABELS["rain"] not in out:
+        out.append(LABELS["rain"])
+    return out
 
 
 def coverage(closet) -> dict:

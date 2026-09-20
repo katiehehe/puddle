@@ -84,7 +84,7 @@ def notices(closet: list[Item], wear_counts: dict[str, int], coverage: dict) -> 
         idle = [i for i in items if wear_counts.get(i.id, 0) < USED_THRESHOLD]
         detail = f"You own {len(items)}"
         if idle:
-            detail += f", and {len(idle)} barely get worn"
+            detail += f", and {len(idle)} barely {'gets' if len(idle) == 1 else 'get'} worn"
         out.append({"title": f"You might not need another {kind.replace('_', ' ')}.", "detail": detail + "."})
 
     worked = [
