@@ -1,9 +1,12 @@
-# Puddle theme
+# Puddle theme — Night Pond
 
 One pond, three surfaces: the checkout duck (content script + popup), the
-dashboard, and the web demo. They share one palette and one mascot. The mock
-shop (NORTHWICK) is a third-party retailer and stays neutral on purpose —
-the duck has to look like it landed there, not like it lives there.
+dashboard, and the web demo. The mock shop (NORTHWICK) is a third-party
+retailer and stays neutral on purpose — the duck has to look like it landed
+there, not like it lives there.
+
+Night Pond is a dark theme: deep water surfaces with duck-yellow and
+bright-water accents, so the mascot and the data both pop.
 
 The palette is declared as CSS custom properties on the dashboard
 (`web/src/styles.css`) and as the `PALETTE` object in `extension/content.js`.
@@ -12,63 +15,54 @@ contract — keep the two declarations in sync.
 
 ## Palette
 
-| Token        | Value     | Role                                                        |
-|--------------|-----------|-------------------------------------------------------------|
-| `duck`       | `#f2b431` | Duck feathers, brand marks. Fill only — never text on white. |
-| `duck-shade` | `#e8a317` | Tail, wing, head tuft — the duck's shadow color.            |
-| `duck-deep`  | `#a97c12` | Duck accents that need contrast: brows, small text, strokes.|
-| `bill`       | `#ef7a2c` | The bill. Sparingly: it's loud.                             |
-| `bill-shade` | `#d96414` | Bill seam line.                                             |
-| `water`      | `#2a7fb8` | Primary action + data color. Pond fill, links, live state.  |
-| `water-deep` | `#1d5f8a` | Gradient anchor for water, hover on primary.                |
-| `ripple`     | `#dceaf4` | Water shadows, rings, track of the pond bar.                |
-| `foam`       | `#f4fafd` | Lightest water tint: radar/table zones, card washes.        |
-| `reed`       | `#0d7a4a` | "Good" / approving state, buy recommendations.              |
-| `warning`    | `#b3261e` | "Bad" / concerned state, gaps, declines.                    |
-| `ink`        | `#16191c` | Text.                                                       |
-| `muted`      | `#5d6771` | Secondary text, captions.                                   |
-| `line`       | `#e4e8ec` | Borders, hairlines, chart rings.                            |
-| `surface`    | `#ffffff` | Cards.                                                      |
-| `page`       | `#f5f7f9` | App background — under a `#d7eaf5 → foam → page` gradient.  |
-| `sunlit`     | `#ffedb8` | Warm duck-tinted light; hero/popup gradient start.          |
-| `sky`        | `#a8d6ef` | Saturated water tint; hero/popup gradient end.              |
+| Token         | Value     | Role                                                        |
+|---------------|-----------|-------------------------------------------------------------|
+| `duck`        | `#f2b431` | Duck feathers, brand marks, headline accent.                |
+| `duck-deep`   | `#ffd166` | Lightened duck yellow for text/thin strokes on dark.        |
+| `bill`        | `#ef7a2c` | Sparingly: it's loud.                                       |
+| `water`       | `#4fb0e6` | Primary action + data color. Links, pond fill, live state.  |
+| `water-deep`  | `#9fd6f2` | Lightened water for text emphasis and gradient tops.        |
+| `ripple`      | `#1d4560` | Pond-bar track, ripple rings, dark water details.           |
+| `foam`        | `#16374f` | Raised wash: hover rows, chips, pending ledger.             |
+| `reed`        | `#46c586` | "Good" / approving state, buy recommendations.              |
+| `warning`     | `#ff7a6e` | "Bad" / concerned state, gaps, declines.                    |
+| `ink`         | `#eaf4fa` | Text.                                                       |
+| `muted`       | `#9db8c9` | Secondary text, captions.                                   |
+| `line`        | `#2b5878` | Borders, hairlines, chart rings.                            |
+| `surface`     | `#123047` | Cards.                                                      |
+| `surface-hi`  | `#1a3f5c` | Card tops, secondary buttons.                               |
+| `page`        | `#0b1f2e` | App background.                                             |
 
-Named gradients: **pond-hero** = `sunlit → #d4ecf8 55% → sky` at 150deg,
-**duck-card** = `#fff8e6 → foam 45% → surface` at 165deg,
-**pond-fill** = `water-deep → water` at 90deg on a `ripple` track.
+Named gradients: **night-hero** = `#1e4b6b → surface 60% → #0e2740` at
+150deg, **duck-card** = `surface-hi → surface 55% → page` at 165deg,
+**pond-fill** = `water → water-deep` at 90deg on a `ripple` track,
+**page-sky** = `#10334c → page` at 180deg, fixed.
 
 ## Rules
 
 - **Semantic, not decorative.** `water` means interactive-or-data,
   `reed` means go, `warning` means stop. Don't use them for ornament.
-- **Duck yellow is a fill, not a text color.** `#f2b431` on white is ~1.9:1 —
-  fine for a 30px duck, unreadable at 12px. Use `duck-deep` where the hue
-  must carry meaning in text or thin strokes.
 - **State accents ride the left edge.** The duck card and dashboard verdicts
-  take their accent (water/reed/warning) from `duck_state`, not from the item.
+  take their accent (water/reed/warning) from `duck_state`, not the item.
 - **Type**: system stack (`-apple-system, Segoe UI, Inter`). Eyebrow labels:
-  11–12px, uppercase, `.06–.14em` tracking, `muted`. Headlines use
+  11–12px, uppercase, `.06–.14em` tracking, `water` or `muted`. Headlines use
   `letter-spacing:-.02em`.
 - **Shape**: 8px inputs, 9–12px buttons, 14–18px cards, 99px pills. The pond
-  bar is always a pill (`border-radius:99px`) with a `water`→`water-deep`
-  gradient on a `ripple` track.
-- **Motion**: card pop `.28s ease`, pond fill `.5s ease`, sheen `.6s` loop.
+  bar is always a pill (`border-radius:99px`) with the `pond-fill` gradient
+  on a `ripple` track.
+- **Motion**: card pop `.28s ease`, pond fill `.5s ease`, sheen `3.2s` loop.
   All animation off under `prefers-reduced-motion: reduce`.
 
 ## The mascot
 
-The duck is a 110×110 SVG (`DUCK` in `content.js`, `DuckLogo` in
-`web/src/App.tsx`, inline in `popup.html`): a rubber-duck profile facing
-right — pointed tail flick, angled wing, neck bridge, head tuft, rounded
-two-tone bill, and a big eye with a white highlight, floating on two ripple
-ellipses. Eyes and brow carry the four moods — idle, curious, concerned,
-approving. Use `idle` for logos and empty states; the mood faces belong to
-the checkout card. Draw order matters: body → wing → neck → head → tuft →
-cheek → brow → eye → bill.
+The mascot is the duck emoji 🦆, always inside a ripple ring: a circular
+`ripple`-bordered badge with a radial water glow under it
+(`.ducklogo` / `.duckwrap`). On the checkout card the mood rides in a small
+accent-colored badge on the ring — `?` curious, `!` concerned, `✓` approving,
+none for idle — while the card's left edge carries the state color.
 
 Duck-related touches that stay tasteful:
 
-- Ripple rings behind the hero duck on the dashboard.
 - The pond bar's moving sheen reads as a ripple, not a progress stripe.
-- Footprints (`🐾`-style marks) only in footers/empty states — never in the
+- Footprints (`❋ ❋ ❋`) only in footers/empty states — never in the
   decision card, where they'd cheapen the warning.

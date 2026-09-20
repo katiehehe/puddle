@@ -2,55 +2,19 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
-  // docs/theme.md — keep in sync with web/src/styles.css.
+  // docs/theme.md — Night Pond palette, kept in sync with web/src/styles.css.
   const PALETTE = {
-    ink: "#16191c", muted: "#5d6771", line: "#e4e8ec",
-    duck: "#f2b431", duckDeep: "#a97c12", bill: "#ef7a2c",
-    water: "#2a7fb8", waterDeep: "#1d5f8a", ripple: "#dceaf4", foam: "#f4fafd",
-    good: "#0d7a4a", bad: "#b3261e", surface: "#ffffff"
+    ink: "#eaf4fa", muted: "#9db8c9", line: "#2b5878",
+    duck: "#f2b431", duckDeep: "#ffd166", bill: "#ef7a2c",
+    water: "#4fb0e6", waterDeep: "#9fd6f2", ripple: "#1d4560", foam: "#16374f",
+    good: "#46c586", bad: "#ff7a6e", surface: "#123047", surfaceHi: "#1a3f5c", page: "#0b1f2e"
   };
 
-  // One duck, four moods. Eyes and brow carry the whole expression.
-  // Rubber-duck profile facing the card text: tail flick, wing, neck, tuft,
-  // rounded two-tone bill, big eye with a highlight.
+  // The mascot is the duck emoji; mood rides in a small badge and the card accent.
   const DUCK = (state) => {
-    const face = {
-      idle: {
-        eye: '<circle cx="71" cy="38" r="4.2" fill="#16191c"/><circle cx="72.6" cy="36.4" r="1.5" fill="#fff"/>',
-        brow: "",
-      },
-      curious: {
-        eye: '<circle cx="72" cy="37" r="4.4" fill="#16191c"/><circle cx="73.6" cy="35.4" r="1.5" fill="#fff"/>',
-        brow: '<path d="M62 27 q8 -5 15 -1" stroke="#a97c12" stroke-width="3" fill="none" stroke-linecap="round"/>',
-      },
-      concerned: {
-        eye: '<circle cx="71" cy="39" r="4.5" fill="#16191c"/><circle cx="72.6" cy="37.4" r="1.5" fill="#fff"/>',
-        brow: '<path d="M61 26 l15 8" stroke="#a97c12" stroke-width="3" fill="none" stroke-linecap="round"/>',
-      },
-      approving: {
-        eye: '<path d="M65 39 q5.5 -6 11 0" stroke="#16191c" stroke-width="3" fill="none" stroke-linecap="round"/>',
-        brow: "",
-      },
-    }[state] || {
-      eye: '<circle cx="71" cy="38" r="4.2" fill="#16191c"/><circle cx="72.6" cy="36.4" r="1.5" fill="#fff"/>',
-      brow: "",
-    };
-
-    return `<svg width="74" height="74" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="55" cy="97" rx="36" ry="6" fill="#dceaf4"/>
-      <ellipse cx="55" cy="94" rx="24" ry="4" fill="#bcdcef"/>
-      <path d="M24 60 Q13 57 9 47 Q21 48 28 55 Z" fill="#e8a317"/>
-      <ellipse cx="50" cy="68" rx="30" ry="23" fill="${PALETTE.duck}"/>
-      <ellipse cx="42" cy="69" rx="13" ry="8" fill="#e8a317" transform="rotate(-14 42 69)"/>
-      <ellipse cx="66" cy="56" rx="15" ry="11" fill="${PALETTE.duck}"/>
-      <circle cx="72" cy="42" r="20" fill="${PALETTE.duck}"/>
-      <path d="M70 23 q5 -7 10 -4" stroke="#e8a317" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <circle cx="78" cy="48" r="4.5" fill="#f08a8a" opacity=".45"/>
-      ${face.brow}
-      ${face.eye}
-      <path d="M88 39 q15 1 15 7 q0 7 -15 6 q-5 -1 -5 -6 q0 -6 5 -7 z" fill="${PALETTE.bill}"/>
-      <path d="M90 46 q11 1 13 -1" stroke="#d96414" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".7"/>
-    </svg>`;
+    const mark = { curious: "?", concerned: "!", approving: "✓" }[state] || "";
+    return `<div class="duckwrap"><span class="duckmoji">🦆</span>${
+      mark ? `<span class="mood">${mark}</span>` : ""}</div>`;
   };
 
   const HEADER = {
@@ -124,26 +88,33 @@
       <style>
         *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
         .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
-          background:linear-gradient(165deg,#fff8e6 0%,${PALETTE.foam} 45%,${PALETTE.surface} 100%);
-          border:1px solid ${PALETTE.ripple};border-left:4px solid ${accent};border-radius:16px;padding:14px 16px;
-          box-shadow:0 10px 28px rgba(29,95,138,.18);animation:pop .28s ease}
+          background:linear-gradient(165deg,${PALETTE.surfaceHi} 0%,${PALETTE.surface} 55%,${PALETTE.page} 100%);
+          border:1px solid ${PALETTE.line};border-left:4px solid ${accent};border-radius:16px;padding:14px 16px;
+          box-shadow:0 12px 32px rgba(0,0,0,.45);animation:pop .28s ease}
         @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
         .row{display:flex;gap:12px;align-items:flex-start}
+        .duckwrap{position:relative;flex-shrink:0;width:56px;height:56px;border-radius:50%;
+          background:radial-gradient(circle at 50% 68%,${PALETTE.ripple} 0%,transparent 70%);
+          border:2px solid ${PALETTE.ripple};display:flex;align-items:center;justify-content:center}
+        .duckmoji{font-size:34px;line-height:1}
+        .mood{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;
+          background:${accent};color:${PALETTE.page};font-size:12px;font-weight:800;
+          display:flex;align-items:center;justify-content:center}
         .bubble{flex:1}
         .quack{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${PALETTE.muted};font-weight:700}
         .line{font-size:15px;line-height:1.45;color:${PALETTE.ink};margin:3px 0 8px}
-        .chip{display:inline-block;background:${PALETTE.foam};border:1px solid ${PALETTE.ripple};border-radius:99px;
+        .chip{display:inline-block;background:${PALETTE.foam};border:1px solid ${PALETTE.line};border-radius:99px;
           padding:2px 10px;font-size:12px;color:${PALETTE.waterDeep};margin-bottom:10px;font-weight:600}
         .btns{display:flex;gap:8px;justify-content:flex-end}
         button{border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${PALETTE.line}}
         button:focus-visible{outline:2px solid ${PALETTE.water};outline-offset:2px}
-        .skip{background:${accent};color:#fff;border-color:${accent}}
-        .buy{background:#fff;color:${PALETTE.ink}}
+        .skip{background:${accent};color:${PALETTE.page};border-color:${accent}}
+        .buy{background:${PALETTE.surfaceHi};color:${PALETTE.ink}}
         .pond{margin-top:12px;height:8px;border-radius:99px;background:${PALETTE.ripple};overflow:hidden}
-        .fill{height:100%;border-radius:99px;position:relative;background:linear-gradient(90deg,${PALETTE.waterDeep},${PALETTE.water});
+        .fill{height:100%;border-radius:99px;position:relative;background:linear-gradient(90deg,${PALETTE.water},${PALETTE.waterDeep});
           width:${pondPct(pond.saved)}%;transition:width .5s ease}
         .fill::after{content:"";position:absolute;inset:0;border-radius:99px;
-          background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);
+          background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);
           background-size:60% 100%;background-repeat:no-repeat;animation:sheen 3.2s ease-in-out infinite}
         @keyframes sheen{0%{background-position:-60% 0}60%,100%{background-position:160% 0}}
         @media(prefers-reduced-motion:reduce){.card{animation:none}.fill::after{animation:none}}
