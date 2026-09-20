@@ -105,7 +105,7 @@ function Home() {
     <div className="home">
       <nav className="nav">
         <a className="brand" href="#/">
-          <Duck size={40} />
+          <Duck size={54} />
           <span>Puddle</span>
         </a>
         <div className="navlinks">
@@ -979,7 +979,7 @@ function Dashboard() {
     <div className="shell">
       <nav className="nav">
         <a className="brand" href="#/home">
-          <Duck size={40} />
+          <Duck size={54} />
           <span>Puddle</span>
         </a>
         <div className="navlinks">

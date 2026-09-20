@@ -37,7 +37,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   padding: 22px 0; position: sticky; top: 0; z-index: 20;
   background: linear-gradient(var(--paper) 72%, rgba(251, 249, 244, 0));
 }
-.brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 30px; }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 44px; }
 .navlinks { display: flex; align-items: center; gap: 22px; font-size: 15px; color: var(--muted); }
 .navlinks a:hover { color: var(--ink); }
 .live {
