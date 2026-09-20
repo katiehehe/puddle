@@ -21,7 +21,7 @@ import {
   Usage,
 } from "./api";
 import { AskPuddle } from "./AskPuddle";
-import { Garment } from "./Garment";
+import { Garment, kindGuess } from "./Garment";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const round = (n: number) => `$${Math.round(n).toLocaleString()}`;
@@ -58,7 +58,7 @@ function CheckoutMock() {
       </div>
       <div className="mockbody">
         <div className="mockshot">
-          <Garment category="shoes" colour="brown" size={150} />
+          <Garment category="shoes" colour="brown" kind="boots" size={150} />
         </div>
         <div className="mockinfo">
           <div className="mockbrand">WESTRIDGE</div>
@@ -226,7 +226,7 @@ function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string)
   return (
     <article className="piece">
       <div className="piecepic">
-        <Garment category={piece.category} colour={piece.color} />
+        <Garment category={piece.category} colour={piece.color} kind={piece.kind} />
         {piece.duplicates.length > 0 && <span className="dupe">+{piece.duplicates.length} similar</span>}
       </div>
       <h4>{piece.title}</h4>
@@ -533,7 +533,7 @@ function PurchaseCard({ p, onChange }: { p: PurchaseRow; onChange: () => void })
   return (
     <article className={`buycard${kept ? "" : " gone"}`}>
       <div className="buypic">
-        <Garment category={p.category} colour={p.color || "grey"} size={64} />
+        <Garment category={p.category} colour={p.color || "grey"} kind={kindGuess(p.title)} size={64} />
       </div>
       <div className="buybody">
         <h4>{p.title}</h4>
