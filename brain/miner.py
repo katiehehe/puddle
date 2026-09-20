@@ -98,7 +98,7 @@ class Miner:
                 "bought_late": bought,
             },
             "line": (
-                f"It's {now.strftime('%-I:%M%p').lower()} — "
+                f"It's {now.strftime('%I:%M%p').lstrip('0').lower()} — "
                 f"{round(100 * share / total_returns)}% of everything you've returned was bought after 11pm."
             ),
             "weight": min(1.0, 0.35 + 0.6 * (rate - baseline)),

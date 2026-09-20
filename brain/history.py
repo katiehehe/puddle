@@ -3,11 +3,16 @@
 Deterministic. Patterns are planted rather than random so the miner has real
 structure to recover, and so the demo is reproducible:
 
-  * every pair of size-8 boots ever bought was returned (4 for 4)
+  * every pair of size-8 boots ever bought was returned (4 for 4), while
+    size-10 boots stick around -- the pattern is about the size, not boots
   * purchases made at/after 23:00 are returned far more often than the baseline
   * the charcoal crewnecks are worn rarely despite being bought repeatedly
   * wear events are heavily weighted to casual/gym and almost never formal,
     which is what produces the coverage gap the portfolio engine finds
+
+The lifetime return rate is planted near 18% (PRD 7): a "you return almost
+everything bought this late" line is meaningless if the baseline already says
+you return half of everything.
 """
 
 from __future__ import annotations
@@ -58,38 +63,55 @@ _BOOT_BUYS = [
 ]
 
 # (title, category, kind, price, size, hour, returned)
+# Kept buys that are still in CLOSET are marked returned=False -- an item you
+# sent back cannot also be hanging in the wardrobe.
 _OTHER_BUYS = [
     ("Charcoal crewneck", "top", "crewneck", 58.0, "M", 14, False),
     ("Charcoal crewneck (heavier)", "top", "crewneck", 72.0, "M", 23, False),
-    ("Grey crewneck", "top", "crewneck", 45.0, "M", 14, True),
+    ("Grey crewneck", "top", "crewneck", 45.0, "M", 14, False),
     ("Sequin halter top", "top", "going_out_top", 55.0, "S", 23, False),
-    ("Mesh long-sleeve", "top", "going_out_top", 34.0, "S", 1, True),
-    ("Corset top", "top", "going_out_top", 48.0, "S", 23, True),
-    ("Satin blouse", "top", "top", 62.0, "S", 11, True),
+    ("Mesh long-sleeve", "top", "going_out_top", 34.0, "S", 1, False),
+    ("Corset top", "top", "going_out_top", 48.0, "S", 23, False),
+    ("Satin blouse", "top", "top", 62.0, "S", 11, False),
     ("Faux-leather pants", "bottom", "bottom", 78.0, "27", 23, True),
     ("Cargo pants", "bottom", "bottom", 68.0, "27", 15, False),
     ("Straight-leg jeans", "bottom", "bottom", 88.0, "27", 13, False),
-    ("Wide-leg trousers", "bottom", "bottom", 92.0, "27", 16, True),
+    ("Wide-leg trousers", "bottom", "bottom", 92.0, "27", 16, False),
     ("Puffer jacket", "outer", "outer", 140.0, "S", 11, False),
     ("Rain shell", "outer", "rain_outer", 110.0, "S", 16, False),
     ("Wool coat", "outer", "outer", 210.0, "S", 23, True),
     ("White sneakers", "shoes", "sneakers", 85.0, "8", 12, False),
-    ("Retro runners", "shoes", "sneakers", 110.0, "8", 13, True),
+    ("Retro runners", "shoes", "sneakers", 110.0, "8", 13, False),
     ("Strappy heels", "shoes", "heels", 78.0, "8", 22, False),
     ("Black slip dress", "dress", "going_out_dress", 95.0, "S", 21, False),
     ("Floral midi dress", "dress", "dress", 84.0, "S", 23, True),
-    ("Linen shirt dress", "dress", "dress", 76.0, "S", 15, True),
+    ("Linen shirt dress", "dress", "dress", 76.0, "S", 15, False),
     ("Sports bra", "top", "athletic", 34.0, "S", 9, False),
     ("Training tee", "top", "athletic", 26.0, "S", 9, False),
     ("Running shorts", "bottom", "athletic", 28.0, "S", 10, False),
     ("Leggings", "bottom", "athletic", 32.0, "S", 18, False),
     ("Sweatpants", "bottom", "lounge", 45.0, "S", 20, False),
     ("Denim jacket", "outer", "outer", 95.0, "S", 15, False),
-    ("Denim mini skirt", "bottom", "bottom", 42.0, "27", 23, True),
+    ("Denim mini skirt", "bottom", "bottom", 42.0, "27", 23, False),
     ("Off-shoulder top", "top", "going_out_top", 40.0, "S", 19, False),
     ("Red going-out top", "top", "going_out_top", 38.0, "S", 22, False),
     ("Black satin cami", "top", "going_out_top", 42.0, "S", 20, False),
     ("Cashmere beanie", "accessory", "accessory", 48.0, None, 23, True),
+]
+
+# More kept buys, all in daytime hours: a believable baseline needs a long
+# tail of "bought it, kept it". The size-10 boots are deliberate -- the
+# graveyard is size 8, not boots as a category.
+_KEPT_EXTRAS = [
+    ("Suede desert boots", "shoes", "boots", 140.0, "10", 14, False),
+    ("Chelsea boots (wide)", "shoes", "boots", 150.0, "10", 11, False),
+    ("Oxford shirt", "top", "shirt", 68.0, "M", 10, False),
+    ("Merino sweater", "top", "sweater", 98.0, "M", 12, False),
+    ("Chino shorts", "bottom", "shorts", 45.0, "27", 13, False),
+    ("Wool scarf", "accessory", "accessory", 55.0, None, 17, False),
+    ("Leather belt", "accessory", "accessory", 40.0, None, 16, False),
+    ("Fleece vest", "outer", "outer", 75.0, "S", 15, False),
+    ("Canvas tote", "accessory", "accessory", 30.0, None, 14, False),
 ]
 
 # How often each occasion actually shows up in this person's life. The engine
@@ -118,7 +140,7 @@ def purchases() -> list[Purchase]:
     rows: list[tuple] = []
     for title, price, hour, reason in _BOOT_BUYS:
         rows.append((title, "shoes", "boots", price, "8", hour, True, reason))
-    for title, category, kind, price, size, hour, returned in _OTHER_BUYS:
+    for title, category, kind, price, size, hour, returned in _OTHER_BUYS + _KEPT_EXTRAS:
         rows.append((title, category, kind, price, size, hour, returned, None))
 
     rng.shuffle(rows)

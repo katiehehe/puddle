@@ -29,13 +29,16 @@ The existing response fields remain. Additions:
 - `reasons`: evidence-based explanation strings.
 - `prediction_id`: persistent ID, including for silent/neutral scores.
 
-`GET /portfolio?now_hour=23` uses the same decision function. Its
-`rebalance.buy`, `rebalance.skip`, and new `rebalance.neutral` entries include
-`decision` and `reasons`. The buy list is still constrained by the $400 demo
-budget; an eligible buy may therefore not appear in that list. Negative return,
-redundancy, or concentration evidence takes precedence over positive alpha.
-Time alone does not turn a useful suit into a skip. Purchased variants are
-removed from the candidate lists and added to holdings.
+`GET /portfolio` uses the same decision function. Candidates are scored at a
+fixed daytime hour (the dashboard is a planning surface, not a 2am checkout);
+pass `?now_hour=23` to override. Its `rebalance.buy`, `rebalance.skip`, and
+new `rebalance.neutral` entries include `decision` and `reasons`. Buys are
+ranked by marginal Sharpe per dollar (`sharpe_per_dollar` on each entry) and
+greedily picked under `?budget=` (default 500); an eligible buy may therefore
+not appear in that list, and buys that would lower Sharpe are never picked.
+Negative return, redundancy, or concentration evidence takes precedence over
+positive alpha. Time alone does not turn a useful suit into a skip. Purchased
+variants are removed from the candidate lists and added to holdings.
 
 ## Record an action
 
