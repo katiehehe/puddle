@@ -110,15 +110,14 @@
     const advice = result.advice || null;
     // Puddle's own sentences when the brain has them; the old facts otherwise.
     const plain = advice ? advice.reasons.map(r => r.text) : facts(money);
-    // The card stays compact: three reasons up front, the rest under "Tell me more".
-    const shown = plain.slice(0, 3), rest = plain.slice(3);
+    // The card stays compact: verdict and one line up front, every reason under "Tell me more".
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
-    const verdictTone = advice
-      ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.ink
-      : PALETTE.ink;
-    const verdictBg = advice
-      ? advice.stance === "for" ? "#e7f4ec" : advice.stance === "against" ? "#faecea" : "#f2efe7"
-      : "#f2efe7";
+    // Traffic light: green go, yellow maybe, red skip.
+    const light = advice
+      ? advice.stance === "for" ? { fg: "#1e7f4f", bg: "#e3f5ea" }
+        : advice.stance === "against" ? { fg: "#b3261e", bg: "#fbe7e5" }
+        : { fg: "#8a6100", bg: "#fff1c2" }
+      : { fg: PALETTE.ink, bg: "#f2efe7" };
     // One event_id per intentional action; the brain dedupes retries on it.
     const skipEvent = crypto.randomUUID();
     const pay = result.payment || null;
@@ -144,8 +143,9 @@
         .x:hover{color:${PALETTE.ink};background:#f4f1ea}
         .hl{font-weight:700;text-decoration:underline;text-decoration-color:${PALETTE.duck};
           text-decoration-thickness:2.5px;text-underline-offset:2px}
-        .verdict{display:inline-block;font-size:15px;font-weight:800;color:${verdictTone};
-          background:${verdictBg};border-radius:99px;padding:5px 14px;margin:0 0 12px}
+        .card{border-top:5px solid ${light.fg}}
+        .verdict{display:inline-block;font-size:16px;font-weight:800;color:${light.fg};
+          background:${light.bg};border-radius:99px;padding:6px 14px;margin:0 0 12px}
         .line{font-size:14px;line-height:1.5;color:${PALETTE.ink};margin:0 0 10px}
         .chip{display:inline-block;border:1px solid ${PALETTE.line};
           padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
@@ -206,16 +206,11 @@
         .receipt ul{margin:6px 0 0;padding:0 0 0 14px}
       </style>
       <div class="card" id="card">
-        <div class="duckhead">${DUCK}<b>Puddle</b>${result.phrasing?.source === "llm"
-          ? `<span class="chip" style="margin:0 0 0 auto" title="${esc(result.headline_math || "")}">said by ${esc(result.phrasing.model)}${result.phrasing.cached ? " · cached" : ""}</span>`
-          : ""}
+        <div class="duckhead">${DUCK}<b>Puddle</b>
           <button class="x" id="close" aria-label="Close" title="Close">✕</button>
         </div>
         ${advice ? `<div class="verdict">${esc(advice.verdict)}</div>` : ""}
         <div class="line">${emph(line)}</div>
-        ${c ? `<span class="chip">${esc(c)}</span>` : ""}
-        <ul class="facts">${shown.map(f => `<li>${emph(f)}</li>`).join("")}</ul>
-        <div class="ask">Still worth it?</div>
         <div class="cardlinks">
           <button class="more" id="more">Tell me more</button>
           <a class="why" target="_blank" rel="noopener"
@@ -223,7 +218,8 @@
           <button class="more" id="asktoggle">Ask the duck</button>
         </div>
         <div class="nums" id="nums">
-          ${rest.length ? `<ul class="facts">${rest.map(f => `<li>${emph(f)}</li>`).join("")}</ul>` : ""}
+          ${c ? `<span class="chip">${esc(c)}</span>` : ""}
+          ${plain.length ? `<ul class="facts">${plain.map(f => `<li>${emph(f)}</li>`).join("")}</ul>` : ""}
           ${money ? `Worth about <b>${esc(cash(money.resale))}</b> resold. ` : ""}
           At 5 wears <b>${esc(cash((money?.per_wear_at || {})[5] || 0))}</b> each,
           at 10 <b>${esc(cash((money?.per_wear_at || {})[10] || 0))}</b>,
