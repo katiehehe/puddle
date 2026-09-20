@@ -80,7 +80,14 @@
   ];
   const PRICE_HINTS = [
     "[data-product-price]", ".price__current", ".product__price", ".price-item--sale",
-    ".price-item--regular", ".product-price", "#priceblock_ourprice", ".price",
+    ".price-item--regular", ".product-price", "#priceblock_ourprice",
+    // Amazon renders the price as a component, not a labelled element: the
+    // `.a-price` wrapper is the only node holding the whole amount. Its inner
+    // `.a-offscreen` span looks like the obvious target and is empty in the
+    // served HTML, so read the wrapper. Scoped to the buy box first, because a
+    // bare `.a-price` also matches a struck-through list price.
+    "#corePriceDisplay_desktop_feature_div .a-price", "#corePrice_feature_div .a-price",
+    ".a-price", ".price",
   ];
 
   function fromVisibleDom(doc) {
@@ -89,13 +96,22 @@
         let node;
         try { node = doc.querySelector(selector); } catch { continue; }
         const text = clean(node?.textContent);
-        if (text) return text;
+        if (text) return { text, selector };
       }
-      return "";
+      return { text: "", selector: null };
     };
     const title = pick(TITLE_HINTS);
-    const price = toPrice(pick(PRICE_HINTS));
-    if (title && price) return { title, price, source: "dom", confident: false };
+    const price = toPrice(pick(PRICE_HINTS).text);
+    if (title.text && price) {
+      return {
+        title: title.text, price, source: "dom", confident: false,
+        // `h1` is the widest hint there is, and on a listing page it is the
+        // page heading -- "1-48 of over 50,000 results for ..." over whichever
+        // price happens to be first in the grid. Say when the title came from
+        // there, so a caller nobody invited can decline to speak.
+        guessed: title.selector === "h1",
+      };
+    }
     return null;
   }
 
@@ -129,6 +145,9 @@
       ...(size ? { size } : {}),
       _source: found.source,
       _confident: found.confident,
+      // True when the title is a page heading we settled for, not a product
+      // name the page pointed at. See fromVisibleDom.
+      _guessedTitle: found.guessed === true,
     };
   };
 })();

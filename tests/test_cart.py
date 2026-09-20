@@ -57,3 +57,47 @@ def test_unnameable_things_get_refused_like_purchases():
 def test_buying_or_removing_nothing_is_a_404():
     assert client.post("/cart/cart_u_nope/buy").status_code == 404
     assert client.delete("/cart/cart_u_nope").status_code == 404
+
+
+def test_the_review_is_the_full_advice_not_a_summary():
+    """The review used to be trimmed to a verdict and two reasons; a cart item
+    now carries the same shape a checkout score does, so it can be opened up
+    to the same numbers as the desk instead of a one-line summary."""
+    staged = _stage()
+    row = next(i for i in client.get("/cart").json()["items"] if i["id"] == staged["id"])
+    review = row["review"]
+    assert "numbers" in review and "ev" in review["numbers"]
+    assert "per_wear" in review
+    assert isinstance(review["reasons"], list) and review["reasons"]
+    assert isinstance(review["reasons"][0], dict) and "text" in review["reasons"][0]
+
+
+def test_editing_a_staged_item_updates_it_and_its_review():
+    staged = _stage(price=220)
+    res = client.patch(f"/cart/{staged['id']}", json={"price": 180, "size": "M"})
+    assert res.status_code == 200, res.text
+    item = res.json()["item"]
+    assert item["price"] == 180
+    assert item["size"] == "M"
+    assert item["review"]["subhead"] == "$180 charcoal wool blazer"
+
+
+def test_renaming_a_staged_item_reworks_its_attributes():
+    staged = _stage(title="grey wool sweater", price=60)
+    res = client.patch(f"/cart/{staged['id']}", json={"title": "rain jacket"})
+    assert res.status_code == 200, res.text
+    item = res.json()["item"]
+    assert item["kind"] == "rain_outer"
+    assert item["rain_ok"] is True
+
+
+def test_renaming_to_something_unrecognisable_is_refused_and_nothing_changes():
+    staged = _stage(title="grey wool sweater", price=60)
+    res = client.patch(f"/cart/{staged['id']}", json={"title": "zzz qqq"})
+    assert res.status_code == 422
+    unchanged = next(i for i in client.get("/cart").json()["items"] if i["id"] == staged["id"])
+    assert unchanged["title"] == "grey wool sweater"
+
+
+def test_editing_something_not_on_the_rail_is_a_404():
+    assert client.patch("/cart/cart_u_nope", json={"price": 5}).status_code == 404

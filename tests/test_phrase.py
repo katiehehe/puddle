@@ -1,4 +1,5 @@
 import httpx
+import pytest
 
 from brain import phrase
 
@@ -9,6 +10,21 @@ ADVICE = {
         {"tone": "against", "kind": "late", "text": "88% of what you return was bought after 11pm."},
     ],
 }
+
+
+@pytest.fixture(autouse=True)
+def _no_provider_override(monkeypatch):
+    monkeypatch.delenv("PHRASE_PROVIDER", raising=False)
+
+
+def test_provider_override_picks_anthropic_over_openai(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "a")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "b")
+    assert phrase.configured()["provider"] == "openai"
+    monkeypatch.setenv("PHRASE_PROVIDER", "anthropic")
+    assert phrase.configured() == {"provider": "anthropic", "model": phrase.DEFAULT_ANTHROPIC_MODEL}
+    monkeypatch.setenv("PHRASE_PROVIDER", "none")
+    assert phrase.configured()["provider"] is None
 
 
 def _fake_openai(monkeypatch, text, calls):

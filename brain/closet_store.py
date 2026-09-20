@@ -197,6 +197,41 @@ def unstage(item_id: str) -> bool:
     return cur.rowcount > 0
 
 
+def update_staged(item_id: str, changes: dict) -> dict | None:
+    """Fix a field on something still on the rail: a wrong price, a size, a
+    name typed hastily while standing in a fitting room."""
+    allowed = {"title", "price", "brand", "size", "color", "notes", "source_url", "photo"}
+    with connect() as db:
+        _schema(db)
+        db.execute("BEGIN IMMEDIATE")
+        found = db.execute("SELECT data FROM staging WHERE id=?", (item_id,)).fetchone()
+        if found is None:
+            db.execute("ROLLBACK")
+            return None
+        entry = json.loads(found["data"])
+        for key, value in changes.items():
+            if key in allowed and value is not None:
+                entry[key] = value
+        # A changed name might describe a different garment entirely, so its
+        # attributes are worked out again rather than left stale.
+        if "title" in changes and changes["title"]:
+            attrs = infer(entry["title"], entry.get("category") or None)
+            if attrs is None:
+                db.execute("ROLLBACK")
+                raise Unknown(
+                    f"I can't tell what \"{entry['title']}\" is. Try something like "
+                    '"black chelsea boots" or "grey wool sweater", or pick a category.'
+                )
+            entry.update(
+                category=entry.get("category") or attrs["category"],
+                kind=attrs["kind"], formality=attrs["formality"],
+                warmth=attrs["warmth"], rain_ok=attrs["rain_ok"],
+            )
+        db.execute("UPDATE staging SET data=? WHERE id=?", (json.dumps(entry), item_id))
+        db.execute("COMMIT")
+        return entry
+
+
 def promote(item_id: str) -> dict | None:
     """Staged to owned: it got bought, so it joins the wardrobe as a purchase."""
     with connect() as db:
