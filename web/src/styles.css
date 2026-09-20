@@ -98,8 +98,6 @@ tbody tr:hover { background: #dbeafe; }
 .lrow.pending { background: var(--block); border-left-color: #d1d5db; }
 
 .foot { text-align: center; color: var(--muted); font-size: 12px; padding: 20px; font-weight: 500; }
-.foot .prints { letter-spacing: .5em; color: var(--duck-deep); display: block; margin-bottom: 8px;
-  font-size: 14px; }
 
 @media (prefers-reduced-motion: reduce) { .stat { transition: none; } }
 @media (max-width: 820px) { .stats, .grid2 { grid-template-columns: 1fr; } }
