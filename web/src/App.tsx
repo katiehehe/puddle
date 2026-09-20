@@ -103,7 +103,10 @@ export default function App() {
           <h3 className="bad">Skip</h3>
           {p.rebalance.skip.map((s) => (
             <div className="rec" key={s.id}>
-              <div><b>{s.title}</b> <span className="muted">${s.price}</span></div>
+              <div>
+                <b>{s.title}</b> <span className="muted">${s.price}</span>
+                {s.reasons?.[0] ? <div className="quote">“{s.reasons[0]}”</div> : null}
+              </div>
               <div className="why bad">α {s.alpha}{s.redundant_with.length ? ` · ${s.redundant_with.length} similar owned` : ""}</div>
             </div>
           ))}

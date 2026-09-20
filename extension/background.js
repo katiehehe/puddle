@@ -4,35 +4,35 @@ const BRAIN = "http://localhost:8000";
 // Canned insights so the duck still works if the brain is down / wifi off.
 const FALLBACK = {
   cand_boots: {
-    headline: "Fifth pair of size-8 boots you've bought. You returned four of the previous 4.",
+    headline: "Fifth pair of size-8 boots you've bought. You returned every one of the other four.",
     duck_state: "concerned",
-    confidence: 1.0,
+    confidence: 0.9,
     speak: true,
     insights: [
-      { type: "return_pattern", stat: { returned: 4, total: 4, size: "8", baseline: 0.182 },
-        line: "Fifth pair of size-8 boots you've bought. You returned four of the previous 4." },
-      { type: "time_pattern", stat: { hour: 23, return_rate: 0.583, baseline: 0.182 },
-        line: "It's 11:40pm — 88% of everything you've returned was bought after 11pm." }
+      { type: "return_pattern", stat: { returned: 4, total: 4, size: "8" },
+        line: "Fifth pair of size-8 boots you've bought. You returned every one of the other four." },
+      { type: "time_pattern", stat: { hour: 23, return_rate: 0.83, baseline: 0.18 },
+        line: "It's 11:40pm — 83% of what you buy this late comes back, against 18% the rest of the day." }
     ],
-    portfolio: { alpha: -0.046, covers_gap: null, redundant_with: [{ id: "own_151" }] }
+    portfolio: { alpha: -0.05, covers_gap: null, redundant_with: [{ id: "own_151" }] }
   },
   cand_crew4: {
-    headline: "You own 3 of these already — they cover the same days, and you've worn them 32 times between them.",
+    headline: "You own 3 of these already — they cover the same days.",
     duck_state: "concerned",
-    confidence: 0.93,
+    confidence: 0.75,
     speak: true,
-    insights: [{ type: "redundancy", stat: { owned_similar: 3, wears_of_similar: 32 },
-      line: "You own 3 of these already — they cover the same days, and you've worn them 32 times between them." }],
-    portfolio: { alpha: -0.302, covers_gap: null, redundant_with: [{ id: "own_101" }, { id: "own_102" }, { id: "own_103" }] }
+    insights: [{ type: "redundancy", stat: { owned_similar: 3 },
+      line: "You own 3 charcoal crewnecks already — they cover the same days." }],
+    portfolio: { alpha: -0.01, covers_gap: null, redundant_with: [{ id: "own_101" }, { id: "own_102" }, { id: "own_103" }] }
   },
   cand_suit: {
-    headline: "Get it. You have nothing for \"formal / interview\" — this is the first thing in your closet that would cover it.",
+    headline: "Get it. You have nothing for an interview — this is the first thing that covers it.",
     duck_state: "approving",
-    confidence: 0.63,
+    confidence: 0.66,
     speak: true,
-    insights: [{ type: "coverage_gap", stat: { state: "Formal / interview", alpha: 0.967 },
-      line: "Get it. You have nothing for \"formal / interview\" — this is the first thing in your closet that would cover it." }],
-    portfolio: { alpha: 0.967, covers_gap: { label: "Formal / interview" }, redundant_with: [] }
+    insights: [{ type: "coverage_gap", stat: { state: "Formal / interview", alpha: 0.25 },
+      line: "Get it. You have nothing for an interview — this is the first thing that covers it." }],
+    portfolio: { alpha: 0.25, covers_gap: { label: "Formal / interview" }, redundant_with: [] }
   }
 };
 

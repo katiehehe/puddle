@@ -3,16 +3,14 @@
 Deterministic. Patterns are planted rather than random so the miner has real
 structure to recover, and so the demo is reproducible:
 
-  * every pair of size-8 boots ever bought was returned (4 for 4), while
-    size-10 boots stick around -- the pattern is about the size, not boots
+  * every pair of size-8 boots ever bought was returned (4 for 4), while the
+    size-10 pairs stuck around -- the pattern is the size, not the category
   * purchases made at/after 23:00 are returned far more often than the baseline
+  * most daytime buys are keepers, which is what makes the late-night rate mean
+    something: against a mostly-returned history it would just be noise
   * the charcoal crewnecks are worn rarely despite being bought repeatedly
   * wear events are heavily weighted to casual/gym and almost never formal,
     which is what produces the coverage gap the portfolio engine finds
-
-The lifetime return rate is planted near 18% (PRD 7): a "you return almost
-everything bought this late" line is meaningless if the baseline already says
-you return half of everything.
 """
 
 from __future__ import annotations
@@ -63,15 +61,13 @@ _BOOT_BUYS = [
 ]
 
 # (title, category, kind, price, size, hour, returned)
-# Kept buys that are still in CLOSET are marked returned=False -- an item you
-# sent back cannot also be hanging in the wardrobe.
 _OTHER_BUYS = [
     ("Charcoal crewneck", "top", "crewneck", 58.0, "M", 14, False),
     ("Charcoal crewneck (heavier)", "top", "crewneck", 72.0, "M", 23, False),
     ("Grey crewneck", "top", "crewneck", 45.0, "M", 14, False),
     ("Sequin halter top", "top", "going_out_top", 55.0, "S", 23, False),
-    ("Mesh long-sleeve", "top", "going_out_top", 34.0, "S", 1, False),
-    ("Corset top", "top", "going_out_top", 48.0, "S", 23, False),
+    ("Mesh long-sleeve", "top", "going_out_top", 34.0, "S", 1, True),
+    ("Corset top", "top", "going_out_top", 48.0, "S", 23, True),
     ("Satin blouse", "top", "top", 62.0, "S", 11, False),
     ("Faux-leather pants", "bottom", "bottom", 78.0, "27", 23, True),
     ("Cargo pants", "bottom", "bottom", 68.0, "27", 15, False),
@@ -92,26 +88,43 @@ _OTHER_BUYS = [
     ("Leggings", "bottom", "athletic", 32.0, "S", 18, False),
     ("Sweatpants", "bottom", "lounge", 45.0, "S", 20, False),
     ("Denim jacket", "outer", "outer", 95.0, "S", 15, False),
-    ("Denim mini skirt", "bottom", "bottom", 42.0, "27", 23, False),
+    ("Denim mini skirt", "bottom", "bottom", 42.0, "27", 23, True),
     ("Off-shoulder top", "top", "going_out_top", 40.0, "S", 19, False),
     ("Red going-out top", "top", "going_out_top", 38.0, "S", 22, False),
     ("Black satin cami", "top", "going_out_top", 42.0, "S", 20, False),
     ("Cashmere beanie", "accessory", "accessory", 48.0, None, 23, True),
 ]
 
-# More kept buys, all in daytime hours: a believable baseline needs a long
-# tail of "bought it, kept it". The size-10 boots are deliberate -- the
-# graveyard is size 8, not boots as a category.
-_KEPT_EXTRAS = [
-    ("Suede desert boots", "shoes", "boots", 140.0, "10", 14, False),
-    ("Chelsea boots (wide)", "shoes", "boots", 150.0, "10", 11, False),
-    ("Oxford shirt", "top", "shirt", 68.0, "M", 10, False),
-    ("Merino sweater", "top", "sweater", 98.0, "M", 12, False),
-    ("Chino shorts", "bottom", "shorts", 45.0, "27", 13, False),
-    ("Wool scarf", "accessory", "accessory", 55.0, None, 17, False),
-    ("Leather belt", "accessory", "accessory", 40.0, None, 16, False),
-    ("Fleece vest", "outer", "outer", 75.0, "S", 15, False),
-    ("Canvas tote", "accessory", "accessory", 30.0, None, 14, False),
+# Daytime keepers. Boring on purpose: the late-night return rate is only an
+# insight if the rest of the year is unremarkable, and two pairs of size-10
+# boots that never came back keep the boots story honest.
+_DAYTIME_KEEPERS = [
+    ("Hiking boots", "shoes", "boots", 145.0, "10", 15, False),
+    ("Duck boots", "shoes", "boots", 120.0, "10", 12, False),
+    ("White tee (3-pack)", "top", "top", 32.0, "S", 14, False),
+    ("Oxford shirt", "top", "top", 58.0, "S", 11, False),
+    ("Merino sweater", "top", "knit", 88.0, "S", 16, False),
+    ("Flannel shirt", "top", "top", 54.0, "S", 10, False),
+    ("Striped tee", "top", "top", 28.0, "S", 13, False),
+    ("Waffle henley", "top", "top", 36.0, "S", 15, False),
+    ("Grey hoodie", "top", "lounge", 62.0, "S", 17, False),
+    ("Thermal base layer", "top", "athletic", 40.0, "S", 18, False),
+    ("Dri-fit tank", "top", "athletic", 24.0, "S", 9, False),
+    ("Olive chinos", "bottom", "bottom", 72.0, "27", 11, False),
+    ("Corduroys", "bottom", "bottom", 78.0, "27", 17, False),
+    ("Track pants", "bottom", "athletic", 48.0, "S", 10, False),
+    ("Swim shorts", "bottom", "bottom", 38.0, "S", 16, False),
+    ("Bike shorts", "bottom", "athletic", 30.0, "S", 9, False),
+    ("Ribbed tank", "top", "top", 22.0, "S", 12, False),
+    ("Fleece half-zip", "outer", "outer", 85.0, "S", 16, False),
+    ("Quilted vest", "outer", "outer", 98.0, "S", 14, False),
+    ("Canvas sneakers", "shoes", "sneakers", 65.0, "8", 14, False),
+    ("Running shoes", "shoes", "sneakers", 125.0, "8", 16, False),
+    ("Slides", "shoes", "sneakers", 35.0, "8", 10, False),
+    ("Wool socks (6-pack)", "accessory", "accessory", 26.0, None, 15, False),
+    ("Beanie", "accessory", "accessory", 24.0, None, 13, False),
+    ("Leather belt", "accessory", "accessory", 45.0, None, 12, False),
+    ("Everyday tote", "accessory", "accessory", 68.0, None, 17, False),
 ]
 
 # How often each occasion actually shows up in this person's life. The engine
@@ -140,7 +153,7 @@ def purchases() -> list[Purchase]:
     rows: list[tuple] = []
     for title, price, hour, reason in _BOOT_BUYS:
         rows.append((title, "shoes", "boots", price, "8", hour, True, reason))
-    for title, category, kind, price, size, hour, returned in _OTHER_BUYS + _KEPT_EXTRAS:
+    for title, category, kind, price, size, hour, returned in _OTHER_BUYS + _DAYTIME_KEEPERS:
         rows.append((title, category, kind, price, size, hour, returned, None))
 
     rng.shuffle(rows)
