@@ -183,3 +183,13 @@ def test_plaintext_body_when_mle_is_not_configured(monkeypatch):
     seen = _capture(monkeypatch, {"actionCode": "00"})
     provider.pay(64.0, "sku_991")
     assert "encData" not in seen["body"] and "keyid" not in seen["headers"]
+
+
+def test_partial_environment_does_not_select_the_live_provider(monkeypatch):
+    monkeypatch.setenv("VISA_API_KEY", "partial")
+    provider = payments.get_provider()
+    assert provider.name == "visa_incomplete"
+    result = provider.pay(64, "sku_991").dict()
+    assert result["approved"] is False
+    assert result["status"] == "error"
+    assert "VISA_CERT_PATH" in result["message"]

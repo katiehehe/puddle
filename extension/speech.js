@@ -26,17 +26,19 @@
     speechSynthesis.speak(utterance);
   }
 
-  function play(base64, mime) {
+  function play(base64, mime, onFailure) {
     const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
     const url = URL.createObjectURL(new Blob([bytes], { type: mime || "audio/mpeg" }));
     const audio = new Audio(url);
     current = audio;
     currentUrl = url;
-    audio.onended = audio.onerror = () => {
+    const cleanup = () => {
       if (currentUrl === url) { URL.revokeObjectURL(url); currentUrl = null; }
       if (current === audio) current = null;
     };
-    return audio.play();
+    audio.onended = cleanup;
+    audio.onerror = () => { cleanup(); onFailure(); };
+    return audio.play().catch(error => { cleanup(); throw error; });
   }
 
   async function speak(text) {
@@ -44,16 +46,22 @@
     if (!line) return;
     cancel();
     const token = generation;
+    let failed = false;
+    const fallback = () => {
+      if (failed || token !== generation) return;
+      failed = true;
+      browserSpeak(line);
+    };
     if (!hosted) { browserSpeak(line); return; }
     try {
       const result = await globalThis.PuddleSend({ type: "voice_speak", text: line });
       if (token !== generation) return;
-      await play(result.audio, result.mime);
+      await play(result.audio, result.mime, fallback);
     } catch (error) {
       if (token !== generation) return;
       // A missing key is permanent for this session; anything else may be transient.
       if (/not configured/i.test(error.message || "")) hosted = false;
-      browserSpeak(line);
+      fallback();
     }
   }
 

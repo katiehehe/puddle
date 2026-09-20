@@ -37,22 +37,21 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   padding: 22px 0; position: sticky; top: 0; z-index: 20;
   background: linear-gradient(var(--paper) 72%, rgba(251, 249, 244, 0));
 }
-.brand { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 44px; letter-spacing: -0.035em; }
-.brand span { position: relative; isolation: isolate; }
-/* Water rising up the wordmark, wave and all. */
-.brand span::after {
-  content: ""; position: absolute; left: -8%; right: -8%; bottom: -6px; height: 0; z-index: -1;
+.brand { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 44px; letter-spacing: -0.035em; position: relative; isolation: isolate; }
+/* Water rising up the wordmark and the duck, wave and all. */
+.brand::after {
+  content: ""; position: absolute; left: -10px; right: -10px; bottom: -6px; height: 0; z-index: -1;
   pointer-events: none; overflow: hidden;
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='16' viewBox='0 0 40 16'%3E%3Cpath d='M0 16V9C5 2 15 2 20 9s15 7 20 0v7z' fill='%2394d6f7'/%3E%3C/svg%3E")
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='16' viewBox='0 0 40 16'%3E%3Cpath d='M0 16V9C5 2 15 2 20 9s15 7 20 0v7z' fill='%2394d6f7'/%3E%3Cpath d='M0 9C5 2 15 2 20 9s15 7 20 0' fill='none' stroke='%232e9fe0' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E")
       repeat-x 0 0 / 52px 20px,
     linear-gradient(#94d6f7, #5fc4f5 30%, #2e9fe0) no-repeat 0 18px / 100% calc(100% - 18px);
-  /* The crest fades out of the page instead of cutting a hard edge. */
-  -webkit-mask-image: linear-gradient(rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, .55) 14px, #000 34px);
-  mask-image: linear-gradient(rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, .55) 14px, #000 34px);
+  /* A drawn crest line, softened into the page just above it. */
+  -webkit-mask-image: linear-gradient(rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, .75) 8px, #000 22px);
+  mask-image: linear-gradient(rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, .75) 8px, #000 22px);
   transition: height 1.2s cubic-bezier(.3, .7, .3, 1);
 }
-.brand:hover span::after { height: 92%; animation: brandwave 2.2s linear infinite; }
+.brand:hover::after { height: 92%; animation: brandwave 2.2s linear infinite; }
 .brand > svg { transition: transform .6s ease; }
 .brand:hover > svg { animation: brandbob 2.2s ease-in-out infinite; }
 

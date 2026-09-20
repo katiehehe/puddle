@@ -69,7 +69,7 @@ Close on the line: **retailers run return-prediction models on you and never tel
 | History mining (return / time / redundancy / gap / overexposure) | **Real** |
 | Extension → brain → duck overlay + voice | **Real** (Deepgram transcription, ElevenLabs speech output) |
 | Prediction ledger + pond | **Real.** SQLite-persisted; extension records skips/buys with idempotent `event_id`s, dashboard reads the same state. |
-| Visa checkout | **Interface real, settlement unverified**: see below. Failures are reported as failures; there is no successful mock fallback. |
+| Visa checkout | **Signed intent and explicit confirmation are real. Settlement is simulated by default and Visa sandbox remains unverified**: see below. |
 | Voice STT/TTS | Deepgram speech-to-text + ElevenLabs `eleven_flash_v2_5` speech out, browser synthesis as fallback; typed questions also supported |
 
 ## Visa settlement
@@ -77,6 +77,12 @@ A buy is settled as a **Visa Direct push funds transfer**
 (`POST /visadirect/fundstransfer/v1/pushfundstransactions` on `sandbox.api.visa.com`),
 approved only on ISO action code `00`. Without credentials the same call runs through
 `MockProvider`, so the demo works either way.
+
+Checkout first creates a signed, short-lived payment intent. The user reviews
+the item, amount, provider mode, and $500 limit before confirming. The default is
+clearly labeled **Visa sandbox simulation**. If any Visa setting is present but
+the full mutual TLS and encryption setup is incomplete, checkout is disabled
+instead of reporting a mock success.
 
 From your Visa Developer project (Visa Direct enabled), export:
 ```bash
@@ -96,8 +102,9 @@ then export:
 export VISA_MLE_KEY_ID=...
 export VISA_MLE_SERVER_CERT_PATH=/path/server_cert.pem  # Visa's, encrypts the request
 export VISA_MLE_CLIENT_KEY_PATH=/path/mle_key.pem       # yours, decrypts the response
+export PAYMENT_INTENT_SECRET=...                        # long random server-only value
 ```
-Check the credentials without spending anything — this calls Visa's Hello World:
+Check the credentials without spending anything. This calls Visa's Hello World:
 ```bash
 curl 'localhost:8000/health?check_payments=true'
 # {"payments":"visa_sandbox","payments_check":{"reachable":true,...}}

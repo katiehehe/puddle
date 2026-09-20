@@ -4,17 +4,17 @@ const vm = require('node:vm');
 const fs = require('node:fs');
 const code = fs.readFileSync('extension/speech.js', 'utf8');
 
-function harness({ reply, error } = {}) {
+function harness({ reply, error, playError } = {}) {
   const spoken = [], played = [], requests = [], revoked = [];
   const context = {
     atob: value => Buffer.from(value, 'base64').toString('binary'),
     Uint8Array, Blob, URL: {
-      createObjectURL: () => 'blob:duck',
+      createObjectURL: () => `blob:duck-${played.length}`,
       revokeObjectURL: url => revoked.push(url)
     },
     Audio: class {
       constructor(url) { this.url = url; played.push(this); }
-      play() { return Promise.resolve(); }
+      play() { return playError ? Promise.reject(new Error(playError)) : Promise.resolve(); }
       pause() { this.paused = true; }
       removeAttribute(name) { this.removed = name; }
     },
@@ -63,7 +63,7 @@ test('a new reply cancels the audio still playing and drops its blob', async () 
   await h.speech.speak('Second line.');
   assert.equal(h.played[0].paused, true);
   assert.equal(h.played[0].removed, 'src');
-  assert.deepEqual([...h.revoked], ['blob:duck']);
+  assert.deepEqual([...h.revoked], ['blob:duck-0']);
   assert.equal(h.played.length, 2);
 });
 
@@ -81,4 +81,33 @@ test('empty replies are ignored', async () => {
   const h = harness();
   await h.speech.speak('   ');
   assert.equal(h.requests.length, 0);
+});
+
+
+test('a failure after playback starts falls back once and releases its blob', async () => {
+  const h = harness();
+  await h.speech.speak('Keep this reply.');
+  h.played[0].onerror();
+  h.played[0].onerror();
+  assert.deepEqual(h.spoken, ['Keep this reply.']);
+  assert.deepEqual(h.revoked, ['blob:duck-0']);
+});
+
+test('a stale audio error cannot speak over a newer reply', async () => {
+  const h = harness();
+  await h.speech.speak('Old reply.');
+  await h.speech.speak('New reply.');
+  h.played[0].onerror();
+  assert.deepEqual(h.spoken, []);
+  assert.deepEqual(h.revoked, ['blob:duck-0']);
+  h.played[1].onerror();
+  assert.deepEqual(h.spoken, ['New reply.']);
+});
+
+test('play rejection and media error together only trigger one fallback', async () => {
+  const h = harness({ playError: 'Playback blocked' });
+  await h.speech.speak('Reply.');
+  h.played[0].onerror();
+  assert.deepEqual(h.spoken, ['Reply.']);
+  assert.deepEqual(h.revoked, ['blob:duck-0']);
 });
