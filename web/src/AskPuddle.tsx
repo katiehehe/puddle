@@ -38,6 +38,20 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
   const recorder = useRef<MediaRecorder | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const log = useRef<HTMLDivElement | null>(null);
+  // Bumped whenever speech is cancelled, so a reply still being rendered by
+  // ElevenLabs when you mute or close never arrives to play over a quiet room.
+  const speech = useRef(0);
+
+  const silence = useCallback(() => {
+    speech.current += 1;
+    window.speechSynthesis?.cancel();
+    const player = audio.current;
+    if (player) {
+      player.pause();
+      URL.revokeObjectURL(player.src);
+      audio.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     log.current?.scrollTo({ top: log.current.scrollHeight });
@@ -45,26 +59,27 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
 
   useEffect(() => {
     if (open) return;
-    window.speechSynthesis?.cancel();
-    audio.current?.pause();
-  }, [open]);
+    silence();
+    if (recorder.current?.state === "recording") recorder.current.stop();
+  }, [open, silence]);
 
   const say = useCallback(
     async (line: string) => {
       if (muted) return;
-      window.speechSynthesis?.cancel();
-      audio.current?.pause();
+      silence();
+      const turn = speech.current;
       try {
         const hosted = await speakLine(line);
+        if (turn !== speech.current) return;
         const bytes = Uint8Array.from(atob(hosted.audio), (c) => c.charCodeAt(0));
         const player = new Audio(URL.createObjectURL(new Blob([bytes], { type: hosted.mime })));
         audio.current = player;
         await player.play();
       } catch {
-        browserSpeak(line);
+        if (turn === speech.current) browserSpeak(line);
       }
     },
-    [muted],
+    [muted, silence],
   );
 
   const ask = useCallback(
@@ -184,7 +199,14 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
           Ask
         </button>
       </div>
-      <button className="askmute" aria-pressed={muted} onClick={() => setMuted(!muted)}>
+      <button
+        className="askmute"
+        aria-pressed={muted}
+        onClick={() => {
+          setMuted(!muted);
+          if (!muted) silence();
+        }}
+      >
         {muted ? "Replies muted" : "Mute replies"}
       </button>
     </aside>

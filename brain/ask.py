@@ -40,6 +40,15 @@ STATE_WORDS: dict[str, tuple[str, ...]] = {
 
 _QUANTITY = re.compile(r"\b(how many|how much|do i own|do i have|what do i own|what do i have|own any|have any)\b")
 
+# A question has to be about the shopper's own things before any handler gets
+# to read it. Without this, an occasion word inside "will it rain in Boston"
+# looks exactly like one inside "what do I own for rain".
+_MINE = re.compile(
+    r"\b(i|i'm|im|i've|ive|my|mine|me|we|our|you|your|puddle|closet|wardrobe|clothes|outfit|"
+    r"own|owned|wear|worn|wearing|buy|bought|purchase|purchases|spend|spent|return|returns|"
+    r"returned|saved|savings|pond|skip|skipped|donate)\b"
+)
+
 
 def money(value: float) -> str:
     return f"${round(value):,}"
@@ -119,15 +128,15 @@ def _accuracy(text: str, w: Wardrobe):
     stat = ledger.accuracy()
     if not stat["total"]:
         return (
-            "Nothing graded yet, so I have no record to stand on. Every call I make gets "
-            "logged and graded later, and you can see the running number on the dashboard.",
+            "Nothing graded yet, so I have no record to stand on. Every call I make is "
+            "logged now and graded once you have worn or returned the thing.",
             stat,
         )
     return (f"Right {stat['right']} of {stat['total']} times so far. Every call is logged and graded.", stat)
 
 
 def _gaps(text: str, w: Wardrobe):
-    if not re.search(r"\b(gap|gaps|missing|uncovered|need|should i buy|hole|holes)\b", text):
+    if not re.search(r"\b(gap|gaps|missing|uncovered|hole|holes)\b|\bwhat (do|should) i need\b", text):
         return None
     gaps = sorted(w.closet.gaps(), key=lambda g: -g["p"])
     if not gaps:
@@ -199,7 +208,9 @@ def _unworn(text: str, w: Wardrobe):
 
 
 def _value(text: str, w: Wardrobe):
-    if not re.search(r"\b(cost per wear|per wear|best buy|best value|worst value|worth it|value)\b", text):
+    if not re.search(r"\b(cost per wear|per wear|best buy|best value|worst value|worth it)\b", text) or not re.search(
+        r"\b(my|i|mine|closet|wardrobe|own)\b", text
+    ):
         return None
     priced = [(i, market.cost_per_wear(i.price, w.wears(i))) for i in w.items]
     worn = [(i, c) for i, c in priced if c is not None]
@@ -265,13 +276,15 @@ def _late_night(text: str, w: Wardrobe):
         return None
     share, total = w.miner.late_night_share_of_returns()
     rate = returned / bought
-    baseline = w.miner.baseline_return_rate()
+    day_returned, day_bought = w.miner.by_hour_bucket(late=False)
+    daytime = day_returned / day_bought if day_bought else 0.0
     return (
         f"{round(100 * rate)}% of what you buy after 11pm comes back, against "
-        f"{round(100 * baseline)}% the rest of the day. It accounts for {share} of your {total} returns.",
+        f"{round(100 * daytime)}% the rest of the day. It accounts for {share} of your {total} returns.",
         {
             "late_rate": round(rate, 3),
-            "baseline": round(baseline, 3),
+            "daytime_rate": round(daytime, 3),
+            "bought_daytime": day_bought,
             "bought_late": bought,
             "share_of_returns": share,
             "returns": total,
@@ -335,7 +348,9 @@ def _count(text: str, w: Wardrobe):
 
 
 def _summary(text: str, w: Wardrobe):
-    if not re.search(r"\b(my closet|my wardrobe|how do i shop|tell me about|summar|overview|anything else)\b", text):
+    if not re.search(
+        r"\b(my closet|my wardrobe|how do i shop|how am i doing|summar|overview|anything else)\b", text
+    ):
         return None
     summary = insights.summarise(w.items, w.counts, w.purchases)
     return (" ".join(summary["lines"][:3]), summary)
@@ -372,7 +387,7 @@ EXAMPLES = [
 def answer(question: str, closet: Closet, miner: Miner, counts: dict[str, int]) -> dict | None:
     """The best-supported wardrobe answer, or None if nothing here fits."""
     text = re.sub(r"[^\w\s']", " ", question.lower()).strip()
-    if not text:
+    if not text or not _MINE.search(text):
         return None
     wardrobe = Wardrobe(closet, miner, counts)
     for intent, handler in ANSWERS:

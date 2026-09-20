@@ -252,7 +252,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 
 .askrow { display: flex; gap: 8px; margin: 16px 0 0; }
 .askrow input {
-  flex: 1; font: inherit; padding: 11px 14px; border-radius: 10px;
+  flex: 1; min-width: 0; font: inherit; padding: 11px 14px; border-radius: 10px;
   border: 1px solid var(--line); background: #fff;
 }
 .askrow button, .detailtoggle {
@@ -310,6 +310,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 }
 .askchips button:disabled { opacity: .5; cursor: default; }
 .askpanel .askrow { margin: 0; }
+.askpanel .askrow button { flex: 0 0 auto; padding: 11px 14px; }
 .askmic { background: var(--duck) !important; color: var(--ink) !important; }
 .askmic.on { background: var(--bad) !important; color: #fff !important; }
 .askmute {

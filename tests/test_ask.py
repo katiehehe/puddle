@@ -39,10 +39,12 @@ def test_return_answer_carries_the_rate_it_was_derived_from():
     assert stat["returned"] < stat["bought"]
 
 
-def test_late_night_answer_compares_against_the_baseline():
+def test_late_night_answer_compares_against_the_rest_of_the_day():
     reply = ask("What happens when I shop late at night?")
+    stat = reply["facts"]
     assert reply["intent"] == "late_night"
-    assert reply["facts"]["late_rate"] > reply["facts"]["baseline"]
+    assert stat["late_rate"] > stat["daytime_rate"]
+    assert f"{round(100 * stat['daytime_rate'])}% the rest of the day" in reply["answer"]
 
 
 def test_pond_is_empty_until_something_is_skipped():
@@ -64,6 +66,18 @@ def test_unanswerable_questions_get_no_answer_at_all():
     assert reply["intent"] == "unknown"
     assert reply["facts"] == {}
     assert reply["examples"]
+
+
+def test_wardrobe_words_in_another_subject_are_not_an_answer():
+    # "rain", "buy", "value" and "tell me about" all read as wardrobe questions
+    # unless the question is about the shopper's own things.
+    for question in (
+        "Should I buy Tesla stock?",
+        "Will it rain tomorrow in Boston?",
+        "What is Tesla stock value?",
+        "Tell me about quantum physics",
+    ):
+        assert ask(question)["intent"] == "unknown", question
 
 
 def test_item_questions_still_go_to_the_checkout_handler():
