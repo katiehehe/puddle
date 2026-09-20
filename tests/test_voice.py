@@ -267,3 +267,13 @@ def test_a_price_question_judges_the_price_it_names():
     unnamed = question("Is this a good price?").json()
     assert unnamed["intent"] == "price"
     assert f"${unnamed['item']['price']:,.0f}" in unnamed["answer"]
+
+
+def test_a_lettered_size_is_a_size_question():
+    """Shirts are sized S/M/L, and the question has to survive being spoken."""
+    for text in ["What about size medium?", "What about a large?", "Does it come in medium?"]:
+        assert voice.intent(text)[0] == "size", text
+    assert voice.intent("What about size medium?")[1] == "M"
+    assert voice.intent("What about a large?")[1] == "L"
+    # An adjective in front of a noun is not a size.
+    assert voice.intent("Is a large part of my closet black?")[0] != "size"
