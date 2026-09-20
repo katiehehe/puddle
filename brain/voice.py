@@ -161,6 +161,19 @@ class VoiceQuestion(BaseModel):
 
 
 NUMBERS = {"six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10", "eleven": "11", "twelve": "12"}
+# Shoes are numbered, clothes are lettered, and both get asked about out loud.
+LETTERS = {
+    "extra small": "XS",
+    "xs": "XS",
+    "small": "S",
+    "s": "S",
+    "medium": "M",
+    "m": "M",
+    "large": "L",
+    "l": "L",
+    "extra large": "XL",
+    "xl": "XL",
+}
 
 
 def intent(text):
@@ -174,6 +187,16 @@ def intent(text):
     size = re.search(r"\bsize\s+(\d{1,2}(?:\.5)?|six|seven|eight|nine|ten|eleven|twelve)\b", clean)
     if size:
         return "size", NUMBERS.get(size[1], size[1])
+    # "a large" only names a size when nothing follows it; otherwise it is an
+    # adjective doing its ordinary work, as in "a large part of my closet".
+    lettered = re.search(
+        r"\bsize\s+(extra small|extra large|xs|xl|small|medium|large|s|m|l)\b"
+        r"|\b(?:in|about|a|an)\s+(?:a\s+|an\s+)?"
+        r"(extra small|extra large|xs|xl|small|medium|large|s|m|l)\s*\??\s*$",
+        clean,
+    )
+    if lettered:
+        return "size", LETTERS[next(g for g in lettered.groups() if g)]
     if re.search(r"\b(instead|alternative|alternatives)\b", clean):
         return "alternatives", None
     times = re.search(r"\b(?:wear|wore|use)\s+(?:it|them|this|these)?\s*(\d{1,3})\s*times?\b", clean)
