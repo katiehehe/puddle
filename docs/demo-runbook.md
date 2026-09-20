@@ -106,7 +106,7 @@ situations you are in:
 
 | What it says | What it means |
 |---|---|
-| `Visa live and answering` | Done. Checkout is real. |
+| `Visa connectivity check passed` | Hello World succeeded. Sandbox checkout still needs a separate test. |
 | `Visa rejected the credentials (HTTP 4xx)` | The call reached Visa. Key or secret is wrong. |
 | `Visa unreachable (...)` | You never got there — network or certificates. No key fixes this. |
 

@@ -69,12 +69,12 @@ async function score(item, nowHour) {
   }
 }
 
-async function checkout(item, predictionId, eventId) {
-  try {
-    return await post("/checkout", { item, prediction_id: predictionId, event_id: eventId });
-  } catch (e) {
-    return { approved: false, status: "error", message: "Checkout is unavailable. No purchase was recorded." };
-  }
+async function paymentIntent(item, predictionId, budgetLimit) {
+  return post("/payment-intents", { item, prediction_id: predictionId, budget_limit: budgetLimit });
+}
+
+async function confirmPaymentIntent(token) {
+  return post("/payment-intents/confirm", { token, confirmed: true });
 }
 
 async function skip(item, predictionId, eventId) {
@@ -98,7 +98,8 @@ async function pond() {
 
 const HANDLERS = {
   score: (m) => score(m.item, m.now_hour),
-  checkout: (m) => checkout(m.item, m.prediction_id, m.event_id),
+  payment_intent: (m) => paymentIntent(m.item, m.prediction_id, m.budget_limit),
+  confirm_payment_intent: (m) => confirmPaymentIntent(m.token),
   skip: (m) => skip(m.item, m.prediction_id, m.event_id),
   pond: () => pond()
 };

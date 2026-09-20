@@ -120,7 +120,7 @@
       ? advice.stance === "for" ? "#e7f4ec" : advice.stance === "against" ? "#faecea" : "#f2efe7"
       : "#f2efe7";
     // One event_id per intentional action; the brain dedupes retries on it.
-    const skipEvent = crypto.randomUUID(), buyEvent = crypto.randomUUID();
+    const skipEvent = crypto.randomUUID();
 
     shadow.innerHTML = `
       <style>
@@ -145,6 +145,7 @@
           padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
           color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:99px}
         .btns{display:flex;gap:8px}
+        .btns[hidden]{display:none}
         .btns button{flex:1;padding:11px 0;font-size:14px;font-weight:700;cursor:pointer;
           border-radius:12px;transition:all .15s}
         button:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
@@ -161,6 +162,17 @@
           color:${PALETTE.muted};margin-top:6px;font-weight:700}
         .ask{font-size:13px;font-weight:700;color:${PALETTE.ink};margin:12px 0 10px}
         .done{font-size:14px;color:${PALETTE.ink}}
+        .checkout-review{border-top:2px solid ${PALETTE.line};margin-top:12px;padding-top:12px}
+        .checkout-review h3{font-size:15px;margin:0 0 8px;color:${PALETTE.ink}}
+        .checkout-summary{display:grid;grid-template-columns:1fr auto;gap:5px 12px;
+          padding:10px;background:#f7f5ef;border-radius:12px;color:${PALETTE.ink}}
+        .checkout-summary b{text-align:right}
+        .checkout-note,.checkout-status{font-size:12px;line-height:1.45;color:${PALETTE.muted};margin:8px 0}
+        .checkout-status{color:${PALETTE.bad}}
+        .checkout-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+        .checkout-actions button{padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+        .confirm-purchase{background:${PALETTE.duck};color:${PALETTE.ink};border:0}
+        .back-checkout{background:#fff;color:${PALETTE.ink};border:1px solid ${PALETTE.line}}
         .facts{margin:0 0 10px;padding:0;list-style:none}
         .facts li{font-size:13px;line-height:1.5;color:${PALETTE.muted};margin-bottom:4px}
         .cardlinks{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 12px}
@@ -257,16 +269,77 @@
     };
 
     shadow.getElementById("buy").onclick = async () => {
-      let res;
-      try { res = await send({ type: "checkout", item, prediction_id: result.prediction_id, event_id: buyEvent }); }
-      catch (error) { shadow.querySelector(".line").textContent = error.message; return; }
+      const buy = shadow.getElementById("buy");
+      buy.disabled = true;
+      buy.textContent = "Preparing checkout";
+      let intent;
+      try {
+        intent = await send({
+          type: "payment_intent", item, prediction_id: result.prediction_id, budget_limit: 500
+        });
+      } catch (error) {
+        buy.disabled = false;
+        buy.textContent = "Buy anyway";
+        shadow.querySelector(".line").textContent = error.message;
+        return;
+      }
       if (version !== renderVersion) return;
-      const declined = res.approved === false || (res.status && res.status !== "approved");
-      shadow.querySelector(".line").innerHTML = declined
-        ? `<span class="done">Payment ${esc(res.status || "failed")}: nothing was recorded.</span>`
-        : `<span class="done">Bought${res.mode === "mock" ? " (simulated)" : ""}. It's in your closet now.</span>`;
-      shadow.querySelector(".btns").remove();
-      dismiss(2600);
+      const buttons = shadow.querySelector(".btns");
+      buttons.hidden = true;
+      const provider = intent.provider || {};
+      const confirmationLabel = provider.simulated ? "Confirm simulated purchase" : "Confirm Visa sandbox purchase";
+      const review = document.createElement("section");
+      review.className = "checkout-review";
+      review.setAttribute("role", "region");
+      review.setAttribute("aria-labelledby", "secure-checkout-title");
+      review.innerHTML = `
+        <h3 id="secure-checkout-title">Secure checkout</h3>
+        <div class="checkout-summary">
+          <span>${esc(intent.item.title)}</span><b>$${esc(Number(intent.amount).toFixed(2))}</b>
+          <span>Payment</span><b>${esc(provider.label || "Unavailable")}</b>
+        </div>
+        <p class="checkout-note">Signed intent. No card details are collected by Puddle.</p>
+        <p class="checkout-status" role="status">${esc(intent.blocked_reason || "")}</p>
+        <div class="checkout-actions">
+          <button type="button" class="back-checkout">Back</button>
+          <button type="button" class="confirm-purchase" ${intent.checkout_enabled ? "" : "disabled"}>
+            ${esc(confirmationLabel)}
+          </button>
+        </div>`;
+      shadow.querySelector(".card").appendChild(review);
+      const back = review.querySelector(".back-checkout");
+      const confirm = review.querySelector(".confirm-purchase");
+      const status = review.querySelector(".checkout-status");
+      back.onclick = () => {
+        review.remove();
+        buttons.hidden = false;
+        buy.disabled = false;
+        buy.textContent = "Buy anyway";
+      };
+      confirm.onclick = async () => {
+        confirm.disabled = true;
+        back.disabled = true;
+        status.textContent = "Processing checkout.";
+        let res;
+        try { res = await send({ type: "confirm_payment_intent", token: intent.token }); }
+        catch (error) {
+          if (version !== renderVersion) return;
+          status.textContent = error.message;
+          confirm.disabled = false;
+          back.disabled = false;
+          return;
+        }
+        if (version !== renderVersion) return;
+        const declined = res.approved === false || (res.status && res.status !== "approved");
+        const receipt = res.receipt || {};
+        shadow.querySelector(".line").textContent = declined
+          ? `Payment ${res.status || "failed"}. Nothing was recorded.`
+          : `${receipt.simulated ? "Simulated Visa purchase approved" : "Visa sandbox purchase approved"}. ` +
+            `Added to your closet. Receipt ${receipt.intent_id || "recorded"}.`;
+        review.remove();
+        buttons.remove();
+        if (!declined) dismiss(3200);
+      };
     };
   }
 

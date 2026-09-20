@@ -110,7 +110,8 @@ def main() -> int:
     else:
         check = health.get("payments_check") or {}
         if check.get("reachable"):
-            ok(f"Visa live and answering ({health['payments']}: {check.get('detail')})")
+            ok(f"Visa connectivity check passed ({health['payments']}: {check.get('detail')})")
+            warn("Sandbox checkout is not verified by this check; rehearse it separately.")
         else:
             # Distinguish "Visa said no" from "we never got there". A 4xx means
             # the credentials are wrong; anything else means the network or the

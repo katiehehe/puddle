@@ -28,6 +28,7 @@ import uuid
 from base64 import b64encode
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Protocol
 
 from jwcrypto import jwe, jwk
@@ -76,7 +77,13 @@ class PaymentResult:
     def dict(self) -> dict:
         return {
             **asdict(self),
-            "status": "approved" if self.approved else "error" if self.reason == "provider_error" else "declined",
+            "status": (
+                "approved"
+                if self.approved
+                else "error"
+                if self.reason in {"provider_error", "configuration_error"}
+                else "declined"
+            ),
         }
 
 
@@ -110,6 +117,34 @@ class MockProvider:
 
     def ping(self) -> dict:
         return {"reachable": True, "detail": "mock provider"}
+
+
+class IncompleteVisaProvider:
+    name = "visa_incomplete"
+
+    def __init__(self, missing: list[str], invalid_files: list[str]):
+        self.missing = missing
+        self.invalid_files = invalid_files
+
+    def pay(self, amount: float, item_id: str) -> PaymentResult:
+        del item_id
+        details = self.missing + self.invalid_files
+        return PaymentResult(
+            mode=self.name,
+            approved=False,
+            amount=amount,
+            token="",
+            reason="configuration_error",
+            message="Visa setup is incomplete: " + ", ".join(details) + ".",
+        )
+
+    def ping(self) -> dict:
+        return {
+            "reachable": False,
+            "detail": "Visa setup incomplete",
+            "missing": self.missing,
+            "invalid_files": self.invalid_files,
+        }
 
 
 def hash_path(path: str) -> str:
@@ -333,19 +368,64 @@ def _error_detail(err: urllib.error.HTTPError, decrypt=None) -> str:
     return f"HTTP {err.code}: {reason}" if reason else f"HTTP {err.code}"
 
 
+VISA_REQUIRED_ENV = (
+    "VISA_API_KEY",
+    "VISA_SHARED_SECRET",
+    "VISA_CERT_PATH",
+    "VISA_KEY_PATH",
+    "VISA_USER_ID",
+    "VISA_PASSWORD",
+    "VISA_MLE_KEY_ID",
+    "VISA_MLE_SERVER_CERT_PATH",
+    "VISA_MLE_CLIENT_KEY_PATH",
+)
+VISA_FILE_ENV = (
+    "VISA_CERT_PATH",
+    "VISA_KEY_PATH",
+    "VISA_MLE_SERVER_CERT_PATH",
+    "VISA_MLE_CLIENT_KEY_PATH",
+)
+
+
+def provider_status() -> dict:
+    configured = {name: os.environ.get(name, "").strip() for name in VISA_REQUIRED_ENV}
+    if not any(configured.values()):
+        return {
+            "mode": "mock",
+            "ready": True,
+            "simulated": True,
+            "label": "Visa sandbox simulation",
+            "missing": [],
+            "invalid_files": [],
+        }
+
+    missing = [name for name, value in configured.items() if not value]
+    invalid_files = [name for name in VISA_FILE_ENV if configured[name] and not Path(configured[name]).is_file()]
+    ready = not missing and not invalid_files
+    return {
+        "mode": "visa_sandbox" if ready else "visa_incomplete",
+        "ready": ready,
+        "simulated": False,
+        "label": "Visa sandbox" if ready else "Visa setup incomplete",
+        "missing": missing,
+        "invalid_files": invalid_files,
+    }
+
+
 def get_provider() -> PaymentProvider:
-    api_key = os.environ.get("VISA_API_KEY")
-    shared_secret = os.environ.get("VISA_SHARED_SECRET")
-    if api_key and shared_secret:
-        return VisaSandboxProvider(
-            api_key,
-            shared_secret,
-            cert=os.environ.get("VISA_CERT_PATH"),
-            key=os.environ.get("VISA_KEY_PATH"),
-            user_id=os.environ.get("VISA_USER_ID"),
-            password=os.environ.get("VISA_PASSWORD"),
-            mle_key_id=os.environ.get("VISA_MLE_KEY_ID"),
-            mle_server_cert=os.environ.get("VISA_MLE_SERVER_CERT_PATH"),
-            mle_client_key=os.environ.get("VISA_MLE_CLIENT_KEY_PATH"),
-        )
-    return MockProvider()
+    status = provider_status()
+    if status["mode"] == "mock":
+        return MockProvider()
+    if not status["ready"]:
+        return IncompleteVisaProvider(status["missing"], status["invalid_files"])
+    return VisaSandboxProvider(
+        os.environ["VISA_API_KEY"],
+        os.environ["VISA_SHARED_SECRET"],
+        cert=os.environ.get("VISA_CERT_PATH"),
+        key=os.environ.get("VISA_KEY_PATH"),
+        user_id=os.environ.get("VISA_USER_ID"),
+        password=os.environ.get("VISA_PASSWORD"),
+        mle_key_id=os.environ.get("VISA_MLE_KEY_ID"),
+        mle_server_cert=os.environ.get("VISA_MLE_SERVER_CERT_PATH"),
+        mle_client_key=os.environ.get("VISA_MLE_CLIENT_KEY_PATH"),
+    )

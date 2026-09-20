@@ -80,21 +80,41 @@ def test_purchase_updates_wardrobe_and_reverses_saved_amount(monkeypatch):
         return provider.pay(amount, item_id)
 
     monkeypatch.setattr(payments, "get_provider", lambda: type("Provider", (), {"pay": staticmethod(pay)})())
-    body = {"event_id": "buy-boots", "item_id": "cand_boots"}
-    first = client.post("/checkout", json=body).json()
+    intent = client.post("/payment-intents", json={"item_id": "cand_boots"}).json()
+    body = {"token": intent["token"], "confirmed": True}
+    first = client.post("/payment-intents/confirm", json=body).json()
     assert first["approved"] is True and first["mode"] == "mock"
     assert first["status"] == "approved" and first["pond"]["saved"] == 0
-    assert client.post("/checkout", json=body).json()["duplicate"] is True
+    assert client.post("/payment-intents/confirm", json=body).json()["duplicate"] is True
     assert len(calls) == 1
     assert "sku_991" in [i["id"] for i in client.get("/closet").json()["closet"]]
     assert skip("after-purchase").status_code == 409
-    assert client.post("/checkout", json={**body, "event_id": "buy-again"}).status_code == 409
+    second = client.post("/payment-intents", json={"item_id": "cand_boots"}).json()
+    retry = client.post("/payment-intents/confirm", json={"token": second["token"], "confirmed": True})
+    assert retry.status_code == 409
 
 
-def test_decline_does_not_add_holdings_or_grade_prediction():
-    item = {"id": "expensive", "title": "Coat", "category": "outer", "price": 501, "formality": 3, "warmth": 4}
+def test_decline_does_not_add_holdings_or_grade_prediction(monkeypatch):
+    item = {"id": "expensive", "title": "Coat", "category": "outer", "price": 500, "formality": 3, "warmth": 4}
     prediction = score(item=item)["prediction_id"]
-    response = client.post("/checkout", json={"event_id": "declined", "item": item, "prediction_id": prediction}).json()
+
+    class DecliningProvider:
+        def pay(self, amount, item_id):
+            return payments.PaymentResult(
+                mode="mock",
+                approved=False,
+                amount=amount,
+                token="",
+                reason="not_approved",
+                message=f"Declined {item_id}.",
+            )
+
+    monkeypatch.setattr(payments, "get_provider", DecliningProvider)
+    intent = client.post("/payment-intents", json={"item": item, "prediction_id": prediction}).json()
+    response = client.post(
+        "/payment-intents/confirm",
+        json={"token": intent["token"], "confirmed": True},
+    ).json()
     assert response["approved"] is False
     assert response["status"] == "declined"
     assert response["event"]["action"] == "payment_failed"
@@ -146,7 +166,14 @@ def test_invalid_hour_and_action():
     assert client.get("/portfolio?budget=0").status_code == 422
     assert client.get("/portfolio?budget=-5").status_code == 422
     assert skip(action="refund").status_code == 422
+    assert skip(action="buy").status_code == 422
     assert skip(event="").status_code == 422
+
+
+def test_legacy_checkout_cannot_bypass_confirmation():
+    response = client.post("/checkout", json={"item_id": "cand_boots", "event_id": "legacy-buy"})
+    assert response.status_code == 410
+    assert client.get("/actions").json()["actions"] == []
 
 
 def test_accuracy_starts_empty_and_grades_persist():

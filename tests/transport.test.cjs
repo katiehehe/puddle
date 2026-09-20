@@ -25,11 +25,25 @@ test('every message the duck and voice panel send has a route', async () => {
   const messages = [
     { type: 'score', item }, { type: 'voice_status' }, { type: 'pond' }, { type: 'read_pond' },
     { type: 'voice_respond', transcript: 'why?', item }, { type: 'skip', item }, { type: 'record_skip', item },
-    { type: 'checkout', item }, { type: 'voice_speak', text: 'You returned four pairs.' }
+    { type: 'payment_intent', item },
+    { type: 'confirm_payment_intent', token: 'signed-token' },
+    { type: 'voice_speak', text: 'You returned four pairs.' }
   ];
   const h = harness({ pond: 440 });
   for (const msg of messages) await h.send(msg);
   assert.equal(h.calls.length, messages.length);
+});
+
+test('checkout review creates and confirms a signed payment intent', async () => {
+  const h = harness({ intent_id: 'pi_1' });
+  await h.send({ type: 'payment_intent', item: { id: 'cand_boots' }, prediction_id: 'p_1', budget_limit: 500 });
+  assert.equal(h.calls[0].path, '/payment-intents');
+  assert.deepEqual(JSON.parse(h.calls[0].body), {
+    item: { id: 'cand_boots' }, prediction_id: 'p_1', budget_limit: 500
+  });
+  await h.send({ type: 'confirm_payment_intent', token: 'signed-token' });
+  assert.equal(h.calls[1].path, '/payment-intents/confirm');
+  assert.deepEqual(JSON.parse(h.calls[1].body), { token: 'signed-token', confirmed: true });
 });
 
 test('speech posts the reply text to the brain', async () => {
