@@ -101,6 +101,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .mock {
   background: #fff; border-radius: 18px; box-shadow: var(--shadow);
   border: 1px solid var(--line); overflow: hidden; min-width: 0;
+  text-align: left;
 }
 .mockbar {
   display: flex; align-items: center; gap: 6px; padding: 12px 14px;
