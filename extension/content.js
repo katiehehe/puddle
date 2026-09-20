@@ -578,7 +578,7 @@
     // A guessed title means a search or category page: many products, none of
     // them this one. Uninvited, that is not enough to speak on.
     if (!item || item._guessedTitle) return;
-    const key = `${item.title}|${item.price}|${item.size || ""}`;
+    const key = `${item.title}|${item.price}|${item.size || ""}|${item.color || ""}`;
     if (key === parkedKey) return;
     parkedKey = key;
     send({ type: "score", item, now_hour: new Date().getHours() })

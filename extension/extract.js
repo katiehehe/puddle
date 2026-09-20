@@ -131,18 +131,41 @@
     return match ? match[1].toUpperCase() : null;
   }
 
+  /* Colour, which a storefront states as the swatch you picked rather than a
+   * word in the title. Amazon names it twice depending on the layout it serves
+   * -- the inline twister, or the older variation block -- and other shops
+   * expose it the same way they expose size. */
+  function readColor(doc) {
+    const node = doc.querySelector(
+      "#inline-twister-expanded-dimension-text-color_name, #variation_color_name .selection, " +
+      "select[name*='color' i], select[id*='color' i], [data-option-name='Color'] [aria-checked='true'], " +
+      "[name*='color' i][type='radio']:checked"
+    );
+    if (!node) return null;
+    const raw = node.tagName === "SELECT"
+      ? node.options?.[node.selectedIndex]?.textContent
+      : node.value ?? node.textContent;
+    // A swatch name is a word or two. Anything longer is a description that
+    // happened to sit in a colour-ish container, and guessing from it is worse
+    // than leaving colour unset.
+    const text = clean(raw).toLowerCase();
+    return text && text.length <= 24 ? text : null;
+  }
+
   /* Returns null when the page does not look like a product page at all --
    * a duck that guesses on a homepage is worse than a silent one. */
   globalThis.PuddleExtract = function extract(doc = document) {
     const found = fromJsonLd(doc) || fromMeta(doc) || fromVisibleDom(doc);
     if (!found) return null;
     const size = readSize(doc);
+    const color = readColor(doc);
     return {
       // No id: the brain scores unknown items on their attributes. Sending a
       // guessed catalog id would silently attach someone else's history.
       title: found.title,
       price: found.price,
       ...(size ? { size } : {}),
+      ...(color ? { color } : {}),
       _source: found.source,
       _confident: found.confident,
       // True when the title is a page heading we settled for, not a product

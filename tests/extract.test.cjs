@@ -167,6 +167,32 @@ test('flags a title it settled for, so an uninvited caller can stay quiet', () =
   assert.equal(product._guessedTitle, false);
 });
 
+test('reads the selected colour, which the title does not carry', () => {
+  // A swatch is a choice the page records outside the title, and the same
+  // product in a different colour is a different thing to own.
+  const found = extract(doc({
+    nodes: {
+      '#productTitle': { text: 'Merino crewneck' },
+      '.price': { text: '$58' },
+      "#inline-twister-expanded-dimension-text-color_name, #variation_color_name .selection, select[name*='color' i], select[id*='color' i], [data-option-name='Color'] [aria-checked='true'], [name*='color' i][type='radio']:checked":
+        { text: '  Forest Green ' },
+    },
+  }));
+  assert.equal(found.color, 'forest green');
+});
+
+test('ignores a colour field long enough to be a description', () => {
+  const found = extract(doc({
+    nodes: {
+      '#productTitle': { text: 'Merino crewneck' },
+      '.price': { text: '$58' },
+      "#inline-twister-expanded-dimension-text-color_name, #variation_color_name .selection, select[name*='color' i], select[id*='color' i], [data-option-name='Color'] [aria-checked='true'], [name*='color' i][type='radio']:checked":
+        { text: 'Heathered charcoal with a contrast ribbed collar and cuffs' },
+    },
+  }));
+  assert.equal('color' in found, false);
+});
+
 test('survives malformed JSON-LD instead of throwing', () => {
   const found = extract(doc({
     ld: ['{ not json at all'],
