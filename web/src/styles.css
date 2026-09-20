@@ -186,6 +186,11 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   opacity: 0; transform: translateY(28px);
 }
 .shell .in { animation: popup .7s cubic-bezier(.2, .8, .2, 1) both; }
+/* Repeated from above, and it has to stay here: the hiding rule just above
+   carries the same specificity, so the earlier .still would lose to it on
+   order alone and anything arriving after the entrance -- the cart, an opened
+   item -- would hold its space and paint nothing. */
+.shell .still { animation: none; opacity: 1; transform: none; }
 .shell .dashhead > p { animation-delay: .1s; }
 .shell .statrow { animation-delay: .2s; }
 .shell .tabs { animation-delay: .3s; }

@@ -69,8 +69,14 @@ const DASH_REVEAL =
 const ARRIVAL_MS = 1500;
 
 // One-shot reveal: each element pops in the first time it scrolls into view
-// during the page's arrival, then stays put. Re-scans after every render so
-// async content gets handled too; observing an already-watched node is a no-op.
+// during the page's arrival, then stays put.
+//
+// Everything the selector matches starts at opacity 0, so anything this hook
+// fails to notice is not merely un-animated -- it is invisible, holding its
+// space and painting nothing. Re-scanning after every render is not enough on
+// its own: a child component with its own state (opening a cart item, say)
+// mounts nodes without re-rendering the component that owns this hook, and
+// those nodes would stay blank forever. So watch the subtree as well.
 function useReveal(ref: RefObject<HTMLElement | null>, selector: string) {
   const ioRef = useRef<IntersectionObserver | null>(null);
   const arrivedAt = useRef(0);
@@ -89,7 +95,7 @@ function useReveal(ref: RefObject<HTMLElement | null>, selector: string) {
     ioRef.current = io;
     return () => io.disconnect();
   }, []);
-  useEffect(() => {
+  const scan = useCallback(() => {
     const io = ioRef.current;
     const root = ref.current;
     if (!io || !root) return;
@@ -99,7 +105,25 @@ function useReveal(ref: RefObject<HTMLElement | null>, selector: string) {
       if (settled) n.classList.add("in", "still");
       else io.observe(n);
     });
+  }, [ref, selector]);
+  const moRef = useRef<MutationObserver | null>(null);
+  // After every render, because the shell is not there for the first few: the
+  // dashboard renders a loading card with no ref while it waits for the closet.
+  // An effect that gave up on the first null root would never attach at all.
+  useEffect(() => {
+    scan();
+    const root = ref.current;
+    if (!root || moRef.current) return;
+    // childList only: adding "in" is an attribute change, and watching those
+    // would have every reveal schedule another scan.
+    const mo = new MutationObserver(scan);
+    mo.observe(root, { childList: true, subtree: true });
+    moRef.current = mo;
   });
+  useEffect(() => () => {
+    moRef.current?.disconnect();
+    moRef.current = null;
+  }, []);
   return ioRef;
 }
 
