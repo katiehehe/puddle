@@ -2,33 +2,16 @@ import { useEffect, useState } from "react";
 import { getPortfolio } from "./api";
 import { FIXTURE, Portfolio } from "./fixtures";
 
-// docs/theme.md — keep the palette in sync with extension/content.js.
+// docs/theme.md — Clay Pond palette, kept in sync with extension/content.js.
 const THEME = {
-  duck: "#f2b431", duckDeep: "#a97c12", bill: "#ef7a2c",
-  water: "#2a7fb8", waterDeep: "#1d5f8a", ripple: "#dceaf4",
-  reed: "#0d7a4a", warning: "#b3261e", muted: "#5d6771", line: "#e4e8ec",
+  duck: "#f2b431", duckDeep: "#8a6408",
+  water: "#0ea5e9", waterDeep: "#0369a1", ripple: "#b8d9ec",
+  reed: "#10b981", warning: "#f43f5e", muted: "#635f69", line: "#b8d4e4",
 };
 
-// The mascot in its idle mood, on ripple rings. Mood faces live in content.js.
-function DuckLogo({ size = 88 }: { size?: number }) {
-  return (
-    <svg className="ducklogo" width={size} height={size} viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="55" cy="97" rx="38" ry="7" fill="none" stroke={THEME.water} strokeWidth="2" opacity=".35" />
-      <ellipse cx="55" cy="97" rx="36" ry="6" fill={THEME.ripple} />
-      <ellipse cx="55" cy="94" rx="24" ry="4" fill="#bcdcef" />
-      <path d="M24 60 Q13 57 9 47 Q21 48 28 55 Z" fill="#e8a317" />
-      <ellipse cx="50" cy="68" rx="30" ry="23" fill={THEME.duck} />
-      <ellipse cx="42" cy="69" rx="13" ry="8" fill="#e8a317" transform="rotate(-14 42 69)" />
-      <ellipse cx="66" cy="56" rx="15" ry="11" fill={THEME.duck} />
-      <circle cx="72" cy="42" r="20" fill={THEME.duck} />
-      <path d="M70 23 q5 -7 10 -4" stroke="#e8a317" strokeWidth="4" fill="none" strokeLinecap="round" />
-      <circle cx="78" cy="48" r="4.5" fill="#f08a8a" opacity=".45" />
-      <circle cx="71" cy="38" r="4.2" fill="#16191c" />
-      <circle cx="72.6" cy="36.4" r="1.5" fill="#fff" />
-      <path d="M88 39 q15 1 15 7 q0 7 -15 6 q-5 -1 -5 -6 q0 -6 5 -7 z" fill={THEME.bill} />
-      <path d="M90 46 q11 1 13 -1" stroke="#d96414" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity=".7" />
-    </svg>
-  );
+// The mascot: the duck emoji floating on a ripple.
+function DuckLogo() {
+  return <div className="ducklogo" aria-hidden="true">🦆</div>;
 }
 
 function CoverageRadar({ coverage }: { coverage: Portfolio["coverage"] }) {
@@ -49,7 +32,7 @@ function CoverageRadar({ coverage }: { coverage: Portfolio["coverage"] }) {
         const [x, y] = pt(i, R);
         return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={THEME.ripple} />;
       })}
-      <polygon points={poly} fill="rgba(42,127,184,.18)" stroke={THEME.water} strokeWidth={2} />
+      <polygon points={poly} fill="rgba(14,165,233,.2)" stroke={THEME.water} strokeWidth={2} />
       {coverage.map((c, i) => {
         const [lx, ly] = pt(i, R + 20);
         const gap = c.coverage < 0.45;

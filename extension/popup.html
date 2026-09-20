@@ -3,38 +3,41 @@
 <head>
 <meta charset="utf-8" />
 <style>
-  /* docs/theme.md — pond palette */
-  body { width: 260px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #16191c; }
-  .top { background: linear-gradient(150deg, #ffedb8, #d4ecf8 55%, #a8d6ef); padding: 16px;
-    display: flex; gap: 12px; align-items: center; }
-  h1 { margin: 0; font-size: 20px; letter-spacing: -.01em; } h1 span { color: #a97c12; }
-  .tag { font-size: 12px; color: #5d6771; margin-top: 2px; }
-  .body { padding: 14px 16px; }
-  .saved { font-size: 26px; font-weight: 800; letter-spacing: -.02em; color: #2a7fb8; }
-  .lbl { font-size: 12px; color: #5d6771; }
-  .pond { height: 9px; border-radius: 99px; background: #dceaf4; overflow: hidden; margin: 10px 0 4px; }
+  /* docs/theme.md — Clay Pond (claymorphism) palette */
+  body { width: 272px; margin: 0;
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #332f3a; background: #eaf2f8; }
+  .top { padding: 18px; display: flex; gap: 14px; align-items: center;
+    background: rgba(255,255,255,.6); border-radius: 0 0 28px 28px;
+    box-shadow: 10px 10px 20px rgba(96,140,170,.22), -6px -6px 16px rgba(255,255,255,.9),
+      inset -4px -4px 8px rgba(255,255,255,1);
+    position: relative; overflow: hidden; }
+  .top::before { content: ""; position: absolute; width: 140px; height: 140px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(242,180,49,.4) 0%, transparent 70%);
+    top: -60px; right: -30px; }
+  .ducklogo { width: 52px; height: 52px; border-radius: 50%; font-size: 32px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; position: relative;
+    background: linear-gradient(145deg, #ffffff, #dff0fa);
+    box-shadow: 8px 8px 16px rgba(96,140,170,.3), -6px -6px 12px rgba(255,255,255,.9),
+      inset 2px 3px 5px rgba(255,255,255,.6), inset -2px -3px 5px rgba(14,165,233,.08); }
+  h1 { margin: 0; font-size: 21px; font-weight: 900; letter-spacing: -.01em; position: relative; }
+  h1 span { color: #0ea5e9; }
+  .tag { font-size: 12px; color: #635f69; margin-top: 2px; font-weight: 500; position: relative; }
+  .body { padding: 16px 18px; }
+  .saved { font-size: 28px; font-weight: 900; letter-spacing: -.02em; color: #0369a1; }
+  .lbl { font-size: 12px; color: #635f69; font-weight: 600; }
+  .pond { height: 13px; border-radius: 99px; background: #e2edf5; overflow: hidden; margin: 12px 0 4px;
+    box-shadow: inset 6px 6px 12px #cddcea, inset -6px -6px 12px #ffffff; }
   .fill { height: 100%; border-radius: 99px; width: 0;
-    background: linear-gradient(90deg, #1d5f8a, #2a7fb8); transition: width .5s ease; }
-  a { display: inline-block; margin-top: 12px; font-size: 13px; color: #2a7fb8; font-weight: 600; }
+    background: linear-gradient(180deg, #7dd3fc, #0ea5e9);
+    box-shadow: inset 2px 3px 4px rgba(255,255,255,.6), inset -2px -3px 4px rgba(3,105,161,.4);
+    transition: width .5s ease; }
+  a { display: inline-block; margin-top: 14px; font-size: 13px; color: #0369a1; font-weight: 700; }
 </style>
 </head>
 <body>
   <div class="top">
-    <svg width="52" height="52" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="55" cy="97" rx="36" ry="6" fill="#dceaf4"/>
-      <ellipse cx="55" cy="94" rx="24" ry="4" fill="#bcdcef"/>
-      <path d="M24 60 Q13 57 9 47 Q21 48 28 55 Z" fill="#e8a317"/>
-      <ellipse cx="50" cy="68" rx="30" ry="23" fill="#f2b431"/>
-      <ellipse cx="42" cy="69" rx="13" ry="8" fill="#e8a317" transform="rotate(-14 42 69)"/>
-      <ellipse cx="66" cy="56" rx="15" ry="11" fill="#f2b431"/>
-      <circle cx="72" cy="42" r="20" fill="#f2b431"/>
-      <path d="M70 23 q5 -7 10 -4" stroke="#e8a317" stroke-width="4" fill="none" stroke-linecap="round"/>
-      <circle cx="78" cy="48" r="4.5" fill="#f08a8a" opacity=".45"/>
-      <circle cx="71" cy="38" r="4.2" fill="#16191c"/>
-      <circle cx="72.6" cy="36.4" r="1.5" fill="#fff"/>
-      <path d="M88 39 q15 1 15 7 q0 7 -15 6 q-5 -1 -5 -6 q0 -6 5 -7 z" fill="#ef7a2c"/>
-      <path d="M90 46 q11 1 13 -1" stroke="#d96414" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".7"/>
-    </svg>
+    <div class="ducklogo">🦆</div>
     <div><h1><span>Puddle</span></h1><div class="tag">A duck that lives in your cart.</div></div>
   </div>
   <div class="body">
