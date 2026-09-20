@@ -156,12 +156,6 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
       </header>
 
       <div className="asklog" ref={log}>
-        {turns.length === 0 && (
-          <p className="hint">
-            I answer from your closet and your history — what you own, what you wear, what you send
-            back. Anything I can't put a number on, I'll say so.
-          </p>
-        )}
         {turns.map((turn, i) => (
           <div key={`${i}-${turn.question}`}>
             <p className="askq">{turn.question}</p>
