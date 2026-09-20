@@ -53,6 +53,10 @@ function Duck({ size = 40 }: { size?: number }) {
 
 /* ------------------------------------------------------------------ home */
 
+// Elements on the landing page that hide until scrolled into view.
+const REVEAL =
+  ".hero > div > *, .hero > .mock, .steps h2, .step, .tells h2, .tell, .install > div > *";
+
 function CheckoutMock() {
   const [url, setUrl] = useState("northwick.com/shoes/chelsea-boots");
   useEffect(() => {
@@ -98,16 +102,33 @@ function Home() {
     window.scrollTo(0, 0);
   }, [hash]);
   const homeRef = useRef<HTMLDivElement>(null);
-  // The pop-up animations are pure CSS on mount; clicking the brand or Add to
-  // Chrome while already here replays them without remounting (which would
-  // reload the demo iframe). Slight delay so they land as the scroll arrives.
+  const ioRef = useRef<IntersectionObserver | null>(null);
+  // Scroll-triggered reveal: hidden elements get .in as they enter the view.
+  useEffect(() => {
+    const root = homeRef.current;
+    if (!root) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add("in");
+            io.unobserve(e.target);
+          }
+        }
+      },
+      { threshold: 0.1 },
+    );
+    ioRef.current = io;
+    root.querySelectorAll(REVEAL).forEach((n) => io.observe(n));
+    return () => io.disconnect();
+  }, []);
+  // Clicking the brand or Add to Chrome while already here: hide everything
+  // instantly, then re-arm the observer so it pops back in as the scroll lands.
   const replay = () => {
-    setTimeout(() => {
-      homeRef.current?.getAnimations({ subtree: true }).forEach((a) => {
-        a.cancel();
-        a.play();
-      });
-    }, 400);
+    const els = homeRef.current?.querySelectorAll(REVEAL);
+    if (!els) return;
+    els.forEach((n) => n.classList.remove("in"));
+    setTimeout(() => els.forEach((n) => ioRef.current?.observe(n)), 420);
   };
   const goInstall = () => {
     document.getElementById("install")?.scrollIntoView({ behavior: "smooth" });
