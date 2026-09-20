@@ -297,7 +297,6 @@
         <div class="checkout-summary">
           <span>${esc(intent.item.title)}</span><b>$${esc(Number(intent.amount).toFixed(2))}</b>
           <span>Payment</span><b>${esc(provider.label || "Unavailable")}</b>
-          <span>Limit</span><b>$${esc(Number(intent.budget_limit).toFixed(2))}</b>
         </div>
         <p class="checkout-note">Signed intent. No card details are collected by Puddle.</p>
         <p class="checkout-status" role="status">${esc(intent.blocked_reason || "")}</p>
