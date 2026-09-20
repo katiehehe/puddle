@@ -41,6 +41,38 @@ export type Score = {
   };
   item: { title: string; price: number };
   shopping?: ShoppingContext;
+  advice: Advice;
+};
+
+export type Reason = { tone: "for" | "against" | "neutral"; kind: string; text: string };
+
+/** The whole answer to "is this worth buying", in the order a person reads it:
+ *  the verdict, why, what it costs per wear, and only then the arithmetic. */
+export type Advice = {
+  verdict: string;
+  stance: "for" | "think" | "against";
+  score: number;
+  subhead: string;
+  reasons: Reason[];
+  per_wear: Record<string, number>;
+  expected_wears: number;
+  resale: number | null;
+  questions: string[];
+  numbers: {
+    paid: number;
+    typical_price: number | null;
+    resale: number | null;
+    expected_wears: number;
+    cost_per_wear_if_bought: number | null;
+    your_cost_per_wear: number;
+    similar_owned: number;
+    similar_wears: number;
+    return_prob: number;
+    ev: number;
+    fair_bid: number;
+    no_price: boolean;
+    alpha: number;
+  };
 };
 
 /** The live brain, scoring one item. This is the same call the duck makes at
@@ -127,6 +159,10 @@ export type ClosetPiece = {
   difference: number | null;
   verdict: string;
   duplicates: string[];
+  tags: string[];
+  brand: string;
+  photo: string;
+  yours: boolean;
 };
 
 export type PurchaseRow = {
@@ -141,7 +177,46 @@ export type PurchaseRow = {
   wears: number | null;
   worth_now: number | null;
   cost_per_wear: number | null;
+  brand: string;
+  size: string | null;
+  color: string;
+  photo: string;
+  notes: string;
+  source_url: string;
+  archived: boolean;
+  archive_reason: string | null;
+  tags?: string[];
+  /** True for things the user typed in: only those can be edited or wear-logged. */
+  yours: boolean;
 };
+
+export type Occasion = {
+  state: string;
+  label: string;
+  strength: "good" | "thin" | "none";
+  score: number;
+  covered: boolean;
+  best_item: string | null;
+  options: number;
+};
+
+export type Coverage = {
+  headline: string;
+  advice: string;
+  well_covered: string[];
+  gaps: string[];
+  weakest: string | null;
+  occasions: Occasion[];
+};
+
+export type Usage = {
+  rows: { state: string; label: string; wears: number; share: number }[];
+  total_wears: number;
+  enough_data: boolean;
+  lines: string[];
+};
+
+export type Notice = { title: string; detail: string };
 
 export type Me = {
   closet: ClosetPiece[];
@@ -158,8 +233,68 @@ export type Me = {
     returned_count: number;
     purchase_count: number;
   };
+  coverage: Coverage;
+  usage: Usage;
+  notices: Notice[];
   value: { spent: number; worth_now: number; value_retained: number; saved: number };
 };
+
+export type NewPurchase = {
+  title: string;
+  price: number;
+  bought_at?: string;
+  brand?: string;
+  category?: string;
+  size?: string;
+  color?: string;
+  source_url?: string;
+  photo?: string;
+  notes?: string;
+  resale_estimate?: number;
+  wears?: number;
+  add_to_closet?: boolean;
+};
+
+async function send<T>(path: string, method: string, body?: unknown): Promise<T> {
+  const r = await fetch(`${BRAIN}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const detail = await r.json().catch(() => null);
+    throw new Error(detail?.detail ?? `${path} ${r.status}`);
+  }
+  return r.json();
+}
+
+export async function addPurchase(purchase: NewPurchase): Promise<PurchaseRow> {
+  const r = await send<{ purchase: PurchaseRow }>("/purchases", "POST", purchase);
+  return r.purchase;
+}
+
+export async function editPurchase(id: string, patch: Partial<NewPurchase & { archived: boolean; archive_reason: string; in_closet: boolean }>): Promise<PurchaseRow> {
+  const r = await send<{ purchase: PurchaseRow }>(`/purchases/${encodeURIComponent(id)}`, "PATCH", patch);
+  return r.purchase;
+}
+
+/** One click, one wear. Deliberately the cheapest interaction in the app. */
+export async function logWears(itemIds: string[]): Promise<Record<string, number>> {
+  const r = await send<{ wears: Record<string, number> }>("/wears", "POST", { item_ids: itemIds });
+  return r.wears;
+}
+
+export type Guess = { recognised: boolean; brand: string; category?: string; kind?: string };
+
+/** What we can work out from the name and the shop, so nobody types it twice. */
+export async function guessItem(title: string, url: string): Promise<Guess | null> {
+  if (!title.trim()) return null;
+  try {
+    return await call<Guess>(`/guess?title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`);
+  } catch {
+    return null;
+  }
+}
 
 /** Everything the closet dashboard shows: what you own, what you bought, what
  *  it's worth, and what your own history says about how you shop. */

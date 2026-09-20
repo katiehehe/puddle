@@ -66,6 +66,49 @@ def category_counts(closet: list[Item]) -> list[dict]:
     ]
 
 
+def notices(closet: list[Item], wear_counts: dict[str, int], coverage: dict) -> list[dict]:
+    """"Puddle noticed..." -- the three things worth saying today.
+
+    Each one is a headline and the evidence for it, because an observation a
+    shopper can't check is just an opinion with a duck attached.
+    """
+    out: list[dict] = []
+
+    piles: dict[str, list[Item]] = {}
+    for item in closet:
+        piles.setdefault(item.kind or item.category, []).append(item)
+
+    big = max(piles.items(), key=lambda kv: len(kv[1]), default=None)
+    if big and len(big[1]) >= 4:
+        kind, items = big
+        idle = [i for i in items if wear_counts.get(i.id, 0) < USED_THRESHOLD]
+        detail = f"You own {len(items)}"
+        if idle:
+            detail += f", and {len(idle)} barely {'gets' if len(idle) == 1 else 'get'} worn"
+        out.append({"title": f"You might not need another {kind.replace('_', ' ')}.", "detail": detail + "."})
+
+    worked = [
+        (kind, statistics.mean([wear_counts.get(i.id, 0) for i in items]))
+        for kind, items in piles.items()
+        if len(items) >= 2
+    ]
+    if worked:
+        kind, avg = max(worked, key=lambda kv: kv[1])
+        if avg >= 5:
+            label = _KIND_PLURAL.get(kind, kind.replace("_", " ") + "s")
+            out.append(
+                {
+                    "title": f"Your {label} earn their keep.",
+                    "detail": f"They average {avg:.0f} wears each — your most-used category.",
+                }
+            )
+
+    gaps = coverage.get("gaps") or []
+    if gaps:
+        out.append({"title": f"One gap: {gaps[0].lower()}.", "detail": coverage.get("advice", "")})
+    return out[:3]
+
+
 def summarise(closet: list[Item], wear_counts: dict[str, int], purchases: list[Purchase]) -> dict:
     """The "your shopping" panel: six or so sentences about this person."""
     lines: list[str] = []

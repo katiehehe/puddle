@@ -127,6 +127,7 @@ def test_score_item_contract():
         "decision",
         "reasons",
         "shopping",
+        "advice",
     }
     assert res["duck_state"] == "concerned"
     assert res["insights"][0]["type"] == "return_pattern"

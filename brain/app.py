@@ -19,7 +19,21 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import ask, desk, history, insights, ledger, market, payments, pond, storage, voice
+from . import (
+    advice,
+    ask,
+    closet_store,
+    desk,
+    history,
+    insights,
+    ledger,
+    market,
+    occasions,
+    payments,
+    pond,
+    storage,
+    voice,
+)
 from .catalog import CLOSET, STOREFRONT, Item, coerce_item
 from .miner import Miner, rank, verdict
 from .portfolio import Closet
@@ -74,10 +88,23 @@ app.add_middleware(
 
 
 def _context() -> tuple[Closet, Miner, dict[str, int]]:
-    mix = life_mix([w.dict() for w in history.wears()])
-    counts = history.wear_counts()
-    owned = CLOSET + [Item(**raw) for raw in storage.owned()]
-    return Closet(owned, mix), Miner(history.purchases(), counts), counts
+    """The closet as it stands: seeded, bought through the duck, and typed in.
+
+    Anything the user adds has to land here or nowhere -- this is the closet
+    every score, gap and duplicate count is measured against.
+    """
+    owned = CLOSET + [Item(**raw) for raw in storage.owned()] + closet_store.owned_items()
+    counts = closet_store.merge_counts(history.wear_counts())
+    mix = life_mix(_wear_events(owned))
+    return Closet(owned, mix), Miner(_purchases(), counts), counts
+
+
+def _purchases() -> list[history.Purchase]:
+    return history.purchases() + closet_store.purchases()
+
+
+def _wear_events(owned: list[Item]) -> list[dict]:
+    return [w.dict() for w in history.wears()] + closet_store.wear_events({i.id: i for i in owned})
 
 
 class ScoreRequest(BaseModel):
@@ -174,11 +201,10 @@ def recommend(item, closet, miner, now):
     }
 
 
-def _shopping_context(item: Item, evaluation: dict) -> dict:
+def _shopping_context(item: Item, evaluation: dict, counts: dict[str, int]) -> dict:
     """The checkout facts in shopper's terms: how many you own, how much they
     get worn, whether this price is good, what it works out to per wear."""
-    counts = history.wear_counts()
-    purchases = history.purchases()
+    purchases = _purchases()
     owned = evaluation["redundant_with"]
     owned_wears = sum(counts.get(d["id"], 0) for d in owned)
     most_worn = max(owned, key=lambda d: counts.get(d["id"], 0), default=None)
@@ -219,20 +245,33 @@ def _act(req, action):
 @app.post("/score_item")
 def score_item(req: ScoreRequest) -> dict:
     item = _resolve(req)
-    closet, miner, _ = _context()
+    closet, miner, counts = _context()
 
     now = datetime.now()
     if req.now_hour is not None:
         now = now.replace(hour=req.now_hour, minute=40)
 
     result = recommend(item, closet, miner, now)
+    shopping = _shopping_context(item, result["portfolio"], counts)
     prediction_id = storage.record(
         item, result["headline"], result["decision"], result["duck_state"], result["confidence"]
     )
     return {
         "item": item.dict(),
         **result,
-        "shopping": _shopping_context(item, result["portfolio"]),
+        "shopping": shopping,
+        "advice": advice.advise(
+            item,
+            result["portfolio"],
+            desk.quote(item, closet, miner, counts, now),
+            shopping,
+            closet.items,
+            counts,
+            occasions.coverage(closet),
+            occasions.usage(_wear_events(closet.items)),
+            brand=str((req.item or {}).get("brand", "")),
+            brands=advice.brand_stats(closet_store.rows(), counts),
+        ),
         "prediction_id": prediction_id,
         "accuracy": ledger.accuracy(),
     }
@@ -369,19 +408,30 @@ def me() -> dict:
     """Everything the shopping dashboard needs: what you own, what you bought,
     what it's worth, and what your own history says about how you shop."""
     closet, _, counts = _context()
-    purchases = history.purchases()
+    purchases = _purchases()
+    entries = closet_store.rows()
+    extras = {e["id"]: e for e in entries}
 
     wardrobe = [
         {
             **item.dict(),
             **market.valuation(item, counts.get(item.id, 0), purchases),
             "duplicates": [d["title"] for d in closet.evaluate(item)["redundant_with"] if d["id"] != item.id],
+            "tags": occasions.tags(item),
+            "brand": extras.get(item.id, {}).get("brand", ""),
+            "photo": extras.get(item.id, {}).get("photo", ""),
+            "yours": item.id in extras,
         }
         for item in closet.items
     ]
+    coverage = occasions.coverage(closet)
+    usage = occasions.usage(_wear_events(closet.items))
+
+    # Their own entries first: those are the ones they can edit and wear-log.
+    mine = [_purchase_row(e, counts) for e in entries]
     owned_by_title = {item.title: item for item in closet.items}
     recent = []
-    for p in sorted(purchases, key=lambda p: p.bought_at, reverse=True)[:12]:
+    for p in sorted(history.purchases(), key=lambda p: p.bought_at, reverse=True)[:12]:
         owned = owned_by_title.get(p.title)
         wears = counts.get(owned.id, 0) if owned else 0
         recent.append(
@@ -397,6 +447,15 @@ def me() -> dict:
                 "wears": wears if owned else None,
                 "worth_now": market.resale(owned, wears) if owned else None,
                 "cost_per_wear": market.cost_per_wear(p.price, wears) if owned else None,
+                "brand": "",
+                "size": p.size,
+                "color": "",
+                "photo": "",
+                "notes": "",
+                "source_url": "",
+                "archived": p.returned,
+                "archive_reason": p.return_reason,
+                "yours": False,
             }
         )
 
@@ -404,8 +463,11 @@ def me() -> dict:
     worth = round(sum(i["worth_now"] for i in wardrobe), 2)
     return {
         "closet": wardrobe,
-        "purchases": recent,
+        "purchases": mine + recent,
         "shopping": insights.summarise(closet.items, counts, purchases),
+        "coverage": coverage,
+        "usage": usage,
+        "notices": insights.notices(closet.items, counts, coverage),
         "value": {
             "spent": spent,
             "worth_now": worth,
@@ -413,6 +475,122 @@ def me() -> dict:
             "saved": pond.state()["saved"],
         },
     }
+
+
+def _purchase_row(entry: dict, counts: dict[str, int]) -> dict:
+    """One thing the user bought, as the purchase card shows it."""
+    garment = closet_store.item(entry)
+    wears = counts.get(entry["id"], 0)
+    live = entry["in_closet"] and not entry["archived"]
+    # Their own estimate beats ours: they can see the thing.
+    worth = entry["resale_estimate"] if entry["resale_estimate"] is not None else market.resale(garment, wears)
+    return {
+        "id": entry["id"],
+        "title": entry["title"],
+        "category": entry["category"],
+        "price": entry["price"],
+        "bought_at": entry["bought_at"],
+        "returned": entry["archive_reason"] == "returned",
+        "return_reason": entry["archive_reason"],
+        "in_closet": live,
+        "wears": wears,
+        "worth_now": worth,
+        "cost_per_wear": market.cost_per_wear(entry["price"], wears),
+        "brand": entry["brand"],
+        "size": entry["size"],
+        "color": entry["color"],
+        "photo": entry["photo"],
+        "notes": entry["notes"],
+        "source_url": entry["source_url"],
+        "archived": entry["archived"],
+        "archive_reason": entry["archive_reason"],
+        "tags": occasions.tags(garment),
+        "yours": True,
+    }
+
+
+class PurchaseRequest(BaseModel):
+    title: str
+    price: float = 0.0
+    bought_at: str | None = None
+    brand: str | None = None
+    category: str | None = None
+    size: str | None = None
+    color: str | None = None
+    source_url: str | None = None
+    photo: str | None = None
+    notes: str | None = None
+    resale_estimate: float | None = None
+    wears: int | None = None
+    add_to_closet: bool = True
+
+
+class WearRequest(BaseModel):
+    item_ids: list[str]
+    worn_at: str | None = None
+
+
+class PurchaseEdit(BaseModel):
+    title: str | None = None
+    price: float | None = None
+    bought_at: str | None = None
+    brand: str | None = None
+    size: str | None = None
+    color: str | None = None
+    source_url: str | None = None
+    photo: str | None = None
+    notes: str | None = None
+    resale_estimate: float | None = None
+    wears: int | None = None
+    in_closet: bool | None = None
+    archived: bool | None = None
+    archive_reason: str | None = None
+
+
+@app.get("/purchases")
+def list_purchases() -> dict:
+    counts = closet_store.merge_counts(history.wear_counts())
+    return {"purchases": [_purchase_row(e, counts) for e in closet_store.rows()]}
+
+
+@app.post("/purchases")
+def add_purchase(req: PurchaseRequest) -> dict:
+    """Add something you bought. It joins the closet the duck scores against."""
+    try:
+        entry = closet_store.add(req.model_dump())
+    except closet_store.Unknown as exc:
+        raise HTTPException(422, str(exc)) from exc
+    counts = closet_store.merge_counts(history.wear_counts())
+    return {"purchase": _purchase_row(entry, counts)}
+
+
+@app.patch("/purchases/{purchase_id}")
+def edit_purchase(purchase_id: str, req: PurchaseEdit) -> dict:
+    """Fix a field, correct the wear count, or archive it out of the closet.
+
+    Archiving keeps the purchase: what you bought is history and stays true
+    even once the thing is sold, returned or given away.
+    """
+    entry = closet_store.update(purchase_id, req.model_dump(exclude_unset=True))
+    if entry is None:
+        raise HTTPException(404, "purchase not found")
+    counts = closet_store.merge_counts(history.wear_counts())
+    return {"purchase": _purchase_row(entry, counts)}
+
+
+@app.post("/wears")
+def wore_today(req: WearRequest) -> dict:
+    """One click per thing worn. Everything downstream reads these events."""
+    for item_id in req.item_ids:
+        closet_store.log_wear(item_id, req.worn_at)
+    counts = closet_store.merge_counts(history.wear_counts())
+    return {"logged": len(req.item_ids), "wears": {i: counts.get(i, 0) for i in req.item_ids}}
+
+
+@app.get("/guess")
+def guess_item(title: str, url: str = "") -> dict:
+    """What we can infer before the user types anything else."""
+    return closet_store.guess(title, url)
 
 
 @app.get("/pond")

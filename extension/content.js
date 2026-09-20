@@ -2,21 +2,21 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
-  // docs/theme.md — Flat Pond palette, kept in sync with web/src/styles.css.
+  // docs/theme.md — Field Guide palette, kept in sync with web/src/styles.css.
   const PALETTE = {
-    ink: "#111827", muted: "#6b7280", line: "#e5e7eb",
-    duck: "#f2b431", duckDeep: "#92600a", bill: "#ef7a2c",
-    water: "#3b82f6", waterDeep: "#2563eb", waterTint: "#eff6ff", ripple: "#c7d8ea", foam: "#f3f4f6",
-    good: "#10b981", bad: "#ef4444", surface: "#ffffff", surfaceHi: "#f3f4f6",
-    page: "#f3f4f6"
+    ink: "#2c2a24", muted: "#8a8270", line: "#cfc5a8",
+    duck: "#c98a2b", duckDeep: "#8a5a17", bill: "#b06a28",
+    water: "#3e6b8e", waterDeep: "#2f5570", waterTint: "#e7edf1", ripple: "#b9c8cf", foam: "#ece4cf",
+    good: "#5b7a4b", bad: "#a63d2f", surface: "#fbf8ee", surfaceHi: "#ece4cf",
+    page: "#f6f1e3"
   };
 
-  // The mascot, drawn rather than typed: a flat duck silhouette in one colour.
-  const DUCK = () => `<svg class="duckmark" viewBox="0 0 32 32" aria-hidden="true">
-      <path fill="${PALETTE.ink}" d="M20.5 6a4.5 4.5 0 0 0-4.42 5.33l-6.2 1.2A5.88 5.88 0 0 0 4 18.3C4 21.99 7.3 25 11.35 25h6.4C22.86 25 27 21.2 27 16.5v-6h-2.1A4.5 4.5 0 0 0 20.5 6Z"/>
-      <circle cx="20.6" cy="10.2" r="1.1" fill="#fff"/>
-      <path fill="${PALETTE.bill}" d="M25.2 11.6h5.3l-3 2.6-2.3-.6Z"/>
-    </svg>`;
+  // The mascot is the duck emoji; mood rides in a small badge and the card accent.
+  const DUCK = (state) => {
+    const mark = { curious: "?", concerned: "!", approving: "✓" }[state] || "";
+    return `<div class="duckwrap"><span class="duckmoji">🦆</span>${
+      mark ? `<span class="mood">${mark}</span>` : ""}</div>`;
+  };
 
   // Where the duck's reasoning is shown in full.
   const DASHBOARD = (document.body.dataset.puddleMode === "web" ? "" : "http://localhost:8000")
@@ -103,66 +103,81 @@
     if (version !== renderVersion) return;
     const c = chip(result);
     const money = result.shopping;
-    const plain = facts(money);
+    const advice = result.advice || null;
+    // Puddle's own sentences when the brain has them; the old facts otherwise.
+    const plain = advice ? advice.reasons.map(r => r.text) : facts(money);
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
+    const verdictTone = advice
+      ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.ink
+      : PALETTE.ink;
     // One event_id per intentional action; the brain dedupes retries on it.
     const skipEvent = crypto.randomUUID(), buyEvent = crypto.randomUUID();
 
     shadow.innerHTML = `
       <style>
-        *{box-sizing:border-box;font-family:"Outfit",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+        *{box-sizing:border-box;font-family:"Space Grotesk","Outfit",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
         .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
           background:${PALETTE.surface};
-          border-radius:0 8px 8px 0;padding:16px 18px;animation:pop .2s ease;
-          border-left:8px solid ${accent};outline:2px solid ${PALETTE.line}}
+          padding:16px 18px;animation:pop .2s ease;
+          border:1px solid ${PALETTE.ink};border-left:4px solid ${accent}}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
         .row{display:flex;gap:12px;align-items:flex-start}
-        .duckwrap{flex-shrink:0;width:44px;height:44px;border-radius:50%;
-          background:${PALETTE.duck};
+        .duckwrap{position:relative;flex-shrink:0;width:56px;height:56px;border-radius:50%;
+          background:${PALETTE.foam};border:1px solid ${PALETTE.ink};
           display:flex;align-items:center;justify-content:center}
-        .duckmark{width:28px;height:28px}
+        .duckmoji{font-size:34px;line-height:1}
+        .mood{position:absolute;top:-4px;right:-4px;width:20px;height:20px;border-radius:50%;
+          background:${accent};color:#fff;font-size:12px;font-weight:800;
+          display:flex;align-items:center;justify-content:center}
         .bubble{flex:1}
-        .quack{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${PALETTE.muted};font-weight:700}
-        .line{font-size:15px;line-height:1.45;color:${PALETTE.ink};margin:3px 0 8px;font-weight:500}
-        .chip{display:inline-block;background:${PALETTE.waterTint};border-radius:99px;
-          padding:4px 12px;font-size:12px;color:${PALETTE.waterDeep};margin-bottom:10px;font-weight:700}
+        .quack{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:${PALETTE.muted};font-weight:700}
+        .verdict{font-family:Georgia,"Times New Roman",serif;font-size:19px;font-weight:700;
+          letter-spacing:-.01em;color:${verdictTone};margin:2px 0 2px}
+        .line{font-family:Georgia,"Times New Roman",serif;font-size:15px;line-height:1.45;
+          color:${PALETTE.ink};margin:3px 0 8px;font-style:italic}
+        .chip{display:inline-block;border:1px solid ${PALETTE.waterDeep};
+          padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+          color:${PALETTE.waterDeep};margin-bottom:10px;font-weight:700}
         .btns{display:flex;gap:8px;justify-content:flex-end}
-        button{border-radius:6px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;
-          border:none;transition:all .2s}
-        button:hover{transform:scale(1.05)}
-        button:active{transform:scale(.97)}
-        button:focus-visible{outline:3px solid ${PALETTE.water};outline-offset:2px}
-        .skip{background:${accent};color:#fff}
-        .buy{background:${PALETTE.foam};color:${PALETTE.ink}}
-        .buy:hover{background:${PALETTE.line}}
-        .pond{margin-top:14px;height:10px;border-radius:6px;background:${PALETTE.line};overflow:hidden}
+        button{padding:9px 14px;font-size:10px;font-weight:700;cursor:pointer;
+          text-transform:uppercase;letter-spacing:.08em;border:1px solid ${PALETTE.ink};
+          transition:all .15s}
+        button:focus-visible{outline:2px solid ${PALETTE.water};outline-offset:2px}
+        .skip{background:${accent};border-color:${accent};color:#fff}
+        .buy{background:transparent;color:${PALETTE.ink}}
+        .buy:hover{background:${PALETTE.foam}}
+        .pond{margin-top:14px;height:10px;background:${PALETTE.page};
+          border:1px solid ${PALETTE.ink};overflow:hidden}
         .fill{height:100%;background:${PALETTE.water};
           width:${pondPct(pond.saved)}%;transition:width .3s ease}
         @media(prefers-reduced-motion:reduce){.card{animation:none}}
-        .saved{font-size:12px;color:${PALETTE.water};margin-top:5px;font-weight:600}
-        .ask{font-size:13px;font-weight:700;color:${PALETTE.ink};margin-bottom:8px}
-        .done{font-size:14px;color:${PALETTE.ink}}
-        .why{display:inline-block;margin-bottom:10px;font-size:12px;color:${PALETTE.muted};
-          text-decoration:underline}
+        .saved{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+          color:${PALETTE.water};margin-top:6px;font-weight:700}
+        .ask{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+          color:${PALETTE.muted};margin-bottom:8px}
+        .done{font-size:14px;color:${PALETTE.ink};font-style:normal}
         .facts{margin:0 0 10px;padding:0;list-style:none}
-        .facts li{font-size:13px;line-height:1.45;color:${PALETTE.muted};margin-bottom:4px}
-        .more{background:none;border:none;padding:0 0 10px;font-size:12px;color:${PALETTE.muted};
-          text-decoration:underline;cursor:pointer}
-        .more:hover{transform:none}
+        .facts li{font-family:Georgia,"Times New Roman",serif;font-style:italic;
+          font-size:13px;line-height:1.45;color:${PALETTE.muted};margin-bottom:4px}
+        .more,.why{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+          color:${PALETTE.waterDeep};text-decoration:underline;text-underline-offset:2px}
+        .more{display:block;background:none;border:none;padding:0 0 10px;cursor:pointer}
+        .why{display:inline-block;margin-bottom:10px}
         .nums{display:none;font-size:12px;color:${PALETTE.muted};margin-bottom:10px;line-height:1.6}
         .nums.open{display:block}
         .nums b{color:${PALETTE.ink}}
       </style>
       <div class="card" id="card">
         <div class="row">
-          <div class="duckwrap">${DUCK()}</div>
+          ${DUCK(state)}
           <div class="bubble">
-            <div class="quack">Quant Quack</div>
+            <div class="quack">Puddle</div>
+            ${advice ? `<div class="verdict">${esc(advice.verdict)}</div>` : ""}
             <div class="line">${esc(line)}</div>
             ${c ? `<span class="chip">${esc(c)}</span>` : ""}
             <ul class="facts">${plain.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
             <div class="ask">Still worth it?</div>
-            <button class="more" id="more">Show the numbers</button>
+            <button class="more" id="more">View numbers</button>
             <div class="nums" id="nums">
               ${money ? `Worth about <b>${esc(cash(money.resale))}</b> resold. ` : ""}
               At 5 wears <b>${esc(cash((money?.per_wear_at || {})[5] || 0))}</b> each,
@@ -186,7 +201,7 @@
       more.onclick = () => {
         const nums = shadow.getElementById("nums");
         const open = nums.classList.toggle("open");
-        more.textContent = open ? "Hide the numbers" : "Show the numbers";
+        more.textContent = open ? "Hide the numbers" : "View numbers";
       };
     }
 
