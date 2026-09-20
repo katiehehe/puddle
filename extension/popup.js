@@ -4,6 +4,8 @@ fetch("http://localhost:8000/pond")
   .catch(() => new Promise((res) => chrome.storage.local.get(["saved"], (d) => res({ saved: d.saved || 0 }))))
   .then((pond) => {
     document.getElementById("saved").textContent = "$" + pond.saved;
+    // Same $800 pond scale as the duck card and dashboard.
+    document.getElementById("fill").style.width = Math.min(100, (pond.saved / 800) * 100) + "%";
     if (pond.skips != null) {
       document.querySelector(".lbl").textContent = `saved across ${pond.skips} skipped buys`;
     }

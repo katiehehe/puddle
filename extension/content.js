@@ -2,9 +2,12 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
+  // docs/theme.md — keep in sync with web/src/styles.css.
   const PALETTE = {
     ink: "#16191c", muted: "#5d6771", line: "#e4e8ec",
-    duck: "#f2b431", bill: "#ef7a2c", water: "#2a7fb8", good: "#0d7a4a", bad: "#b3261e", surface: "#ffffff"
+    duck: "#f2b431", duckDeep: "#a97c12", bill: "#ef7a2c",
+    water: "#2a7fb8", waterDeep: "#1d5f8a", ripple: "#dceaf4", foam: "#f4fafd",
+    good: "#0d7a4a", bad: "#b3261e", surface: "#ffffff"
   };
 
   // One duck, four moods. Eyes and brow carry the whole expression.
@@ -112,14 +115,21 @@
         .bubble{flex:1}
         .quack{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${PALETTE.muted};font-weight:700}
         .line{font-size:15px;line-height:1.45;color:${PALETTE.ink};margin:3px 0 8px}
-        .chip{display:inline-block;background:#f3f6f8;border:1px solid ${PALETTE.line};border-radius:99px;
-          padding:2px 10px;font-size:12px;color:${PALETTE.muted};margin-bottom:10px}
+        .chip{display:inline-block;background:${PALETTE.foam};border:1px solid ${PALETTE.ripple};border-radius:99px;
+          padding:2px 10px;font-size:12px;color:${PALETTE.waterDeep};margin-bottom:10px;font-weight:600}
         .btns{display:flex;gap:8px;justify-content:flex-end}
         button{border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${PALETTE.line}}
+        button:focus-visible{outline:2px solid ${PALETTE.water};outline-offset:2px}
         .skip{background:${accent};color:#fff;border-color:${accent}}
         .buy{background:#fff;color:${PALETTE.ink}}
-        .pond{margin-top:12px;height:8px;border-radius:99px;background:#eaf3f8;overflow:hidden}
-        .fill{height:100%;background:${PALETTE.water};width:${pondPct(pond.saved)}%;transition:width .5s ease}
+        .pond{margin-top:12px;height:8px;border-radius:99px;background:${PALETTE.ripple};overflow:hidden}
+        .fill{height:100%;border-radius:99px;position:relative;background:linear-gradient(90deg,${PALETTE.waterDeep},${PALETTE.water});
+          width:${pondPct(pond.saved)}%;transition:width .5s ease}
+        .fill::after{content:"";position:absolute;inset:0;border-radius:99px;
+          background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);
+          background-size:60% 100%;background-repeat:no-repeat;animation:sheen 3.2s ease-in-out infinite}
+        @keyframes sheen{0%{background-position:-60% 0}60%,100%{background-position:160% 0}}
+        @media(prefers-reduced-motion:reduce){.card{animation:none}.fill::after{animation:none}}
         .saved{font-size:12px;color:${PALETTE.water};margin-top:5px;font-weight:600}
         .done{font-size:14px;color:${PALETTE.ink}}
       </style>
