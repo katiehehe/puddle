@@ -70,18 +70,6 @@ _MINE = re.compile(
     r"returned|saved|savings|pond|skip|skipped|donate)\b"
 )
 
-# What the question is *about* sits after one of these: a preposition, a
-# determiner, or a verb of owning and buying. "Spent on Bitcoin" and "own for
-# rain" are the same grammar, and only one of the two subjects exists here.
-_SUBJECT = re.compile(
-    r"\b(?:on|in|at|for|about|to|from|with|by|near|among|between|versus|than|like|"
-    r"into|onto|off|out|via|during|before|after|inside|outside|around|"
-    r"my|your|a|an|the|this|that|more|another|other|new|some|any|\w+ing|"
-    r"do|does|did|is|are|was|were|has|have|had|"
-    r"can|could|may|might|must|shall|should|will|would|"
-    r"buy|bought|own|owns|wear|spend|spent)\s+(?=(\w+))"
-)
-
 # Words that name nothing in particular: question words, verbs about shopping,
 # units of time. Anything outside these and the catalogue's own vocabulary is a
 # subject this brain has never heard of -- Tesla stock, Mars, Bitcoin -- and
@@ -114,7 +102,30 @@ _GENERIC = set(
     suggest suggests suggestion recommend recommends advice think thoughts
     dont doesnt didnt wont cant isnt arent wasnt havent hasnt shouldnt couldnt wouldnt
     whats thats theres heres lets youre theyre
-    size sizes fit fits color colors colour colours brand brands""".split()
+    size sizes fit fits color colors colour colours brand brands
+    someone somebody anyone anybody everyone nobody people person myself yourself
+    kindly maybe perhaps probably honestly roughly about approximately exactly quite
+    pretty bit rather fairly around nearly almost over under above below within
+    give given list listing name names describe description break down breakdown
+    compare comparison worth while going out formal casual work gym rain snow cold warm
+    hot summer winter spring autumn fall weather occasion occasions event events
+    wedding interview party date office travel trip holiday vacation
+    left over leftover unused unworn untouched forgotten hanging sitting
+    end up ends ended instead rather worthwhile sensible smart wise
+    honest truth truthfully seriously curious wondering wonder know knows
+    help helping useful usefully anyway besides currently presently
+    waste wasted wasting predict predicts prediction predictions predicted
+    balanced unbalanced worn wears worth accurate inaccurate mistake mistakes
+    regret regrets regretted flag flagged flags ledger history log logged""".split()
+)
+
+# Colours and fabrics a shopper may reasonably name. One the closet does not
+# stock is a real question with a zero answer, not a stranger.
+QUALITY_WORDS = set(
+    """black white grey gray navy blue red green yellow orange pink purple brown beige
+    cream ivory tan khaki olive burgundy maroon charcoal silver gold
+    denim leather suede cotton wool linen silk satin cashmere fleece nylon polyester
+    mesh sequin corduroy velvet knit tweed canvas rubber""".split()
 )
 
 
@@ -128,10 +139,22 @@ def _vocabulary() -> set[str]:
         words.update(word for phrase in group for word in phrase.split())
     for state in STATES:
         words.update(re.findall(r"\w+", state.label.lower()))
-    return words
+    words.update(word for group in KIND_WORDS.values() for word in group)
+    words.update(word for group in CATEGORY_WORDS.values() for word in group)
+    return words | QUALITY_WORDS
 
 
 _VOCABULARY = _vocabulary()
+
+
+def _stems(word: str) -> set[str]:
+    """The word as it might be listed: dresses -> dress, wasted -> waste."""
+    forms = {word}
+    for ending, stem in (("es", 2), ("s", 1), ("ing", 3), ("ed", 2), ("ly", 2)):
+        if word.endswith(ending) and len(word) - stem >= 3:
+            forms.add(word[:-stem])
+            forms.add(word[:-stem] + "e")
+    return forms
 
 
 def _stranger(word: str) -> bool:
@@ -139,18 +162,17 @@ def _stranger(word: str) -> bool:
     plain = word.replace("'", "").lower()
     if len(plain) <= 2 or plain.isdigit():
         return False
-    return not {plain, plain.rstrip("s")} & (_GENERIC | _VOCABULARY)
+    return not _stems(plain) & (_GENERIC | _VOCABULARY)
 
 
-def _known(question: str, text: str) -> bool:
-    """False as soon as the question names something the closet has never seen."""
-    if any(_stranger(word) for word in _SUBJECT.findall(text)):
-        return False
-    # A capital letter mid-sentence is a name, wherever it sits in the grammar.
-    words = re.findall(r"[A-Za-z']+", question)
-    if question.isupper():
-        return True
-    return not any(word[:1].isupper() and _stranger(word) for word in words[1:])
+def _known(text: str) -> bool:
+    """False as soon as the question names something the closet has never seen.
+
+    Grammar was the wrong place to look for this: Gucci sits in front of a noun,
+    Rihanna behind one, Paris after a comma, and none of them are answerable.
+    Every word has to be one this closet or plain English can account for.
+    """
+    return not any(_stranger(word) for word in re.findall(r"[A-Za-z']+", text))
 
 
 def _plural(subject: str, qualities: list[str]) -> str:
@@ -207,14 +229,20 @@ class Wardrobe:
             return None
         subject, items, _ = found
         qualities = [q for q in self._qualities(text) if q not in subject.split()]
+        if len(qualities) > 1 and re.search(r"\bor\b", text):
+            # "black or white tops" asks for both rails, not their intersection.
+            items = [i for i in items if {i.color, i.material} & set(qualities)]
+            return subject, [" or ".join(qualities)], items
         for quality in qualities:
             items = [i for i in items if quality in (i.color, i.material)]
         return subject, qualities, items
 
     def _qualities(self, text: str) -> list[str]:
-        """Colours and fabrics the catalogue knows, as named in the question."""
+        """Colours and fabrics named in the question, stocked here or not."""
         known = {i.color for i in self.items} | {i.material for i in self.items}
-        return [q for q in sorted(known) if q and re.search(rf"\b{re.escape(q)}\b", text)]
+        spoken = {q for q in known if q} | QUALITY_WORDS
+        found = [q for q in sorted(spoken) if re.search(rf"\b{re.escape(q)}\b", text)]
+        return [q for q in found if not any(q != other and q in other.split() for other in found)]
 
     def names_a_rail(self, text: str) -> bool:
         """True when the question names a kind or a rail, not just a stray word.
@@ -364,7 +392,11 @@ def _unworn(text: str, w: Wardrobe):
 
 
 def _value(text: str, w: Wardrobe):
-    if not re.search(r"\b(cost per wear|per wear|best buy|best value|worst value|worth it)\b", text) or not re.search(
+    if not re.search(
+        r"\b(cost per wear|per wear|best buy|best value|worst value|worth it|"
+        r"best purchase|worst purchase|best buys)\b",
+        text,
+    ) or not re.search(
         r"\b(my|i|mine|closet|wardrobe|own)\b", text
     ):
         return None
@@ -557,7 +589,7 @@ EXAMPLES = [
 def answer(question: str, closet: Closet, miner: Miner, counts: dict[str, int]) -> dict | None:
     """The best-supported wardrobe answer, or None if nothing here fits."""
     text = re.sub(r"[^\w\s']", " ", question.lower()).strip()
-    if not text or not _MINE.search(text) or not _known(question, text):
+    if not text or not _MINE.search(text) or not _known(text):
         return None
     wardrobe = Wardrobe(closet, miner, counts)
     for intent, handler in ANSWERS:

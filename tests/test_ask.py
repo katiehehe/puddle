@@ -148,8 +148,21 @@ def test_a_stranger_is_refused_wherever_the_grammar_puts_them():
         "how many crewnecks would beyonce own?",
         "how many jackets does Elon Musk own?",
         "What did I spend at Zara?",
+        "how many gucci jackets do i own?",
+        "can you count crewnecks rihanna owns?",
+        "what do i own for rain, paris?",
+        "how many balenciaga shoes do i own?",
     ):
         assert ask(question)["intent"] == "unknown", question
+
+
+def test_a_colour_the_closet_lacks_is_a_question_not_a_stranger():
+    assert ask("How many suede boots do I own?")["facts"]["count"] == 0
+    assert ask("How many navy jackets do I own?")["facts"]["count"] == 0
+    both = ask("How many black or white tops do I own?")
+    assert both["facts"]["count"] == 6
+    assert both["answer"].startswith("6 black or white tops")
+    assert ask("Could someone count my crewnecks?")["intent"] == "count"
 
 
 def test_item_questions_still_go_to_the_checkout_handler():
