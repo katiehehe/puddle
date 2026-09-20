@@ -58,7 +58,7 @@ KIND_GROUPS = {
 
 _QUANTITY = re.compile(
     r"\b(how many|how much|do i own|do i have|what do i own|what do i have|own any|have any|"
-    r"count|tally|number of)\b"
+    r"count|recount|tally|enumerate|number of)\b"
 )
 
 # What the question is *about* sits after one of these: a preposition, a
@@ -69,6 +69,7 @@ _SUBJECT = re.compile(
     r"on|in|at|for|about|from|with|by|near|among|between|versus|than|like|"
     r"into|onto|off|via|during|before|after|inside|outside|around|"
     r"my|your|a|an|the|this|that|more|another|other|new|some|any|\w+ing|"
+    r"say|namely|specifically|such as|including|eg|ie|"
     r"do|does|did|is|are|was|were|has|have|had|"
     r"can|could|may|might|must|shall|should|will|would|"
     r"buy|bought|own|owns|wear|spend|spent)\s+(?=(\w+))"
@@ -113,6 +114,9 @@ _GENERIC = set(
     one two three four five six seven eight nine ten dozen pair pairs half twice
     currently usually normally mostly suitable appropriate sensible useful
     suggest suggests suggestion recommend recommends advice think thoughts tally tallies
+    enumerate enumerated recount recounts present anymore forked fork excluding excepting
+    except besides apart aside minus collecting collect collects gathering gather dust
+    barely rarely seldom hardly sitting unused spare
     dont doesnt didnt wont cant isnt arent wasnt havent hasnt shouldnt couldnt wouldnt
     whats thats theres heres lets youre theyre
     size sizes fit fits color colors colour colours brand brands
@@ -263,20 +267,35 @@ class Wardrobe:
             return None
         subject, items, _ = found
         qualities = [q for q in self._qualities(text) if q not in subject.split()]
-        spoken = qualities
+        refused = [q for q in qualities if self._denied(text, q)]
+        wanted = [q for q in qualities if q not in refused]
+        spoken: list[str] = []
         if re.search(r"\bor\b", text):
             # "black or white cotton tops" is two colours and one fabric: an
             # "or" widens within a kind of quality, never across two of them.
             for group, field in ((COLOUR_WORDS, "color"), (FABRIC_WORDS, "material")):
-                said = [q for q in qualities if q in group]
+                said = [q for q in wanted if q in group]
                 if len(said) < 2:
                     continue
                 items = [i for i in items if getattr(i, field) in said]
-                qualities = [q for q in qualities if q not in said]
-                spoken = [" or ".join(said), *qualities]
-        for quality in qualities:
+                wanted = [q for q in wanted if q not in said]
+                spoken.append(" or ".join(said))
+        for quality in wanted:
             items = [i for i in items if quality in (i.color, i.material)]
-        return subject, spoken, items
+        for quality in refused:
+            items = [i for i in items if quality not in (i.color, i.material)]
+        return subject, spoken + wanted + [f"non-{q}" for q in refused], items
+
+    @staticmethod
+    def _denied(text: str, quality: str) -> bool:
+        """"Tops that are not black" asks for the rest of the rail."""
+        said = [q for q in (quality, *SPELLINGS) if SPELLINGS.get(q, q) == quality]
+        return any(
+            re.search(rf"\b(not|non|without|except|excepting|excluding|besides|apart from|"
+                      rf"other than|isn't|aren't|don't|dont|doesn't|doesnt)\b[\w\s]{{0,12}}?"
+                      rf"\b{re.escape(q)}\b", text)
+            for q in said
+        )
 
     def _qualities(self, text: str) -> list[str]:
         """Colours and fabrics named in the question, stocked here or not."""
@@ -420,9 +439,10 @@ def _duplicates(text: str, w: Wardrobe):
 
 def _unworn(text: str, w: Wardrobe):
     if not re.search(
-        r"\b(never worn|unworn|don't wear|dont wear|never wear|least worn|worn the least|"
-        r"wearing the least|wear the least|haven't i worn|havent i worn|haven't worn|"
-        r"havent worn|not worn|gathering dust|collecting dust|donate|get rid|dead)\b",
+        r"\b(never worn|unworn|never wear|least worn|worn the least|wearing the least|"
+        r"wear the least|gathering dust|collecting dust|donate|get rid|dead)\b|"
+        r"\b(don't|dont|doesn't|doesnt|haven't|havent|hasn't|hasnt|not|barely|rarely|seldom)\b"
+        r"[\w\s']{0,12}?\b(worn|wear|wearing)\b",
         text,
     ):
         return None
@@ -645,9 +665,13 @@ EXAMPLES = [
 def answer(question: str, closet: Closet, miner: Miner, counts: dict[str, int]) -> dict | None:
     """The best-supported wardrobe answer, or None if nothing here fits."""
     text = re.sub(r"[^\w\s']", " ", question.lower()).strip()
-    if not text or not _MINE.search(text) or not _known(text):
+    if not text or not _known(text):
         return None
     wardrobe = Wardrobe(closet, miner, counts)
+    # "How many tops are not black" leaves the owner unsaid; counting a rail of
+    # this closet is about this closet, and a stranger in it was refused above.
+    if not _MINE.search(text) and not _counting(text, wardrobe):
+        return None
     for intent, handler in ANSWERS:
         found = handler(text, wardrobe)
         if found is not None:
