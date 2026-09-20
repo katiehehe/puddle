@@ -547,6 +547,91 @@ class PurchaseEdit(BaseModel):
     archive_reason: str | None = None
 
 
+class CartRequest(BaseModel):
+    title: str
+    price: float = 0.0
+    brand: str | None = None
+    category: str | None = None
+    size: str | None = None
+    color: str | None = None
+    source_url: str | None = None
+    notes: str | None = None
+
+
+def _review(item: Item, closet, miner, counts, now, brand, brands, coverage, usage) -> dict:
+    """The duck's read on a staged thing: the verdict plus the reasons."""
+    result = recommend(item, closet, miner, now)
+    shopping = _shopping_context(item, result["portfolio"], counts)
+    adv = advice.advise(
+        item,
+        result["portfolio"],
+        desk.quote(item, closet, miner, counts, now),
+        shopping,
+        closet.items,
+        counts,
+        coverage,
+        usage,
+        brand=brand,
+        brands=brands,
+    )
+    return {
+        "decision": result["decision"],
+        "verdict": adv["verdict"],
+        "stance": adv["stance"],
+        "subhead": adv["subhead"],
+        "reasons": [r["text"] for r in adv["reasons"]][:2],
+    }
+
+
+@app.get("/cart")
+def cart_items() -> dict:
+    """The staging rail: things you're thinking about, each already reviewed."""
+    closet, miner, counts = _context()
+    now = datetime.now()
+    coverage = occasions.coverage(closet)
+    usage = occasions.usage(_wear_events(closet.items))
+    brands = advice.brand_stats(closet_store.rows(), counts)
+    return {
+        "items": [
+            {
+                **row,
+                "review": _review(
+                    closet_store.item(row), closet, miner, counts, now,
+                    brand=row.get("brand") or "", brands=brands,
+                    coverage=coverage, usage=usage,
+                ),
+            }
+            for row in closet_store.staged()
+        ]
+    }
+
+
+@app.post("/cart")
+def stage_item(req: CartRequest) -> dict:
+    """Park something you're considering. The duck reviews it on the rail."""
+    try:
+        return {"item": closet_store.stage(req.model_dump())}
+    except closet_store.Unknown as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.delete("/cart/{item_id}")
+def unstage_item(item_id: str) -> dict:
+    if not closet_store.unstage(item_id):
+        raise HTTPException(404, "not on the rail")
+    return {"removed": item_id}
+
+
+@app.post("/cart/{item_id}/buy")
+def buy_staged(item_id: str) -> dict:
+    """It earned the purchase: move it off the rail and into the closet."""
+    entry = closet_store.promote(item_id)
+    if entry is None:
+        raise HTTPException(404, "not on the rail")
+    counts = closet_store.merge_counts(history.wear_counts())
+    return {"purchase": _purchase_row(entry, counts)}
+
+
 @app.get("/purchases")
 def list_purchases() -> dict:
     counts = closet_store.merge_counts(history.wear_counts())

@@ -60,6 +60,8 @@ def _schema(db) -> None:
     db.executescript("""
         CREATE TABLE IF NOT EXISTS wardrobe (
             id TEXT PRIMARY KEY, created_at TEXT NOT NULL, data TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS staging (
+            id TEXT PRIMARY KEY, created_at TEXT NOT NULL, data TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS wear_log (
             id TEXT PRIMARY KEY, item_id TEXT NOT NULL, worn_at TEXT NOT NULL);
         CREATE INDEX IF NOT EXISTS wear_log_item ON wear_log(item_id);
@@ -137,6 +139,86 @@ def add(row: dict) -> dict:
     with connect() as db:
         _schema(db)
         db.execute("INSERT INTO wardrobe VALUES (?, ?, ?)", (entry["id"], entry["created_at"], json.dumps(entry)))
+    return entry
+
+
+def stage(row: dict) -> dict:
+    """Park a thing you're thinking about buying. Same naming rules as add():
+    the duck can only review garments it recognises."""
+    title = str(row.get("title", "")).strip()
+    if not title:
+        raise Unknown("Give it a name first.")
+    attrs = infer(title, row.get("category") or None)
+    if attrs is None:
+        raise Unknown(
+            f"I can't tell what \"{title}\" is. Try something like \"black chelsea boots\" "
+            "or \"grey wool sweater\", or pick a category."
+        )
+    price = float(row.get("price") or 0)
+    if price < 0:
+        raise Unknown("Price can't be negative.")
+
+    entry = {
+        "id": "cart_u" + uuid.uuid4().hex[:8],
+        "title": title,
+        "price": round(price, 2),
+        "brand": (row.get("brand") or brand_from_url(row.get("source_url") or "")).strip(),
+        "category": row.get("category") or attrs["category"],
+        "kind": attrs["kind"],
+        "formality": attrs["formality"],
+        "warmth": attrs["warmth"],
+        "rain_ok": attrs["rain_ok"],
+        "size": (str(row["size"]).strip() if row.get("size") else None),
+        "color": (row.get("color") or "").strip().lower(),
+        "source_url": (row.get("source_url") or "").strip(),
+        "photo": row.get("photo") or "",
+        "notes": (row.get("notes") or "").strip(),
+        "staged_at": _now(),
+        "created_at": _now(),
+    }
+    with connect() as db:
+        _schema(db)
+        db.execute("INSERT INTO staging VALUES (?, ?, ?)", (entry["id"], entry["created_at"], json.dumps(entry)))
+    return entry
+
+
+def staged() -> list[dict]:
+    """Things parked for a decision, newest first."""
+    with connect() as db:
+        _schema(db)
+        return [json.loads(r["data"]) for r in db.execute("SELECT data FROM staging ORDER BY created_at DESC")]
+
+
+def unstage(item_id: str) -> bool:
+    """Take it off the rail entirely."""
+    with connect() as db:
+        _schema(db)
+        cur = db.execute("DELETE FROM staging WHERE id=?", (item_id,))
+    return cur.rowcount > 0
+
+
+def promote(item_id: str) -> dict | None:
+    """Staged to owned: it got bought, so it joins the wardrobe as a purchase."""
+    with connect() as db:
+        _schema(db)
+        db.execute("BEGIN IMMEDIATE")
+        found = db.execute("SELECT data FROM staging WHERE id=?", (item_id,)).fetchone()
+        if found is None:
+            db.execute("ROLLBACK")
+            return None
+        row = json.loads(found["data"])
+        entry = {
+            **row,
+            "bought_at": _when(None),
+            "resale_estimate": None,
+            "seed_wears": 0,
+            "in_closet": True,
+            "archived": False,
+            "archive_reason": None,
+        }
+        db.execute("DELETE FROM staging WHERE id=?", (item_id,))
+        db.execute("INSERT INTO wardrobe VALUES (?, ?, ?)", (entry["id"], _now(), json.dumps(entry)))
+        db.execute("COMMIT")
     return entry
 
 

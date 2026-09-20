@@ -287,6 +287,60 @@ export async function logWears(itemIds: string[]): Promise<Record<string, number
   return r.wears;
 }
 
+/* The staging rail: things you're thinking about, reviewed but not owned. */
+
+export type StagedReview = {
+  decision: string;
+  verdict: string;
+  stance: "for" | "think" | "against";
+  subhead: string;
+  reasons: string[];
+};
+
+export type StagedItem = {
+  id: string;
+  title: string;
+  price: number;
+  category: string;
+  kind: string;
+  brand: string;
+  size: string | null;
+  color: string;
+  source_url: string;
+  notes: string;
+  staged_at: string;
+  review: StagedReview;
+};
+
+export type NewStaged = {
+  title: string;
+  price: number;
+  brand?: string;
+  category?: string;
+  size?: string;
+  color?: string;
+  source_url?: string;
+  notes?: string;
+};
+
+export async function getCart(): Promise<{ items: StagedItem[] }> {
+  return call("/cart");
+}
+
+export async function stageItem(row: NewStaged): Promise<StagedItem> {
+  const r = await send<{ item: StagedItem }>("/cart", "POST", row);
+  return r.item;
+}
+
+export async function unstageItem(id: string): Promise<void> {
+  await send(`/cart/${encodeURIComponent(id)}`, "DELETE");
+}
+
+export async function buyStaged(id: string): Promise<PurchaseRow> {
+  const r = await send<{ purchase: PurchaseRow }>(`/cart/${encodeURIComponent(id)}/buy`, "POST");
+  return r.purchase;
+}
+
 export type Guess = { recognised: boolean; brand: string; category?: string; kind?: string };
 
 /** What we can work out from the name and the shop, so nobody types it twice. */
