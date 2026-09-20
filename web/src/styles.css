@@ -37,7 +37,23 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   padding: 22px 0; position: sticky; top: 0; z-index: 20;
   background: linear-gradient(var(--paper) 72%, rgba(251, 249, 244, 0));
 }
-.brand { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 44px; letter-spacing: -0.035em; }
+.brand { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 44px; letter-spacing: -0.035em; position: relative; isolation: isolate; }
+/* Water rising up the wordmark and the duck, wave and all. */
+.brand::after {
+  content: ""; position: absolute; left: -10px; right: -10px; bottom: -6px; height: 0; z-index: -1;
+  pointer-events: none; overflow: hidden;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='16' viewBox='0 0 40 16'%3E%3Cpath d='M0 16V9C5 2 15 2 20 9s15 7 20 0v7z' fill='%235fc4f5'/%3E%3C/svg%3E")
+      repeat-x 0 0 / 52px 20px,
+    linear-gradient(#5fc4f5, #2e9fe0) no-repeat 0 18px / 100% calc(100% - 18px);
+  transition: height 1.2s cubic-bezier(.3, .7, .3, 1);
+}
+.brand:hover::after { height: 92%; animation: brandwave 2.2s linear infinite; }
+
+@keyframes brandwave {
+  from { background-position: 0 0, 0 18px; }
+  to { background-position: 52px 0, 0 18px; }
+}
 .navlinks { display: flex; align-items: center; gap: 22px; font-size: 15px; color: var(--muted); }
 .navlinks a:hover { color: var(--ink); }
 .live {
@@ -71,45 +87,32 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .hero > div > p { font-size: 19px; color: var(--muted); margin: 0 0 28px; max-width: 30em; }
 .herobtns { display: flex; gap: 12px; flex-wrap: wrap; }
 
-/* --- the checkout mock -------------------------------------------------- */
+/* --- the live demo frame ------------------------------------------------- */
 .mock {
   background: #fff; border-radius: 18px; box-shadow: var(--shadow);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line); overflow: hidden;
 }
 .mockbar {
   display: flex; align-items: center; gap: 6px; padding: 12px 14px;
-  background: #f4f1ea; border-bottom: 1px solid var(--line); border-radius: 17px 17px 0 0;
+  background: #f4f1ea; border-bottom: 1px solid var(--line);
 }
 .mockbar > span { width: 10px; height: 10px; border-radius: 99px; background: #d9d4c9; }
 .mockurl {
   margin-left: 10px; background: #fff; border-radius: 99px; padding: 4px 14px;
   font-size: 12px; color: var(--muted); flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.mockbody { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 26px 26px 34px; }
-.mockshot { background: #f4f1ea; border-radius: 12px; display: grid; place-items: center; min-height: 190px; }
-.mockbrand { font-size: 11px; letter-spacing: .22em; color: var(--muted); margin-bottom: 10px; }
-.mockinfo h4 { font-size: 20px; margin-bottom: 8px; }
-.mockprice { font-size: 24px; font-weight: 800; margin-bottom: 16px; }
-.mockbtn {
-  background: #eceadf; color: #9a968b; border-radius: 10px; padding: 11px 0;
-  text-align: center; font-weight: 700; font-size: 14px;
+.fsbtn {
+  margin-left: 8px; font: inherit; font-size: 12px; font-weight: 700;
+  color: var(--muted); background: #fff; border: 1px solid var(--line);
+  border-radius: 99px; padding: 4px 12px; cursor: pointer; white-space: nowrap;
 }
-.duckcard {
-  grid-column: 1 / -1; justify-self: end; width: min(330px, 100%);
-  margin: 6px -8px -46px 0;
-  background: var(--ink); color: #fff; border-radius: 16px; padding: 16px 18px;
-  box-shadow: 0 18px 40px rgba(29, 32, 38, .28);
-}
-.duckcard p { margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: #e7e6e2; }
-.duckcard b { color: #fff; }
+.fsbtn:hover { color: var(--ink); border-color: #d5d0c4; }
+.demoframe { display: block; width: 100%; height: 620px; border: 0; }
+.mock:fullscreen { border-radius: 0; border: 0; display: flex; flex-direction: column; }
+.mock:fullscreen .mockbar { flex: 0 0 auto; }
+.mock:fullscreen .demoframe { flex: 1; height: auto; }
 .duckhead { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
-.duckask { font-weight: 700; margin: 12px 0 10px; }
-.duckbtns { display: flex; gap: 8px; }
-.db {
-  flex: 1; text-align: center; font-size: 13px; font-weight: 700; border-radius: 9px;
-  padding: 8px 0; background: var(--duck); color: var(--ink); white-space: nowrap;
-}
-.db.alt { background: #33373f; color: #cfcec9; }
 
 /* --- home sections ------------------------------------------------------ */
 .steps, .tells, .install { padding: 64px 0 0; }
@@ -468,6 +471,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .askpanel .askrow button { flex: 0 0 auto; padding: 11px 14px; }
 .askmic { background: var(--duck) !important; color: var(--ink) !important; }
 .askmic.on { background: var(--bad) !important; color: #fff !important; }
+.askfoot { display: flex; gap: 16px; align-items: center; }
+.askmute[aria-pressed="true"] { color: var(--ink); font-weight: 700; }
 .askmute {
   align-self: flex-start; font: inherit; font-size: 13px; cursor: pointer;
   border: 0; background: none; color: var(--muted); padding: 0; text-decoration: underline;
@@ -477,6 +482,5 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   .hero, .stepgrid, .tellgrid, .statrow, .valuetop, .notes, .two, .details { grid-template-columns: 1fr; }
   .hero h1 { font-size: 46px; }
   .dashhead h1 { font-size: 36px; }
-  .duckcard { width: auto; margin: 6px 0 0; }
   .buy { grid-template-columns: 52px 1fr 80px 80px; }
 }

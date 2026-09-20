@@ -35,7 +35,13 @@
   .puddlebar { background:linear-gradient(#fbf9f4 72%, rgba(251,249,244,0)); font-family:Outfit,ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif; position:sticky; top:0; z-index:20; }
   .puddlebar .inner { max-width:1120px; margin:0 auto; padding:0 24px; display:flex; align-items:center; justify-content:space-between; }
   .puddlebar .inner { padding-top:22px; padding-bottom:22px; }
-  .puddlebar .pb { display:flex; align-items:center; gap:14px; font-weight:800; font-size:44px; letter-spacing:-0.035em; color:#1d2026; text-decoration:none; }
+  .puddlebar .pb { display:flex; align-items:center; gap:14px; font-weight:800; font-size:44px; letter-spacing:-0.035em; color:#1d2026; text-decoration:none; position:relative; isolation:isolate; }
+  .puddlebar .pb::after { content:""; position:absolute; left:-10px; right:-10px; bottom:-6px; height:0; z-index:-1; pointer-events:none; overflow:hidden;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='16' viewBox='0 0 40 16'%3E%3Cpath d='M0 16V9C5 2 15 2 20 9s15 7 20 0v7z' fill='%235fc4f5'/%3E%3C/svg%3E") repeat-x 0 0 / 52px 20px,
+      linear-gradient(#5fc4f5, #2e9fe0) no-repeat 0 18px / 100% calc(100% - 18px);
+    transition:height 1.2s cubic-bezier(.3,.7,.3,1); }
+  .puddlebar .pb:hover::after { height:92%; animation:pbwave 2.2s linear infinite; }
+  @keyframes pbwave { from { background-position:0 0,0 18px; } to { background-position:52px 0,0 18px; } }
   .puddlebar .pl { display:flex; align-items:center; gap:22px; font-size:15px; }
   .puddlebar .pl a { color:#6b7280; text-decoration:none; }
   .puddlebar .pl a:hover { color:#1d2026; }
@@ -68,7 +74,6 @@
         <span>Puddle</span>
       </a>
       <div class="pl">
-        <a href="/demo">Live demo</a>
         <a href="/dashboard/">My closet</a>
         <a class="pc" href="/#/home?install">Add to Chrome</a>
       </div>

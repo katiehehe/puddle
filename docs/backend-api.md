@@ -66,7 +66,8 @@ Preferred endpoint: `POST /actions`.
 
 `prediction_id` is optional. Use `item` instead of `item_id` to preserve a size
 override or custom product. Reuse the same event ID and payload when retrying.
-`action: "buy"` invokes checkout; it is not a way to bypass payment.
+Only `action: "skip"` is accepted. Purchases require a signed payment intent
+and explicit confirmation.
 
 Response shape:
 
@@ -94,11 +95,10 @@ prediction for another item/size returns **409**. Invalid action/hour/item value
 return **422**. Buying or skipping an already purchased variant returns **409**
 (except an identical replay of the original event).
 
-Compatibility routes remain: `POST /skip` and `POST /checkout` accept `item_id`
-or `item`, optional `prediction_id`, and optional `event_id`. When event_id is
-omitted, a stable legacy key prevents repeated clicks from recording twice.
-New clients should always generate an event ID. `GET /actions` returns the event
-history and current pond. `GET /pond` returns `{saved, skips}` directly.
+The compatibility route `POST /skip` accepts `item_id` or `item`, optional
+`prediction_id`, and optional `event_id`. `POST /checkout` returns **410** so an
+old client cannot bypass review. `GET /actions` returns the event history and
+current pond. `GET /pond` returns `{saved, skips}` directly.
 
 ## Savings semantics and persistence
 
@@ -122,18 +122,35 @@ actions/holdings, not assumed to be confirmed non-returns in the history miner.
 
 ## Payment behavior
 
-`POST /checkout` retains top-level `approved`, `mode`, `amount`, `token`,
-`network`, `reason`, and `message`, and adds `status`, `event`, `duplicate`, `pond`.
+New clients use a two-step checkout:
+
+1. `POST /payment-intents` with `item_id` or `item`, optional
+   `prediction_id`, and a `budget_limit` up to $500. It returns a signed,
+   ten-minute intent, provider readiness, and whether confirmation is enabled.
+2. `POST /payment-intents/confirm` with `{token, confirmed: true}`. The server
+   verifies the signature, expiry, item, amount, budget, and provider mode
+   before dispatching payment. Replaying the same signed intent returns the
+   original result without paying twice.
+
+The intent is a consent and integrity boundary, not a payment credential. Card
+details and provider secrets never enter the extension. Set
+`PAYMENT_INTENT_SECRET` to a long random value in deployed environments. Local
+development uses a process-scoped secret when it is omitted.
+
+`POST /payment-intents/confirm` returns top-level `approved`, `mode`, `amount`,
+`token`, `network`, `reason`, and `message`, plus `status`, `event`, `duplicate`, `pond`, and `receipt`.
 `status` is `approved`, `declined`, or `error`. Clients must check status before
 showing success. Approved mock payments are explicitly labeled `mode: mock` and
 update the demo wardrobe. Failed attempts are recorded as `payment_failed`.
 An identical failed retry returns the same result; a deliberate new attempt
 needs a new event ID.
 
-Mock is the default. The inherited Visa sandbox adapter remains unverified with
-real credentials. It now fails closed: network errors cannot become successful
-mock payments, and an HTTP success alone cannot count as approval. Its response
-mapping and request contract must be verified before using it for sponsor demos.
+Mock is the default when no Visa variables are present. A partial Visa setup is
+reported as `visa_incomplete` and cannot silently fall back to a successful mock
+payment. The Visa sandbox adapter remains unverified with real credentials. It
+fails closed: network errors cannot become successful mock payments, and an HTTP
+success alone cannot count as approval. Its response mapping and request contract
+must be verified before using it for sponsor demos.
 Local retries are deduplicated, but upstream payment idempotency/reconciliation
 is still required to cover a crash after provider approval and before DB commit.
 

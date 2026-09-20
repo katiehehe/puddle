@@ -156,6 +156,8 @@ def test_a_stranger_is_refused_wherever_the_grammar_puts_them():
         "what do i own for rain when tokyo floods?",
         "how many jackets do i own if oprah asks?",
         "what is my best purchase unless tesla crashes?",
+        "how many jackets do i own, say, chanel?",
+        "how many boots do i own, namely, timberland?",
     ):
         assert ask(question)["intent"] == "unknown", question
 
@@ -172,6 +174,15 @@ def test_a_colour_the_closet_lacks_is_a_question_not_a_stranger():
     assert mixed["facts"]["count"] == 0
     fabrics = ask("How many cotton or wool crewnecks do I own?")
     assert fabrics["facts"]["count"] == 3
+    two = ask("How many grey or charcoal cotton or wool crewnecks do I own?")
+    assert two["answer"].startswith("3 charcoal or grey cotton or wool crewnecks")
+
+
+def test_a_quality_the_question_rules_out_narrows_the_rail():
+    assert ask("How many jackets do I own excluding denim?")["facts"]["count"] == 2
+    rest = ask("How many tops are not black?")
+    assert rest["intent"] == "count"
+    assert rest["answer"].startswith("8 non-black tops")
 
 
 def test_plain_english_around_a_wardrobe_question_is_not_a_stranger():
@@ -188,6 +199,14 @@ def test_plain_english_around_a_wardrobe_question_is_not_a_stranger():
         "Which of my clothes haven't I worn?": "unworn",
         "Can you tally my jackets?": "count",
         "How many jeans do I actually have right now?": "count",
+        "Can you enumerate my jackets?": "count",
+        "Could you recount my jackets please?": "count",
+        "How many jeans have I got at present?": "count",
+        "How much have I forked out on clothes?": "spend",
+        "What clothes are collecting dust?": "unworn",
+        "Which items have not been worn?": "unworn",
+        "Which clothes am I not wearing?": "unworn",
+        "What don't I wear anymore?": "unworn",
     }
     for question, intent in answerable.items():
         assert ask(question)["intent"] == intent, question
@@ -207,3 +226,37 @@ def test_checkout_falls_back_to_wardrobe_answers():
     assert reply["intent"] == "unworn"
     assert reply["scope"] == "wardrobe"
     assert "never worn" in reply["answer"]
+
+
+def own(title, brand, **extra):
+    reply = client.post("/purchases", json={"title": title, "brand": brand, "price": 60, **extra})
+    assert reply.status_code == 200, reply.text
+    return reply.json()["purchase"]
+
+
+def test_a_brand_counts_only_when_it_hangs_in_this_closet():
+    """Gap is coverage vocabulary until the shopper owns something from Gap."""
+    plain = ask("How many Gap tops do I own?")
+    assert plain["intent"] == "count"
+    assert plain["facts"]["count"] == ask("How many tops do I own?")["facts"]["count"]
+
+    own("Grey wool sweater", "Gap")
+    own("Black chelsea boots", "Gap")
+    own("Navy wool sweater", "Uniqlo")
+
+    counted = ask("How many Gap tops do I own?")
+    assert counted["intent"] == "count"
+    assert counted["facts"]["count"] == 1
+    assert "Grey wool sweater" in counted["answer"]
+
+    everything = ask("How many Gap things do I own?")
+    assert everything["facts"]["count"] == 2
+    assert "Gap pieces" in everything["answer"]
+
+    assert ask("How many Uniqlo tops do I own?")["facts"]["count"] == 1
+    assert "What are my gaps?" not in everything["answer"]
+
+
+def test_a_brand_nobody_here_wears_is_still_a_stranger():
+    own("Grey wool sweater", "Gap")
+    assert ask("How many Balenciaga tops do I own?")["intent"] == "unknown"

@@ -21,7 +21,7 @@ def _advice(item_id, hour=14):
 
 def test_the_verdict_is_one_of_three_sentences_a_person_would_say():
     verdicts = {_advice(i)["verdict"] for i in ("sku_991", "sku_992", "sku_999")}
-    assert verdicts <= {"Probably worth it", "Maybe — think about it", "Probably skip"}
+    assert verdicts <= {"Probably worth it", "Maybe, think about it", "Probably skip"}
 
 
 def test_a_fifth_crewneck_is_argued_against_by_the_ones_already_owned():

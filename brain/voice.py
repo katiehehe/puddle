@@ -54,6 +54,8 @@ def status():
 
 class SpeechRequest(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
+    # The duck voice is played back fast, so it is rendered slow and warm.
+    ducky: bool = False
 
 
 @router.post("/speak")
@@ -73,7 +75,11 @@ async def speak(req: SpeechRequest):
                 json={
                     "text": text,
                     "model_id": ELEVENLABS_MODEL,
-                    "voice_settings": {"stability": 0.45, "similarity_boost": 0.75, "speed": 1.05},
+                    "voice_settings": (
+                        {"stability": 0.75, "similarity_boost": 0.95, "style": 0.2, "speed": 0.72}
+                        if req.ducky
+                        else {"stability": 0.45, "similarity_boost": 0.75, "speed": 1.05}
+                    ),
                 },
             )
         if response.status_code in (401, 403):
@@ -147,6 +153,7 @@ async def transcribe(request: Request):
 
 class VoiceQuestion(BaseModel):
     transcript: str = Field(min_length=1, max_length=1000)
+    scope: str | None = None
     item_id: str | None = None
     item: dict | None = None
     now_hour: int | None = Field(default=None, ge=0, le=23)
@@ -183,6 +190,22 @@ def respond(req: VoiceQuestion):
 
     if not req.transcript.strip():
         raise HTTPException(422, "Please ask a question.")
+    if req.scope == "wardrobe":
+        # A wardrobe question is answered from the closet itself, so a subject
+        # the closet says nothing about is refused rather than summarised.
+        closet, miner, counts = _context()
+        found = ask.answer(req.transcript, closet, miner, counts)
+        line = (
+            found["answer"]
+            if found
+            else "I can only answer from your own history. Try: " + " ".join(ask.EXAMPLES[:3])
+        )
+        return {
+            "answer": line.replace(" \u2014 ", ", "),
+            "intent": found["intent"] if found else "unknown",
+            "pending_action": None,
+            "scope": "wardrobe",
+        }
     item = _resolve(req)
     closet, miner, counts = _context()
     now = datetime.now()

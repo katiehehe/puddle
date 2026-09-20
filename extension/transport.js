@@ -19,8 +19,10 @@
         body = { transcript: msg.transcript, item: msg.item, now_hour: msg.now_hour }; break;
       case "skip": case "record_skip": path = "/actions";
         body = { item: msg.item, prediction_id: msg.prediction_id, event_id: msg.event_id, action: "skip" }; break;
-      case "checkout": path = "/checkout";
-        body = { item: msg.item, prediction_id: msg.prediction_id, event_id: msg.event_id }; break;
+      case "payment_intent": path = "/payment-intents";
+        body = { item: msg.item, prediction_id: msg.prediction_id, budget_limit: msg.budget_limit }; break;
+      case "confirm_payment_intent": path = "/payment-intents/confirm";
+        body = { token: msg.token, confirmed: true }; break;
       case "voice_speak": path = "/voice/speak"; body = { text: msg.text }; break;
       case "voice_transcribe":
         if (typeof msg.audio !== "string" || msg.audio.length > 2800000) throw new Error("Recording is too large.");

@@ -154,7 +154,7 @@ def usage(wear_events: list[dict]) -> dict:
         casual = sum(r["share"] for r in rows if r["state"] in ("casual_warm", "casual_cold"))
         if casual >= 0.4:
             lines.append(
-                f"Most of what you wear is casual — {round(casual * 100)}% of your recorded outfits "
+                f"Most of what you wear is casual, {round(casual * 100)}% of your recorded outfits "
                 "are everyday or cold-weather clothes."
             )
         top = rows[0]
@@ -164,7 +164,7 @@ def usage(wear_events: list[dict]) -> dict:
         if rare:
             worst = rare[-1]
             lines.append(
-                f"{worst['label']} is rare for you — about {round(worst['share'] * 100)}% of your outfits — "
+                f"{worst['label']} is rare for you, about {round(worst['share'] * 100)}% of your outfits, "
                 f"so another one of those won't get much use unless you have something coming up."
             )
     return {"rows": rows, "total_wears": total, "enough_data": enough, "lines": lines}

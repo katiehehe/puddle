@@ -411,11 +411,11 @@ export async function transcribe(clip: Blob): Promise<string> {
 }
 
 /** Hosted speech when a key is set; callers fall back to the browser voice. */
-export async function speakLine(text: string): Promise<{ audio: string; mime: string }> {
+export async function speakLine(text: string, ducky = false): Promise<{ audio: string; mime: string }> {
   return call<{ audio: string; mime: string }>("/voice/speak", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, ducky }),
   });
 }
 

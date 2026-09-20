@@ -15,16 +15,19 @@ const SUGGESTIONS = [
   "What do I own for rain?",
   "What do I never wear?",
   "How much have I spent?",
-  "How often are you right?",
 ];
 
 type Turn = { question: string; answer: string; intent: string };
 
-function browserSpeak(text: string) {
+// Donald-duck playback: the clip is rendered slow and warm, then sped up
+// without pitch correction, which lifts the pitch but keeps the pace gentle.
+const DUCKY_RATE = 1.28;
+
+function browserSpeak(text: string, ducky: boolean) {
   if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.02;
-  utterance.pitch = 1.15;
+  utterance.rate = ducky ? 0.78 : 1.02;
+  utterance.pitch = ducky ? 1.6 : 1.15;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -34,6 +37,7 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [ducky, setDucky] = useState(false);
   const [error, setError] = useState("");
   const recorder = useRef<MediaRecorder | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -69,17 +73,21 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
       silence();
       const turn = speech.current;
       try {
-        const hosted = await speakLine(line);
+        const hosted = await speakLine(line, ducky);
         if (turn !== speech.current) return;
         const bytes = Uint8Array.from(atob(hosted.audio), (c) => c.charCodeAt(0));
         const player = new Audio(URL.createObjectURL(new Blob([bytes], { type: hosted.mime })));
+        if (ducky) {
+          player.preservesPitch = false;
+          player.playbackRate = DUCKY_RATE;
+        }
         audio.current = player;
         await player.play();
       } catch {
-        if (turn === speech.current) browserSpeak(line);
+        if (turn === speech.current) browserSpeak(line, ducky);
       }
     },
-    [muted, silence],
+    [ducky, muted, silence],
   );
 
   const ask = useCallback(
@@ -151,19 +159,12 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
     <aside className="askpanel" aria-label="Ask Puddle">
       <header>
         <b>Ask Puddle</b>
-        <span>about everything you own</span>
         <button className="askclose" onClick={onClose} aria-label="Close">
           ×
         </button>
       </header>
 
       <div className="asklog" ref={log}>
-        {turns.length === 0 && (
-          <p className="hint">
-            I answer from your closet and your history — what you own, what you wear, what you send
-            back. Anything I can't put a number on, I'll say so.
-          </p>
-        )}
         {turns.map((turn, i) => (
           <div key={`${i}-${turn.question}`}>
             <p className="askq">{turn.question}</p>
@@ -201,16 +202,28 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
           Ask
         </button>
       </div>
-      <button
-        className="askmute"
-        aria-pressed={muted}
-        onClick={() => {
-          setMuted(!muted);
-          if (!muted) silence();
-        }}
-      >
-        {muted ? "Replies muted" : "Mute replies"}
-      </button>
+      <div className="askfoot">
+        <button
+          className="askmute"
+          aria-pressed={muted}
+          onClick={() => {
+            setMuted(!muted);
+            if (!muted) silence();
+          }}
+        >
+          {muted ? "Replies muted" : "Mute replies"}
+        </button>
+        <button
+          className="askmute"
+          aria-pressed={ducky}
+          onClick={() => {
+            setDucky(!ducky);
+            silence();
+          }}
+        >
+          {ducky ? "Ducky voice on" : "Ducky voice"}
+        </button>
+      </div>
     </aside>
   );
 }

@@ -99,7 +99,7 @@ def notices(closet: list[Item], wear_counts: dict[str, int], coverage: dict) -> 
             out.append(
                 {
                     "title": f"Your {label} earn their keep.",
-                    "detail": f"They average {avg:.0f} wears each — your most-used category.",
+                    "detail": f"They average {avg:.0f} wears each, your most-used category.",
                 }
             )
 
@@ -140,7 +140,7 @@ def summarise(closet: list[Item], wear_counts: dict[str, int], purchases: list[P
     worn = [(i, c) for i, c in priced if c is not None]
     best = min(worn, key=lambda ic: ic[1]) if worn else None
     if best:
-        lines.append(f"Your best buy is your {best[0].title.lower()} — ${best[1]:.2f} a wear.")
+        lines.append(f"Your best buy is your {best[0].title.lower()}, ${best[1]:.2f} a wear.")
 
     unworn = [i for i in closet if wear_counts.get(i.id, 0) == 0]
     dead = max(unworn, key=lambda i: i.price, default=None)
@@ -150,7 +150,7 @@ def summarise(closet: list[Item], wear_counts: dict[str, int], purchases: list[P
         least = min(closet, key=lambda i: wear_counts.get(i.id, 0), default=None)
         if least is not None:
             lines.append(
-                f"Your least-used thing is your {least.title.lower()} — "
+                f"Your least-used thing is your {least.title.lower()}, "
                 f"{wear_counts.get(least.id, 0)} wears."
             )
 

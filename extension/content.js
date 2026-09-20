@@ -42,6 +42,13 @@
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
   ));
 
+  // Escaped text with the numbers that matter picked out — prices and
+  // percentages get a duck-yellow underline.
+  const emph = (text) => esc(text).replace(
+    /(\$\d[\d,]*(?:\.\d+)?|\b\d+(?:\.\d+)?%)/g,
+    '<u class="hl">$1</u>'
+  );
+
   function chip(result) {
     const i = (result.insights || [])[0];
     if (!i) return "";
@@ -103,12 +110,17 @@
     const advice = result.advice || null;
     // Puddle's own sentences when the brain has them; the old facts otherwise.
     const plain = advice ? advice.reasons.map(r => r.text) : facts(money);
+    // The card stays compact: three reasons up front, the rest under "Tell me more".
+    const shown = plain.slice(0, 3), rest = plain.slice(3);
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
     const verdictTone = advice
       ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.ink
       : PALETTE.ink;
+    const verdictBg = advice
+      ? advice.stance === "for" ? "#e7f4ec" : advice.stance === "against" ? "#faecea" : "#f2efe7"
+      : "#f2efe7";
     // One event_id per intentional action; the brain dedupes retries on it.
-    const skipEvent = crypto.randomUUID(), buyEvent = crypto.randomUUID();
+    const skipEvent = crypto.randomUUID();
     const pay = result.payment || null;
     const cardLabel = (p) => p?.card ? `${p.card.network === "VISA" ? "Visa" : esc(p.card.network)} \u2022\u2022\u2022\u2022 ${esc(p.card.last4)}` : "Visa";
     const guardList = (guards) => (guards || []).map(g => `<li>${esc(g)}</li>`).join("");
@@ -116,22 +128,31 @@
     shadow.innerHTML = `
       <style>
         *{box-sizing:border-box;font-family:"Outfit",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-        .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
-          background:#fff;color:${PALETTE.ink};border-radius:20px;
+        .card{width:min(320px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
+          background:#fff;color:${PALETTE.ink};border-radius:18px;
           border:1px solid ${PALETTE.line};
-          padding:20px 22px;animation:pop .2s ease;
+          padding:16px 18px;animation:pop .2s ease;
           box-shadow:0 1px 2px rgba(29,32,38,.05),0 12px 32px rgba(29,32,38,.12)}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-        .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px}
+        .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;
+          cursor:grab;user-select:none;touch-action:none}
+        .duckhead:active{cursor:grabbing}
         .duckhead b{color:${PALETTE.muted};font-weight:700}
-        .verdict{font-size:20px;font-weight:800;color:${verdictTone};margin:0 0 6px}
+        .x{margin-left:auto;background:none;border:0;color:${PALETTE.muted};
+          font-size:15px;line-height:1;padding:4px;cursor:pointer;border-radius:6px;touch-action:auto}
+        .x:hover{color:${PALETTE.ink};background:#f4f1ea}
+        .hl{font-weight:700;text-decoration:underline;text-decoration-color:${PALETTE.duck};
+          text-decoration-thickness:2.5px;text-underline-offset:2px}
+        .verdict{display:inline-block;font-size:15px;font-weight:800;color:${verdictTone};
+          background:${verdictBg};border-radius:99px;padding:5px 14px;margin:0 0 12px}
         .line{font-size:14px;line-height:1.5;color:${PALETTE.ink};margin:0 0 10px}
         .chip{display:inline-block;border:1px solid ${PALETTE.line};
           padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
           color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:99px}
         .btns{display:flex;gap:8px}
-        .btns button{flex:1;padding:9px 0;font-size:13px;font-weight:700;cursor:pointer;
-          border-radius:9px;transition:all .15s}
+        .btns[hidden]{display:none}
+        .btns button{flex:1;padding:11px 0;font-size:14px;font-weight:700;cursor:pointer;
+          border-radius:12px;transition:all .15s}
         button:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
         .skip{background:${PALETTE.duck};color:${PALETTE.ink};border:0}
         .skip:hover{transform:translateY(-1px)}
@@ -146,12 +167,24 @@
           color:${PALETTE.muted};margin-top:6px;font-weight:700}
         .ask{font-size:13px;font-weight:700;color:${PALETTE.ink};margin:12px 0 10px}
         .done{font-size:14px;color:${PALETTE.ink}}
+        .checkout-review{border-top:2px solid ${PALETTE.line};margin-top:12px;padding-top:12px}
+        .checkout-review h3{font-size:15px;margin:0 0 8px;color:${PALETTE.ink}}
+        .checkout-summary{display:grid;grid-template-columns:1fr auto;gap:5px 12px;
+          padding:10px;background:#f7f5ef;border-radius:12px;color:${PALETTE.ink}}
+        .checkout-summary b{text-align:right}
+        .checkout-note,.checkout-status{font-size:12px;line-height:1.45;color:${PALETTE.muted};margin:8px 0}
+        .checkout-status{color:${PALETTE.bad}}
+        .checkout-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+        .checkout-actions button{padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+        .confirm-purchase{background:${PALETTE.duck};color:${PALETTE.ink};border:0}
+        .back-checkout{background:#fff;color:${PALETTE.ink};border:1px solid ${PALETTE.line}}
         .facts{margin:0 0 10px;padding:0;list-style:none}
         .facts li{font-size:13px;line-height:1.5;color:${PALETTE.muted};margin-bottom:4px}
+        .cardlinks{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 12px}
         .more,.why{font-size:12px;font-weight:600;color:${PALETTE.muted};
           text-decoration:underline;text-underline-offset:2px}
-        .more{display:block;background:none;border:none;padding:0 0 10px;cursor:pointer}
-        .why{display:inline-block;margin-bottom:10px}
+        .more{background:none;border:none;padding:0;cursor:pointer}
+        .why{display:inline-block}
         .nums{display:none;font-size:12px;color:${PALETTE.muted};margin-bottom:10px;line-height:1.6}
         .nums.open{display:block}
         .nums b{color:${PALETTE.ink}}
@@ -174,21 +207,28 @@
       <div class="card" id="card">
         <div class="duckhead">${DUCK}<b>Puddle</b>${result.phrasing?.source === "llm"
           ? `<span class="chip" style="margin:0 0 0 auto" title="${esc(result.headline_math || "")}">said by ${esc(result.phrasing.model)}${result.phrasing.cached ? " · cached" : ""}</span>`
-          : ""}</div>
+          : ""}
+          <button class="x" id="close" aria-label="Close" title="Close">✕</button>
+        </div>
         ${advice ? `<div class="verdict">${esc(advice.verdict)}</div>` : ""}
-        <div class="line">${esc(line)}</div>
+        <div class="line">${emph(line)}</div>
         ${c ? `<span class="chip">${esc(c)}</span>` : ""}
-        <ul class="facts">${plain.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+        <ul class="facts">${shown.map(f => `<li>${emph(f)}</li>`).join("")}</ul>
         <div class="ask">Still worth it?</div>
-        <button class="more" id="more">View numbers</button>
+        <div class="cardlinks">
+          <button class="more" id="more">Tell me more</button>
+          <a class="why" target="_blank" rel="noopener"
+             href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">See my closet</a>
+          <button class="more" id="asktoggle">Ask the duck</button>
+        </div>
         <div class="nums" id="nums">
+          ${rest.length ? `<ul class="facts">${rest.map(f => `<li>${emph(f)}</li>`).join("")}</ul>` : ""}
           ${money ? `Worth about <b>${esc(cash(money.resale))}</b> resold. ` : ""}
           At 5 wears <b>${esc(cash((money?.per_wear_at || {})[5] || 0))}</b> each,
           at 10 <b>${esc(cash((money?.per_wear_at || {})[10] || 0))}</b>,
           at 20 <b>${esc(cash((money?.per_wear_at || {})[20] || 0))}</b>.
         </div>
-        <a class="why" target="_blank" rel="noopener"
-           href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">See my closet</a>
+        <div id="voiceslot" hidden></div>
         <div class="btns">
           <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
           <button class="buy" id="buy">${pay?.blocked ? "Over your cap" : "Buy anyway"}</button>
@@ -212,7 +252,7 @@
       more.onclick = () => {
         const nums = shadow.getElementById("nums");
         const open = nums.classList.toggle("open");
-        more.textContent = open ? "Hide the numbers" : "View numbers";
+        more.textContent = open ? "Show less" : "Tell me more";
       };
     }
 
@@ -222,14 +262,53 @@
     }, result.prediction_id);
     if (result.speak) speak(line);
 
+    // The voice panel starts tucked away — "Ask the duck" opens it.
+    const slot = shadow.getElementById("voiceslot");
+    const panelEl = shadow.querySelector(".voice-panel");
+    if (slot && panelEl) slot.appendChild(panelEl);
+    const askToggle = shadow.getElementById("asktoggle");
+    if (askToggle && slot) {
+      askToggle.onclick = () => {
+        slot.hidden = !slot.hidden;
+        askToggle.textContent = slot.hidden ? "Ask the duck" : "Hide the duck";
+      };
+    }
+
+    const close = () => {
+      clearTimeout(dismissTimer);
+      dismissTimer = null;
+      voiceCleanup?.(); voiceCleanup = null;
+      if (host) host.remove();
+      host = null;
+    };
+    shadow.getElementById("close").onclick = close;
+
+    // The card is draggable by its header; it keeps whatever spot it lands on.
+    const dragHandle = shadow.querySelector(".duckhead");
+    let drag = null;
+    dragHandle.addEventListener("pointerdown", (event) => {
+      if (event.target.closest("button")) return;
+      const rect = host.getBoundingClientRect();
+      drag = { dx: event.clientX - rect.left, dy: event.clientY - rect.top };
+      host.style.left = rect.left + "px";
+      host.style.top = rect.top + "px";
+      host.style.right = "auto";
+      host.style.bottom = "auto";
+      dragHandle.setPointerCapture(event.pointerId);
+    });
+    dragHandle.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      const left = Math.max(0, Math.min(innerWidth - host.offsetWidth, event.clientX - drag.dx));
+      const top = Math.max(0, Math.min(innerHeight - host.offsetHeight, event.clientY - drag.dy));
+      host.style.left = left + "px";
+      host.style.top = top + "px";
+    });
+    dragHandle.addEventListener("pointerup", () => { drag = null; });
+    dragHandle.addEventListener("pointercancel", () => { drag = null; });
+
     const dismiss = (after) => {
       clearTimeout(dismissTimer);
-      dismissTimer = setTimeout(() => {
-        voiceCleanup?.(); voiceCleanup = null;
-        if (host) host.remove();
-        host = null;
-        dismissTimer = null;
-      }, after);
+      dismissTimer = setTimeout(close, after);
     };
 
     shadow.getElementById("skip").onclick = async () => {
@@ -245,29 +324,89 @@
     };
 
     shadow.getElementById("buy").onclick = async () => {
-      let res;
-      try { res = await send({ type: "checkout", item, prediction_id: result.prediction_id, event_id: buyEvent }); }
-      catch (error) { shadow.querySelector(".line").textContent = error.message; return; }
+      const buy = shadow.getElementById("buy");
+      buy.disabled = true;
+      buy.textContent = "Preparing checkout";
+      let intent;
+      try {
+        intent = await send({
+          type: "payment_intent", item, prediction_id: result.prediction_id, budget_limit: 500
+        });
+      } catch (error) {
+        buy.disabled = false;
+        buy.textContent = "Buy anyway";
+        shadow.querySelector(".line").textContent = error.message;
+        return;
+      }
       if (version !== renderVersion) return;
-      const declined = res.approved === false || (res.status && res.status !== "approved");
-      shadow.querySelector(".line").innerHTML = declined
-        ? `<span class="done">Payment ${esc(res.status || "failed")}: nothing was recorded.</span>`
-        : `<span class="done">Bought. It's in your closet now.</span>`;
-      const receipt = document.createElement("div");
-      receipt.className = "receipt";
-      receipt.innerHTML = `
-        <div class="row"><span><span class="vmark">VISA</span>&nbsp; ${cardLabel(res)}</span>
-          <span class="${declined ? "no" : "ok"}">${declined ? "Declined" : "Approved"}</span></div>
-        <div class="row"><span>Amount</span><b>${esc(cash(res.amount ?? item.price))}</b></div>
-        <div class="row"><span>Rail</span><b>${esc(res.rail || "Visa Direct")}</b></div>
-        ${res.auth_code ? `<div class="row"><span>Auth code</span><b>${esc(res.auth_code)}</b></div>` : ""}
-        ${res.token ? `<div class="row"><span>Network token</span><b>${esc(String(res.token).slice(0, 12))}\u2026</b></div>` : ""}
-        ${declined && res.message ? `<div>${esc(res.message)}</div>` : ""}
-        <ul>${guardList(res.guards)}</ul>`;
-      shadow.querySelector(".btns").replaceWith(receipt);
-      shadow.querySelector(".payline")?.remove();
-      shadow.getElementById("guardlist")?.remove();
-      dismiss(declined ? 6000 : 5200);
+      const buttons = shadow.querySelector(".btns");
+      buttons.hidden = true;
+      const provider = intent.provider || {};
+      const confirmationLabel = provider.simulated ? "Confirm simulated purchase" : "Confirm Visa sandbox purchase";
+      const review = document.createElement("section");
+      review.className = "checkout-review";
+      review.setAttribute("role", "region");
+      review.setAttribute("aria-labelledby", "secure-checkout-title");
+      review.innerHTML = `
+        <h3 id="secure-checkout-title">Secure checkout</h3>
+        <div class="checkout-summary">
+          <span>${esc(intent.item.title)}</span><b>$${esc(Number(intent.amount).toFixed(2))}</b>
+          <span>Payment</span><b>${esc(provider.label || "Unavailable")}</b>
+        </div>
+        <p class="checkout-note"><span class="vmark">VISA</span>&nbsp; ${cardLabel(pay)} · Signed intent. No card details are collected by Puddle.</p>
+        <p class="checkout-status" role="status">${esc(intent.blocked_reason || "")}</p>
+        <div class="checkout-actions">
+          <button type="button" class="back-checkout">Back</button>
+          <button type="button" class="confirm-purchase" ${intent.checkout_enabled ? "" : "disabled"}>
+            ${esc(confirmationLabel)}
+          </button>
+        </div>`;
+      shadow.querySelector(".card").appendChild(review);
+      const back = review.querySelector(".back-checkout");
+      const confirm = review.querySelector(".confirm-purchase");
+      const status = review.querySelector(".checkout-status");
+      back.onclick = () => {
+        review.remove();
+        buttons.hidden = false;
+        buy.disabled = false;
+        buy.textContent = "Buy anyway";
+      };
+      confirm.onclick = async () => {
+        confirm.disabled = true;
+        back.disabled = true;
+        status.textContent = "Processing checkout.";
+        let res;
+        try { res = await send({ type: "confirm_payment_intent", token: intent.token }); }
+        catch (error) {
+          if (version !== renderVersion) return;
+          status.textContent = error.message;
+          confirm.disabled = false;
+          back.disabled = false;
+          return;
+        }
+        if (version !== renderVersion) return;
+        const declined = res.approved === false || (res.status && res.status !== "approved");
+        shadow.querySelector(".line").innerHTML = declined
+          ? `<span class="done">Payment ${esc(res.status || "failed")}: nothing was recorded.</span>`
+          : `<span class="done">Bought. It's in your closet now.</span>`;
+        const receipt = document.createElement("div");
+        receipt.className = "receipt";
+        receipt.innerHTML = `
+          <div class="row"><span><span class="vmark">VISA</span>&nbsp; ${cardLabel(res)}</span>
+            <span class="${declined ? "no" : "ok"}">${declined ? "Declined" : "Approved"}</span></div>
+          <div class="row"><span>Amount</span><b>${esc(cash(res.amount ?? item.price))}</b></div>
+          <div class="row"><span>Rail</span><b>${esc(res.rail || "Visa Direct")}</b></div>
+          ${res.auth_code ? `<div class="row"><span>Auth code</span><b>${esc(res.auth_code)}</b></div>` : ""}
+          ${res.token ? `<div class="row"><span>Network token</span><b>${esc(String(res.token).slice(0, 12))}\u2026</b></div>` : ""}
+          ${res.receipt?.intent_id ? `<div class="row"><span>Receipt</span><b>${esc(res.receipt.intent_id)}</b></div>` : ""}
+          ${declined && res.message ? `<div>${esc(res.message)}</div>` : ""}
+          <ul>${guardList(res.guards)}</ul>`;
+        review.replaceWith(receipt);
+        buttons.remove();
+        shadow.querySelector(".payline")?.remove();
+        shadow.getElementById("guardlist")?.remove();
+        dismiss(declined ? 6000 : 5200);
+      };
     };
   }
 

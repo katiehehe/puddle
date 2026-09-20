@@ -20,7 +20,7 @@ import statistics
 from .catalog import Item
 
 WORTH_IT = "Probably worth it"
-THINK = "Maybe — think about it"
+THINK = "Maybe, think about it"
 SKIP = "Probably skip"
 
 # Where the tally tips. Wide middle on purpose: most purchases genuinely are
@@ -107,7 +107,7 @@ def advise(
             say(
                 "for",
                 "usage",
-                f"{_noun(item).capitalize()} are one of your most-used categories — "
+                f"{_noun(item).capitalize()} are one of your most-used categories, "
                 f"yours average {family_wears:.0f} wears.",
                 1.0,
             )
@@ -152,7 +152,7 @@ def advise(
         say(
             "neutral",
             "discount",
-            "It is a good price — but a good price on something you already own twice is still money out.",
+            "It is a good price, but a good price on something you already own twice is still money out.",
             -0.3,
         )
 
@@ -203,7 +203,7 @@ def advise(
         say(
             tone,
             "per_wear",
-            f"Going on how you wear things, you'd get about {expected:.0f} wears out of it — "
+            f"Going on how you wear things, you'd get about {expected:.0f} wears out of it, "
             f"roughly ${realistic:,.2f} a wear, against the ${quote['your_cost_per_wear']:,.2f} "
             "your closet averages.",
             0.5 if tone == "for" else -0.5,
@@ -212,7 +212,7 @@ def advise(
     verdict = WORTH_IT if score >= FOR else SKIP if score <= AGAINST else THINK
     return {
         "verdict": verdict,
-        "stance": {"Probably worth it": "for", "Maybe — think about it": "think", "Probably skip": "against"}[
+        "stance": {"Probably worth it": "for", "Maybe, think about it": "think", "Probably skip": "against"}[
             verdict
         ],
         "score": round(score, 2),

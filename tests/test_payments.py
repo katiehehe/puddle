@@ -207,3 +207,13 @@ def test_preview_flags_a_blocked_amount(monkeypatch):
     ok, blocked = payments.preview(50), payments.preview(999)
     assert ok["blocked"] is None and ok["mode"] == "mock" and ok["card"]["last4"] == "6154"
     assert blocked["blocked"].startswith("Over budget cap")
+
+
+def test_partial_environment_does_not_select_the_live_provider(monkeypatch):
+    monkeypatch.setenv("VISA_API_KEY", "partial")
+    provider = payments.get_provider()
+    assert provider.name == "visa_incomplete"
+    result = provider.pay(64, "sku_991").dict()
+    assert result["approved"] is False
+    assert result["status"] == "error"
+    assert "VISA_CERT_PATH" in result["message"]
