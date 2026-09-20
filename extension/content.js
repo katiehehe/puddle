@@ -128,11 +128,17 @@
       <style>
         *{box-sizing:border-box;font-family:"Outfit",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
         .card{width:min(320px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
-          background:#fff;color:${PALETTE.ink};border-radius:18px;
+          background:#fff;color:${PALETTE.ink};border-radius:10px;
           border:1px solid ${PALETTE.line};
           padding:16px 18px;animation:pop .2s ease;
           box-shadow:0 1px 2px rgba(29,32,38,.05),0 12px 32px rgba(29,32,38,.12)}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+        @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+        .card>*{animation:rise .45s cubic-bezier(.2,.7,.2,1) both}
+        .card>:nth-child(2){animation-delay:.08s}.card>:nth-child(3){animation-delay:.18s}
+        .card>:nth-child(4){animation-delay:.28s}.card>:nth-child(5){animation-delay:.36s}
+        .card>:nth-child(6){animation-delay:.42s}.card>:nth-child(7){animation-delay:.48s}
+        .card>:nth-child(n+8){animation-delay:.54s}
         .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px;
           cursor:grab;user-select:none;touch-action:none}
         .duckhead:active{cursor:grabbing}
@@ -145,15 +151,15 @@
           text-decoration-thickness:2.5px;text-underline-offset:2px}
         .card{border-top:5px solid ${light.fg}}
         .verdict{display:inline-block;font-size:16px;font-weight:800;color:${light.fg};
-          background:${light.bg};border-radius:99px;padding:6px 14px;margin:0 0 12px}
+          background:${light.bg};border-radius:6px;padding:6px 12px;margin:0 0 12px}
         .line{font-size:14px;line-height:1.5;color:${PALETTE.ink};margin:0 0 10px}
         .chip{display:inline-block;border:1px solid ${PALETTE.line};
           padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
-          color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:99px}
+          color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:6px}
         .btns{display:flex;gap:8px}
         .btns[hidden]{display:none}
         .btns button{flex:1;padding:11px 0;font-size:14px;font-weight:700;cursor:pointer;
-          border-radius:12px;transition:all .15s}
+          border-radius:8px;transition:all .15s}
         button:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
         .skip{background:${PALETTE.duck};color:${PALETTE.ink};border:0}
         .skip:hover{transform:translateY(-1px)}
@@ -163,7 +169,7 @@
           border-radius:99px;overflow:hidden}
         .fill{height:100%;background:${PALETTE.duck};
           width:${pondPct(pond.saved)}%;transition:width .3s ease}
-        @media(prefers-reduced-motion:reduce){.card{animation:none}}
+        @media(prefers-reduced-motion:reduce){.card,.card>*{animation:none}}
         .saved{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
           color:${PALETTE.muted};margin-top:6px;font-weight:700}
         .ask{font-size:13px;font-weight:700;color:${PALETTE.ink};margin:12px 0 10px}
