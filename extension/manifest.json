@@ -5,7 +5,12 @@
   "description": "A duck that lives in your cart. It knows what you own and what you send back, and it speaks up before you pay.",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Puddle"
+    "default_title": "Puddle",
+    "default_icon": {
+      "16": "icons/duck-16.png",
+      "48": "icons/duck-48.png",
+      "128": "icons/duck-128.png"
+    }
   },
   "background": {
     "service_worker": "background.js"
@@ -13,11 +18,14 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost/*",
-        "http://127.0.0.1/*"
+        "http://localhost:5500/*",
+        "http://127.0.0.1:5500/*",
+        "http://localhost:8000/*",
+        "http://127.0.0.1:8000/*"
       ],
       "js": [
         "transport.js",
+        "extract.js",
         "voice.js",
         "content.js"
       ],
@@ -30,5 +38,10 @@
   ],
   "permissions": [
     "storage"
-  ]
+  ],
+  "icons": {
+    "16": "icons/duck-16.png",
+    "48": "icons/duck-48.png",
+    "128": "icons/duck-128.png"
+  }
 }

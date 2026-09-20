@@ -61,6 +61,14 @@
     shadow = host.attachShadow({ mode: "open" });
   }
 
+  // Anything that reaches innerHTML has passed through page-controlled data:
+  // the brain echoes item titles, sizes and gap labels back inside its lines,
+  // and once the duck reads items off a real storefront, that text is written
+  // by whoever owns the page. Escape at the sink, not at the source.
+  const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
+  ));
+
   function chip(result) {
     const i = (result.insights || [])[0];
     if (!i) return "";
@@ -127,9 +135,9 @@
         <div class="row">
           <div>${DUCK(state)}</div>
           <div class="bubble">
-            <div class="quack">${HEADER[state] || "Puddle"}</div>
-            <div class="line">${line}</div>
-            ${c ? `<span class="chip">${c}</span>` : ""}
+            <div class="quack">${esc(HEADER[state] || "Puddle")}</div>
+            <div class="line">${esc(line)}</div>
+            ${c ? `<span class="chip">${esc(c)}</span>` : ""}
             <div class="btns">
               <button class="buy" id="buy">Buy anyway</button>
               <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
@@ -137,7 +145,7 @@
           </div>
         </div>
         <div class="pond"><div class="fill"></div></div>
-        <div class="saved">🪙 $${pond.saved} in the pond</div>
+        <div class="saved">🪙 $${esc(pond.saved)} in the pond</div>
       </div>`;
 
     voiceCleanup = globalThis.PuddleVoice.attach(shadow, item, total => {
@@ -175,8 +183,8 @@
       if (version !== renderVersion) return;
       const declined = res.approved === false || (res.status && res.status !== "approved");
       shadow.querySelector(".line").innerHTML = declined
-        ? `<span class="done">Payment ${res.status || "failed"}: nothing was recorded.</span>`
-        : `<span class="done">Done: ${res.network} ${res.mode === "mock" ? "(simulated)" : ""}. ` +
+        ? `<span class="done">Payment ${esc(res.status || "failed")}: nothing was recorded.</span>`
+        : `<span class="done">Done: ${esc(res.network)} ${res.mode === "mock" ? "(simulated)" : ""}. ` +
           `Your wardrobe has been updated.</span>`;
       shadow.querySelector(".btns").remove();
       dismiss(2600);
@@ -206,4 +214,49 @@
   window.addEventListener("pagehide", () => { voiceCleanup?.(); clearTimeout(dismissTimer); });
   // fire if already set on load
   if (document.body.dataset.puddleCheckout) trigger(document.body.dataset.puddleCheckout);
+
+  /* --- reading a shop that never agreed to be read ------------------------
+   *
+   * The dataset attribute above is a shop opting in. Everywhere else the duck
+   * has to notice checkout itself: watch for a click on something that reads
+   * like a buy button, then extract the product from the page.
+   *
+   * Listening is passive and capture-phase. The click is never intercepted,
+   * defaultPrevented is never set, and the page's own handler runs exactly as
+   * it would with the extension uninstalled -- the duck is a bystander that
+   * speaks up, not a gate. PRD 8.1: never blocks, one tap overrules.
+   */
+  const BUY_WORDS = /\b(check ?out|buy|add to (bag|cart)|place order|pay|purchase)\b/i;
+
+  function looksLikeCheckout(element) {
+    const control = element.closest?.(
+      "button, a, input[type='submit'], [role='button'], [class*='checkout' i], [id*='checkout' i]"
+    );
+    if (!control) return false;
+    const label = [
+      control.getAttribute?.("aria-label"),
+      control.value,
+      control.textContent,
+      control.getAttribute?.("name"),
+      control.id,
+      control.className,
+    ].filter(Boolean).join(" ");
+    return BUY_WORDS.test(label);
+  }
+
+  document.addEventListener("click", (event) => {
+    if (!event.isTrusted || !looksLikeCheckout(event.target)) return;
+    // Capture runs before the page's own handler, so a shop that sets the
+    // attribute has not set it yet. Yield once and let it: an opted-in shop
+    // describes its product better than we can infer it, and scoring both
+    // ways would render the card twice.
+    setTimeout(() => {
+      if (document.body.dataset.puddleCheckout) return;
+      const item = globalThis.PuddleExtract?.();
+      // No readable product means no opinion. A duck that guesses on a
+      // homepage is worse than a duck that stays quiet.
+      if (!item) return;
+      trigger(JSON.stringify({ ...item, _t: Date.now() }));
+    }, 0);
+  }, true);
 })();
