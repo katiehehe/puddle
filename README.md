@@ -3,6 +3,8 @@
 **A duck that lives in your cart.** It knows everything you already own (modeled as an
 investment portfolio) and everything you've sent back: and it speaks up *before* you pay.
 
+**For judges:** [open the live Puddle dashboard](https://puddle-mu.vercel.app/) to see the closet-as-portfolio experience, live purchase guidance, and the evidence behind each recommendation.
+
 Two surfaces, one brain:
 - **Extension**: the duck reacts uninvited at checkout.
 - **Website**: your closet as a risk-return portfolio (Style Sharpe, coverage, rebalance).
@@ -111,7 +113,7 @@ curl 'localhost:8000/health?check_payments=true'
 ```
 
 ## Sponsor tracks
-Visa (primary) · Ramp (pond of saved money) · Deepgram + ElevenLabs (voice) · Cognition/Devin (build) · Long Lake + Token Company (narrative).
+Visa (primary) · Ramp (pond of saved money) · Deepgram + ElevenLabs (voice) · Cognition/Devin (build).
 
 ## Architecture
 ```
