@@ -8,6 +8,7 @@ the contract both surfaces were written against.
 from __future__ import annotations
 
 import math
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -74,7 +75,9 @@ def home():
 @app.get("/demo", response_class=HTMLResponse)
 def voice_demo():
     page = (PROJECT_ROOT / "mock-shop" / "index.html").read_text(encoding="utf-8")
-    page = page.replace("<body>", '<body data-puddle-mode="web">')
+    # Match the tag, not one exact spelling of it: the shop's <body> carries
+    # its own attributes, and a literal replace silently no-ops when they change.
+    page = re.sub(r"<body\b", '<body data-puddle-mode="web"', page, count=1)
     # Same shop, duck and voice controller as the extension. Only transport differs.
     scripts = '<script src="/demo-assets/transport.js"></script>'
     scripts += '<script src="/demo-assets/speech.js"></script>'
@@ -489,6 +492,8 @@ def me() -> dict:
             "tags": occasions.tags(item),
             "brand": extras.get(item.id, {}).get("brand", ""),
             "photo": extras.get(item.id, {}).get("photo", ""),
+            "notes": extras.get(item.id, {}).get("notes", ""),
+            "source_url": extras.get(item.id, {}).get("source_url", ""),
             "yours": item.id in extras,
         }
         for item in closet.items
@@ -616,6 +621,21 @@ class PurchaseEdit(BaseModel):
     archive_reason: str | None = None
 
 
+class StagedEdit(BaseModel):
+    """Fixing a field on something still on the rail. No wears or archive
+    reason here: a staged item hasn't been worn, and it leaves the rail by
+    being bought or taken off, not archived."""
+
+    title: str | None = None
+    price: float | None = None
+    brand: str | None = None
+    size: str | None = None
+    color: str | None = None
+    source_url: str | None = None
+    photo: str | None = None
+    notes: str | None = None
+
+
 class CartRequest(BaseModel):
     title: str
     price: float = 0.0
@@ -628,7 +648,9 @@ class CartRequest(BaseModel):
 
 
 def _review(item: Item, closet, miner, counts, now, brand, brands, coverage, usage) -> dict:
-    """The duck's read on a staged thing: the verdict plus the reasons."""
+    """The duck's read on a staged thing: the full advice, the same shape a
+    checkout score carries, so a cart item can be opened up to the same
+    numbers as the "worth it" desk rather than a one-line summary."""
     result = recommend(item, closet, miner, now)
     shopping = _shopping_context(item, result["portfolio"], counts)
     adv = advice.advise(
@@ -643,18 +665,17 @@ def _review(item: Item, closet, miner, counts, now, brand, brands, coverage, usa
         brand=brand,
         brands=brands,
     )
-    return {
-        "decision": result["decision"],
-        "verdict": adv["verdict"],
-        "stance": adv["stance"],
-        "subhead": adv["subhead"],
-        "reasons": [r["text"] for r in adv["reasons"]][:2],
-    }
+    return {"decision": result["decision"], **adv}
 
 
 @app.get("/cart")
 def cart_items() -> dict:
-    """The staging rail: things you're thinking about, each already reviewed."""
+    """The staging rail: things you're thinking about, each already reviewed.
+
+    The shop's own items are seeded onto it once, so the cart opens with
+    something in it rather than an empty page and a form.
+    """
+    closet_store.seed_rail(STOREFRONT)
     closet, miner, counts = _context()
     now = datetime.now()
     coverage = occasions.coverage(closet)
@@ -689,6 +710,31 @@ def unstage_item(item_id: str) -> dict:
     if not closet_store.unstage(item_id):
         raise HTTPException(404, "not on the rail")
     return {"removed": item_id}
+
+
+@app.patch("/cart/{item_id}")
+def edit_staged(item_id: str, req: StagedEdit) -> dict:
+    try:
+        entry = closet_store.update_staged(item_id, req.model_dump(exclude_unset=True))
+    except closet_store.Unknown as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if entry is None:
+        raise HTTPException(404, "not on the rail")
+    closet, miner, counts = _context()
+    now = datetime.now()
+    coverage = occasions.coverage(closet)
+    usage = occasions.usage(_wear_events(closet.items))
+    brands = advice.brand_stats(closet_store.rows(), counts)
+    return {
+        "item": {
+            **entry,
+            "review": _review(
+                closet_store.item(entry), closet, miner, counts, now,
+                brand=entry.get("brand") or "", brands=brands,
+                coverage=coverage, usage=usage,
+            ),
+        }
+    }
 
 
 @app.post("/cart/{item_id}/buy")

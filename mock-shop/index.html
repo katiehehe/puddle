@@ -44,7 +44,9 @@
 @media(max-width:600px){.wrap{grid-template-columns:1fr;gap:20px;margin:20px auto}.photo{max-height:180px;aspect-ratio:auto}.photo svg{width:150px}.seg{flex-wrap:wrap}}
 </style>
 </head>
-<body>
+<!-- This shop summons the duck itself, on data-puddle-checkout. Saying so keeps
+     the extension from also parking its own button here. -->
+<body data-puddle-shop="self">
   <nav class="puddlebar">
     <div class="inner">
       <a class="pb" href="/">

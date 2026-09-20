@@ -65,6 +65,7 @@ def _schema(db) -> None:
         CREATE TABLE IF NOT EXISTS wear_log (
             id TEXT PRIMARY KEY, item_id TEXT NOT NULL, worn_at TEXT NOT NULL);
         CREATE INDEX IF NOT EXISTS wear_log_item ON wear_log(item_id);
+        CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     """)
 
 
@@ -182,6 +183,42 @@ def stage(row: dict) -> dict:
     return entry
 
 
+def seed_rail(items) -> None:
+    """Put the shop's own items on the rail once, so the cart has something in
+    it the first time it is opened.
+
+    Guarded by a marker rather than by "is the rail empty", because clearing
+    the rail is a decision: things you took off should stay off.
+    """
+    with connect() as db:
+        _schema(db)
+        if db.execute("SELECT 1 FROM meta WHERE key='rail_seeded'").fetchone():
+            return
+        db.execute("INSERT INTO meta VALUES ('rail_seeded', ?)", (_now(),))
+        for item in items:
+            if db.execute("SELECT 1 FROM staging WHERE id=?", (item.id,)).fetchone():
+                continue
+            entry = {
+                "id": item.id,
+                "title": item.title,
+                "price": item.price,
+                "brand": "",
+                "category": item.category,
+                "kind": item.kind,
+                "formality": item.formality,
+                "warmth": item.warmth,
+                "rain_ok": item.rain_ok,
+                "size": item.size,
+                "color": item.color,
+                "source_url": "",
+                "photo": "",
+                "notes": "",
+                "staged_at": _now(),
+                "created_at": _now(),
+            }
+            db.execute("INSERT INTO staging VALUES (?, ?, ?)", (item.id, entry["created_at"], json.dumps(entry)))
+
+
 def staged() -> list[dict]:
     """Things parked for a decision, newest first."""
     with connect() as db:
@@ -195,6 +232,41 @@ def unstage(item_id: str) -> bool:
         _schema(db)
         cur = db.execute("DELETE FROM staging WHERE id=?", (item_id,))
     return cur.rowcount > 0
+
+
+def update_staged(item_id: str, changes: dict) -> dict | None:
+    """Fix a field on something still on the rail: a wrong price, a size, a
+    name typed hastily while standing in a fitting room."""
+    allowed = {"title", "price", "brand", "size", "color", "notes", "source_url", "photo"}
+    with connect() as db:
+        _schema(db)
+        db.execute("BEGIN IMMEDIATE")
+        found = db.execute("SELECT data FROM staging WHERE id=?", (item_id,)).fetchone()
+        if found is None:
+            db.execute("ROLLBACK")
+            return None
+        entry = json.loads(found["data"])
+        for key, value in changes.items():
+            if key in allowed and value is not None:
+                entry[key] = value
+        # A changed name might describe a different garment entirely, so its
+        # attributes are worked out again rather than left stale.
+        if "title" in changes and changes["title"]:
+            attrs = infer(entry["title"], entry.get("category") or None)
+            if attrs is None:
+                db.execute("ROLLBACK")
+                raise Unknown(
+                    f"I can't tell what \"{entry['title']}\" is. Try something like "
+                    '"black chelsea boots" or "grey wool sweater", or pick a category.'
+                )
+            entry.update(
+                category=entry.get("category") or attrs["category"],
+                kind=attrs["kind"], formality=attrs["formality"],
+                warmth=attrs["warmth"], rain_ok=attrs["rain_ok"],
+            )
+        db.execute("UPDATE staging SET data=? WHERE id=?", (json.dumps(entry), item_id))
+        db.execute("COMMIT")
+        return entry
 
 
 def promote(item_id: str) -> dict | None:

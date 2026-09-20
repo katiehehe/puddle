@@ -179,18 +179,18 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 }
 
 /* --- dashboard ---------------------------------------------------------- */
-/* The closet reveals on scroll the same way the landing page does — each
-   purchase card (.piece) pops in on its own as it enters the view. */
+/* The closet reveals on scroll the same way the landing page does: each
+   card (.piece, .buycard) pops in on its own as it enters the view. */
 .shell .dashhead h1, .shell .dashhead > p, .shell .statrow, .shell .tabs,
-.shell .tabbody > *, .shell .piece, .shell .cartline, .shell .note {
+.shell .tabbody > *, .shell .piece, .shell .buycard, .shell .note {
   opacity: 0; transform: translateY(28px);
 }
 .shell .in { animation: popup .7s cubic-bezier(.2, .8, .2, 1) both; }
 .shell .dashhead > p { animation-delay: .1s; }
 .shell .statrow { animation-delay: .2s; }
 .shell .tabs { animation-delay: .3s; }
-.shell .piece:nth-child(2n), .shell .cartline:nth-child(2n), .shell .note:nth-child(2n) { animation-delay: .06s; }
-.shell .piece:nth-child(3n), .shell .cartline:nth-child(3n), .shell .note:nth-child(3n) { animation-delay: .12s; }
+.shell .piece:nth-child(2n), .shell .buycard:nth-child(2n), .shell .note:nth-child(2n) { animation-delay: .06s; }
+.shell .piece:nth-child(3n), .shell .buycard:nth-child(3n), .shell .note:nth-child(3n) { animation-delay: .12s; }
 
 .dashhead { padding: 18px 0 8px; }
 .dashhead h1 { font-size: 44px; }
@@ -225,6 +225,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .tabs button.on, .chips button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
 .hint { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+/* Directly above a list that carries its own spacing. */
+.hint.tight { margin-bottom: 10px; }
 .sub2 { font-size: 18px; margin: 30px 0 14px; }
 
 /* closet */
@@ -232,6 +234,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .piece {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 14px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
 }
 .piecepic {
   position: relative; background: #f4f1ea; border-radius: 12px;
@@ -243,7 +246,12 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 }
 .piece h4 { font-size: 15px; }
 .piecemeta { font-size: 13px; color: var(--muted); margin: 2px 0 12px; }
-.piecenums { display: flex; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 10px; }
+/* Pinned to the bottom of the card regardless of what sits above it (a
+   duplicate flag, a category tag), so the divider and the wear button line
+   up across every card in the row instead of floating at whatever height
+   the optional bits above happen to leave. */
+.piecenums { display: flex; justify-content: space-between; border-top: 1px solid var(--line);
+  padding-top: 10px; margin-top: auto; }
 .piecenums span { display: block; font-size: 11px; color: var(--muted); }
 .piecenums b { font-size: 15px; }
 .piecenums > div:last-child { text-align: right; }
@@ -286,6 +294,13 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 15px;
 }
 .line b { white-space: nowrap; }
+/* Same row, but a real button so a click opens the item. */
+.linkline {
+  width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line);
+  font-family: inherit; text-align: left; cursor: pointer; border-radius: 6px;
+}
+.linkline:hover { background: var(--block); }
+.linkline:hover span { text-decoration: underline; }
 
 /* worth it */
 .worth { max-width: 720px; }
@@ -412,7 +427,9 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   font: inherit; font-size: 13px; font-weight: 700; color: var(--muted);
   padding: 8px 14px; cursor: pointer;
 }
-.railgap { margin-top: 40px; }
+/* The gap before a following section. 40px on top of the hint's own 18px
+   left a hole you could park a car in when the rail was short. */
+.railgap { margin-top: 26px; }
 
 /* purchase cards */
 .buycard {
@@ -535,25 +552,16 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   .buy { grid-template-columns: 52px 1fr 80px 80px; }
 }
 
-/* ── cart: a list you scan down and total up ─────────────────────────── */
-.cart { display: grid; gap: 10px; margin-bottom: 22px; }
-.cartline { display: grid; grid-template-columns: 78px 1fr auto; gap: 16px;
-  background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
-.cartpic { width: 78px; height: 78px; border-radius: 10px; overflow: hidden;
-  background: var(--block); display: flex; align-items: center; justify-content: center; }
-.cartpic svg, .cartpic img { width: 100%; height: 100%; object-fit: cover; }
-.cartmain { min-width: 0; }
-.carttop { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.carttop h4 { margin: 0; font-size: 16px; }
-.cartverdict { display: flex; gap: 9px; align-items: flex-start; margin-top: 10px;
-  background: var(--block); border-radius: 8px; padding: 9px 11px; }
-.cartverdict.against { background: #fdecea; }
-.cartverdict.for { background: #e9f5ef; }
-.cartverdict b { display: block; font-size: 13.5px; margin-bottom: 2px; }
-.cartverdict p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
-.cartright { display: flex; flex-direction: column; align-items: flex-end;
-  justify-content: space-between; gap: 10px; white-space: nowrap; }
-.cartprice { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* ── cart: rows styled like a purchase, not a picker ─────────────────── */
+.cartcard { cursor: pointer; }
+.cartcard:hover { border-color: var(--ink); }
+/* The verdict line inside a cart row: same idea as a purchase's stats line,
+   coloured by whether Puddle is for or against it. */
+.buyverdict { margin-top: 8px; background: var(--block); border-radius: 8px; padding: 9px 11px; }
+.buyverdict.against { background: #fdecea; }
+.buyverdict.for { background: #e9f5ef; }
+.buyverdict b { display: block; font-size: 13.5px; margin-bottom: 2px; }
+.buyverdict p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
 .carttotal { display: flex; justify-content: space-between; align-items: center;
   border-top: 2px solid var(--ink); padding-top: 14px; margin-top: 4px; }
 .carttotal span { display: block; font-size: 13px; color: var(--muted); }
@@ -583,7 +591,26 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   padding: 24px; }
 .detailpic svg, .detailpic img { width: 100%; height: auto; max-height: 260px; object-fit: contain; }
 .detailbody { padding: 26px 28px 22px; }
+.detailhead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .detailhead h3 { margin: 0 0 4px; font-size: 22px; }
+.detailhead .ghost.small { flex: none; }
+
+/* An item opened up for editing: same two-column shell, a plain form instead
+   of the read-out. Full width, since a form reads better as one column than
+   split across the picture. */
+.detail:has(.editform) { grid-template-columns: 1fr; }
+.editform { padding: 26px 28px 22px; display: flex; flex-direction: column; gap: 12px; }
+.editform label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+.editform label span { color: var(--muted); font-weight: 600; }
+.editform input, .editform textarea {
+  padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+  font-size: 14px; font-family: inherit; background: #fff; color: var(--ink);
+}
+.editform textarea { resize: vertical; }
+.formerror { color: var(--bad); font-size: 13px; margin: 0; }
+.editbtns { display: flex; gap: 10px; }
+.editbtns .cta.small { border: 0; cursor: pointer; font: inherit; font-weight: 700; }
+.editbtns .ghost.small { cursor: pointer; }
 .detailverdict { font-size: 15.5px; line-height: 1.55; margin: 14px 0 18px; }
 .detailfacts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .detailfacts > div { background: var(--block); border-radius: 8px; padding: 10px 12px; }
@@ -605,8 +632,5 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   .detail { grid-template-columns: 1fr; }
   .detailpic { max-height: 200px; }
   .detailfacts { grid-template-columns: repeat(2, 1fr); }
-  .cartline { grid-template-columns: 56px 1fr; }
-  .cartpic { width: 56px; height: 56px; }
-  .cartright { grid-column: 1 / -1; flex-direction: row; align-items: center; }
   .detailnav { display: none; }
 }
