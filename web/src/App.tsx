@@ -5,7 +5,6 @@ import {
   editPurchase,
   getMe,
   getQuote,
-  getStatus,
   getStorefront,
   buyStaged,
   getCart,
@@ -22,7 +21,6 @@ import {
   PurchaseRow,
   Quote,
   Score,
-  Status,
   Usage,
 } from "./api";
 import { AskPuddle } from "./AskPuddle";
@@ -106,18 +104,23 @@ const TELLS = [
 ];
 
 function Home() {
+  const hash = useHash();
+  useEffect(() => {
+    if (!hash.includes("install")) return;
+    const t = setTimeout(() => document.getElementById("install")?.scrollIntoView(), 60);
+    return () => clearTimeout(t);
+  }, [hash]);
   return (
     <div className="home">
       <nav className="nav">
-        <a className="brand" href="#/">
+        <a className="brand" href="#/home">
           <Duck size={28} />
           <span>Puddle</span>
         </a>
         <div className="navlinks">
-          <a href="#how">How it works</a>
           <a href="/demo">Live demo</a>
           <a href="#/closet">My closet</a>
-          <a className="cta small" href="#install">
+          <a className="cta small" href="#/home?install">
             Add to Chrome
           </a>
         </div>
@@ -1082,7 +1085,6 @@ function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => vo
 function Dashboard() {
   const [me, setMe] = useState<Me | null>(null);
   const [items, setItems] = useState<CatalogItem[]>([]);
-  const [status, setStatus] = useState<Status | null>(null);
   const [tab, setTab] = useState<Tab>("Closet");
   const [failed, setFailed] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -1094,7 +1096,6 @@ function Dashboard() {
   useEffect(() => {
     reload();
     getStorefront().then(setItems);
-    getStatus().then(setStatus);
   }, [reload]);
 
   // A wear is fire-and-forget on screen; the refresh only catches the
@@ -1145,8 +1146,8 @@ function Dashboard() {
         </a>
         <div className="navlinks">
           <a href="/demo">Live demo</a>
-          {status && <span className="live">{status.voice.configured ? "voice on" : "voice off"}</span>}
-          <a className="cta small" href="#/home">
+          <a href="#/closet">My closet</a>
+          <a className="cta small" href="#/home?install">
             Add to Chrome
           </a>
         </div>
