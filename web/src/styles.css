@@ -128,13 +128,14 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 
 /* --- home sections ------------------------------------------------------ */
 /* Landing content stays hidden until an IntersectionObserver marks it .in
-   as it scrolls into view — then it pops up from below. Removing .in hides
-   instantly (no out-transition), which is what the replay relies on. */
+   as it first scrolls into view, then it pops up from below once and stays.
+   .still marks content that arrived after the entrance: shown, no pop. */
 .home .hero > div > *, .home .hero > .mock, .home .steps h2, .home .step,
 .home .tells h2, .home .tell, .home .install > div > * {
   opacity: 0; transform: translateY(28px);
 }
 .home .in { animation: popup .7s cubic-bezier(.2, .8, .2, 1) both; }
+.home .still, .shell .still { animation: none; opacity: 1; transform: none; }
 /* Small staggers once a section reveals. */
 .home .hero > div > :nth-child(2) { animation-delay: .1s; }
 .home .hero > div > :nth-child(3) { animation-delay: .2s; }
