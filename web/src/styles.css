@@ -265,6 +265,9 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   padding: 18px 20px; box-shadow: var(--shadow);
 }
 .note p { margin: 0; font-size: 16px; }
+/* The duck is a flex item, so a long note squeezes it narrower than the one
+   beside it unless it is told to keep its size. */
+.note svg, .duckhead svg { flex: 0 0 auto; }
 .bars { display: flex; flex-direction: column; gap: 10px; max-width: 620px; }
 .bar { display: grid; grid-template-columns: 130px 1fr 30px; align-items: center; gap: 12px; font-size: 14px; }
 .bar > div { background: #eeebe3; border-radius: 99px; height: 10px; overflow: hidden; }
