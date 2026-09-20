@@ -38,6 +38,17 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   background: linear-gradient(var(--paper) 72%, rgba(251, 249, 244, 0));
 }
 .brand { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 44px; letter-spacing: -0.035em; }
+.brand span { position: relative; }
+/* A puddle seeping out under the wordmark. */
+.brand span::after {
+  content: ""; position: absolute; left: 50%; bottom: -10px;
+  width: 116%; height: 16px; transform: translateX(-50%) scale(.45);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(126, 168, 207, .55), rgba(126, 168, 207, .18) 70%, rgba(126, 168, 207, 0));
+  opacity: 0; pointer-events: none;
+  transition: opacity 1.1s ease, transform 1.1s cubic-bezier(.22, .61, .36, 1);
+}
+.brand:hover span::after { opacity: 1; transform: translateX(-50%) scale(1); }
 .navlinks { display: flex; align-items: center; gap: 22px; font-size: 15px; color: var(--muted); }
 .navlinks a:hover { color: var(--ink); }
 .live {
