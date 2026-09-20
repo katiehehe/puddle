@@ -85,7 +85,7 @@
         *{box-sizing:border-box;font-family:"Outfit",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
         .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
           background:${PALETTE.surface};
-          border-radius:8px;padding:16px 18px;animation:pop .2s ease;
+          border-radius:0 8px 8px 0;padding:16px 18px;animation:pop .2s ease;
           border-left:8px solid ${accent};outline:2px solid ${PALETTE.line}}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
         .row{display:flex;gap:12px;align-items:flex-start}
