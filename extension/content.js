@@ -226,7 +226,8 @@
    * it would with the extension uninstalled -- the duck is a bystander that
    * speaks up, not a gate. PRD 8.1: never blocks, one tap overrules.
    */
-  const BUY_WORDS = /\b(check ?out|buy|add to (bag|cart)|place order|pay|purchase)\b/i;
+  const BUY_WORDS =
+    /\b(check ?out|buy|add to (bag|cart|basket)|place (your )?order|complete (your )?(order|purchase)|pay now|purchase)\b/i;
 
   function looksLikeCheckout(element) {
     const control = element.closest?.(
