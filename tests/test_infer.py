@@ -2,7 +2,6 @@
 
 from datetime import datetime
 
-from brain import history
 from brain.app import _context, recommend
 from brain.catalog import CLOSET, STOREFRONT, coerce_item
 from brain.infer import infer

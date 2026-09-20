@@ -1,5 +1,9 @@
 // Puddle content script: watches for checkout, then shows the duck.
 (function () {
+  // document_idle normally guarantees a body, but not on every document a real
+  // browsing session opens (XML, some PDF viewers, frames mid-navigation).
+  // Without this the script throws before anything else runs.
+  if (!document.body) return;
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
   const PALETTE = {
@@ -56,7 +60,16 @@
     if (host) return;
     host = document.createElement("div");
     host.id = "puddle-root";
-    host.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:2147483647;";
+    // !important because we are a guest on someone else's page: a site-wide
+    // `div { position: static }` or a lower stacking context would otherwise
+    // bury the duck. Set individually so each property carries the priority.
+    for (const [prop, value] of [
+      ["position", "fixed"], ["bottom", "20px"], ["right", "20px"],
+      ["z-index", "2147483647"], ["display", "block"], ["visibility", "visible"],
+      ["opacity", "1"], ["margin", "0"], ["padding", "0"], ["width", "auto"],
+      ["height", "auto"], ["max-width", "none"], ["max-height", "none"],
+      ["transform", "none"], ["filter", "none"], ["pointer-events", "auto"],
+    ]) host.style.setProperty(prop, value, "important");
     document.documentElement.appendChild(host);
     shadow = host.attachShadow({ mode: "open" });
   }
@@ -204,8 +217,22 @@
     let item;
     try { item = JSON.parse(raw); } catch (e) { return; }
     const hour = item.now_hour != null ? item.now_hour : new Date().getHours();
-    send({ type: "score", item, now_hour: hour }).then((res) => requestVersion === scoreVersion && res && render(res, item)).catch(error => {
-      ensureHost(); shadow.textContent = error.message;
+    send({ type: "score", item, now_hour: hour }).then((res) => {
+      if (requestVersion !== scoreVersion || !res) return;
+      // Say nothing rather than something empty. On our own shop every item is
+      // interesting; on a real storefront most are not, and a duck that
+      // interrupts every checkout with "nothing in your history says anything
+      // about this one" gets uninstalled before it is ever right. PRD 10:
+      // silent on ~95% of items is the defence, not a nice-to-have.
+      const hasSomethingToSay =
+        (res.insights || []).length > 0 && res.duck_state && res.duck_state !== "idle";
+      if (!hasSomethingToSay) return;
+      render(res, item);
+    }).catch(error => {
+      // A transport failure on a page we do not own is our problem, not the
+      // shopper's: log it and stay out of the way.
+      if (document.body.dataset.puddleCheckout) { ensureHost(); shadow.textContent = error.message; }
+      else console.debug("Puddle:", error.message);
     });
   }
 

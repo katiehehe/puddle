@@ -1,10 +1,10 @@
 """Visa Direct wiring. The network is stubbed; the request Visa sees is not."""
 
-import ssl
 import hashlib
 import hmac
 import io
 import json
+import ssl
 import urllib.error
 
 from brain import payments
