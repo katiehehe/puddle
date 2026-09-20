@@ -103,29 +103,111 @@ export type ClosetEntry = {
   understood: Understood | null;
 };
 
+
+/* When there is no brain to talk to, the journal falls back to this browser.
+ * A shared link is the main case: somebody opening the site from a phone has
+ * no localhost to reach, and a form that silently fails is worse than one that
+ * keeps your entries where you typed them. */
+const LOCAL_KEY = "puddle.closet.log";
+
+function readLocal(): ClosetEntry[] {
+  try { return JSON.parse(localStorage.getItem(LOCAL_KEY) ?? "[]"); } catch { return []; }
+}
+
+function writeLocal(entries: ClosetEntry[]): void {
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(entries)); } catch { /* private window */ }
+}
+
+/** The same inference the brain does, kept deliberately small: enough to name
+ *  the common garments so a shared link still understands what you typed. */
+const LOCAL_KINDS: [RegExp, string, string][] = [
+  [/rain|parka|anorak|waterproof/, "rain_outer", "outer"],
+  [/puffer|down jacket/, "puffer", "outer"],
+  [/blazer|suit/, "blazer", "outer"],
+  [/jacket|coat/, "light_jacket", "outer"],
+  [/crewneck|sweatshirt|sweater|jumper|knit/, "crewneck", "top"],
+  [/hoodie/, "hoodie", "top"],
+  [/tank|cami|halter|corset/, "going_out_top", "top"],
+  [/shirt|tee|top|blouse|polo/, "crewneck", "top"],
+  [/jeans|trouser|chino|pant/, "jeans", "bottom"],
+  [/legging|tights/, "leggings", "bottom"],
+  [/skirt/, "skirt", "bottom"],
+  [/short/, "athletic_shorts", "bottom"],
+  [/boot/, "boots", "shoes"],
+  [/heel|pump/, "heels", "shoes"],
+  [/sneaker|trainer/, "sneakers", "shoes"],
+  [/dress/, "going_out_dress", "dress"],
+  [/scarf|beanie|hat|belt|sock/, "scarf", "accessory"],
+];
+
+function guessLocally(title: string): Understood | null {
+  const t = title.toLowerCase();
+  for (const [re, kind, category] of LOCAL_KINDS) {
+    if (re.test(t)) return { category, kind, formality: 2, warmth: 3, rain_ok: /rain|waterproof/.test(t) };
+  }
+  return null;
+}
+
 export async function getClosetLog(): Promise<ClosetEntry[]> {
   try {
-    const d = await call<{ entries: ClosetEntry[] }>("/closet/log");
-    return d.entries;
+    return (await call<{ entries: ClosetEntry[] }>("/closet/log")).entries;
   } catch {
-    return [];
+    return readLocal();
   }
 }
 
 /** Adds one item. Throws with the server's own sentence so the form can show it. */
+/** Adds one item. A refused entry is a real answer and is rethrown so the form
+ *  can show the server's own sentence; only a transport failure falls back to
+ *  saving in this browser. */
 export async function addClosetEntry(entry: Record<string, unknown>): Promise<ClosetEntry> {
-  const r = await fetch(`${BRAIN}/closet/log`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(entry),
-  });
+  let r: Response;
+  try {
+    r = await fetch(`${BRAIN}/closet/log`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entry),
+    });
+  } catch {
+    return addLocally(entry);
+  }
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : "That did not save.");
   return body.entry;
 }
 
+function addLocally(entry: Record<string, unknown>): ClosetEntry {
+  const title = String(entry.title ?? "").trim();
+  const understood = guessLocally(title);
+  if (!understood) {
+    throw new Error(
+      `We could not work out what "${title}" is. Try naming the garment, for example ` +
+      `charcoal crewneck, rain jacket, or chelsea boots.`,
+    );
+  }
+  const saved: ClosetEntry = {
+    id: "log_" + Math.random().toString(36).slice(2, 12),
+    title,
+    price: entry.price == null ? null : Number(entry.price),
+    wears: Number(entry.wears ?? 0),
+    note: (entry.note as string) ?? null,
+    link: (entry.link as string) ?? null,
+    image: (entry.image as string) ?? null,
+    size: (entry.size as string) ?? null,
+    color: (entry.color as string) ?? null,
+    created_at: new Date().toISOString(),
+    understood,
+  };
+  writeLocal([saved, ...readLocal()]);
+  return saved;
+}
+
 export async function removeClosetEntry(id: string): Promise<void> {
-  await fetch(`${BRAIN}/closet/log/${encodeURIComponent(id)}`, { method: "DELETE" });
+  try {
+    const r = await fetch(`${BRAIN}/closet/log/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (r.ok) return;
+  } catch { /* fall through to the browser copy */ }
+  writeLocal(readLocal().filter((e) => e.id !== id));
 }
 
 export type ClosetItem = {
