@@ -6,21 +6,24 @@
     panel.className = "voice-panel";
     panel.innerHTML = `
       <style>
-        .voice-panel{border-top:2px solid #e5e7eb;margin-top:14px;padding-top:14px;color:#111827}
+        .voice-panel{border-top:1px solid #2c2a24;margin-top:14px;padding-top:14px;color:#2c2a24}
         .voice-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-        .voice-controls button{background:#f3f4f6;color:#111827;border-radius:6px}
-        .voice-controls button:hover{background:#e5e7eb}
-        .voice-controls button[aria-pressed="true"]{background:#dc2626;color:#fff}
-        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:3px solid #3b82f6;outline-offset:2px}
+        .voice-controls button{background:transparent;color:#2c2a24;border:1px solid #2c2a24;
+          padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+        .voice-controls button:hover{background:#ece4cf}
+        .voice-controls button[aria-pressed="true"]{background:#a63d2f;border-color:#a63d2f;color:#fff}
+        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:2px solid #3e6b8e;outline-offset:2px}
         .voice-panel button:disabled{opacity:.55;cursor:default}
-        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#6b7280;margin:8px 0}
-        .voice-answer{font-size:14px;line-height:1.5;margin:8px 0;overflow-wrap:anywhere}
+        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#8a8270;margin:8px 0}
+        .voice-answer{font-family:Georgia,"Times New Roman",serif;font-size:14px;line-height:1.5;
+          margin:8px 0;overflow-wrap:anywhere;font-style:italic}
         .voice-form{display:flex;gap:8px;margin-top:10px}
-        .voice-form input{width:0;flex:1;min-width:0;border:2px solid transparent;border-radius:6px;
-          padding:10px 12px;font-size:13px;background:#f3f4f6;color:#111827}
-        .voice-form input:focus{background:#fff;border-color:#3b82f6}
-        .voice-form input::placeholder{color:#6b7280}
-        .voice-label{display:block;font-size:12px;margin-top:12px;color:#6b7280;font-weight:600}
+        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #2c2a24;
+          padding:10px 12px;font-size:13px;background:#f6f1e3;color:#2c2a24}
+        .voice-form input:focus{background:#fbf8ee;border-color:#3e6b8e}
+        .voice-form input::placeholder{color:#8a8270}
+        .voice-label{display:block;font-size:10px;margin-top:12px;color:#8a8270;font-weight:700;
+          text-transform:uppercase;letter-spacing:.12em}
         .voice-panel [hidden]{display:none!important}
         @media(prefers-reduced-motion:reduce){.card{animation:none!important}}
       </style>
