@@ -58,14 +58,15 @@ KIND_GROUPS = {
 
 _QUANTITY = re.compile(
     r"\b(how many|how much|do i own|do i have|what do i own|what do i have|own any|have any|"
-    r"count|number of)\b"
+    r"count|tally|number of)\b"
 )
 
 # What the question is *about* sits after one of these: a preposition, a
 # determiner, or a verb of owning and buying. "Spent on Bitcoin" and "own for
 # rain" are the same grammar, and only one of the two subjects exists here.
 _SUBJECT = re.compile(
-    r"\b(?:on|in|at|for|about|from|with|by|near|among|between|versus|than|like|"
+    r"\b(?:if|when|whenever|unless|while|whether|because|since|though|although|until|"
+    r"on|in|at|for|about|from|with|by|near|among|between|versus|than|like|"
     r"into|onto|off|via|during|before|after|inside|outside|around|"
     r"my|your|a|an|the|this|that|more|another|other|new|some|any|\w+ing|"
     r"do|does|did|is|are|was|were|has|have|had|"
@@ -111,7 +112,7 @@ _GENERIC = set(
     total altogether overall average percentage percent rate ratio share number count
     one two three four five six seven eight nine ten dozen pair pairs half twice
     currently usually normally mostly suitable appropriate sensible useful
-    suggest suggests suggestion recommend recommends advice think thoughts
+    suggest suggests suggestion recommend recommends advice think thoughts tally tallies
     dont doesnt didnt wont cant isnt arent wasnt havent hasnt shouldnt couldnt wouldnt
     whats thats theres heres lets youre theyre
     size sizes fit fits color colors colour colours brand brands
@@ -262,13 +263,17 @@ class Wardrobe:
             return None
         subject, items, _ = found
         qualities = [q for q in self._qualities(text) if q not in subject.split()]
-        colours = [q for q in qualities if q in COLOUR_WORDS]
         spoken = qualities
-        if len(colours) > 1 and re.search(r"\bor\b", text):
-            # "black or white cotton tops" asks for two colours, one fabric.
-            items = [i for i in items if i.color in colours]
-            qualities = [q for q in qualities if q not in colours]
-            spoken = [" or ".join(colours), *qualities]
+        if re.search(r"\bor\b", text):
+            # "black or white cotton tops" is two colours and one fabric: an
+            # "or" widens within a kind of quality, never across two of them.
+            for group, field in ((COLOUR_WORDS, "color"), (FABRIC_WORDS, "material")):
+                said = [q for q in qualities if q in group]
+                if len(said) < 2:
+                    continue
+                items = [i for i in items if getattr(i, field) in said]
+                qualities = [q for q in qualities if q not in said]
+                spoken = [" or ".join(said), *qualities]
         for quality in qualities:
             items = [i for i in items if quality in (i.color, i.material)]
         return subject, spoken, items
@@ -351,6 +356,9 @@ def _saved(text: str, w: Wardrobe):
 def _accuracy(text: str, w: Wardrobe):
     if not re.search(r"\b(accurate|accuracy|right|wrong|track record|score|trust)\b", text):
         return None
+    # "How many jeans do I have right now" is a count; "right now" is a time.
+    if re.search(r"\bright (now|away|then)\b", text) or _counting(text, w):
+        return None
     stat = ledger.accuracy()
     if not stat["total"]:
         return (
@@ -411,7 +419,12 @@ def _duplicates(text: str, w: Wardrobe):
 
 
 def _unworn(text: str, w: Wardrobe):
-    if not re.search(r"\b(never worn|unworn|don't wear|dont wear|never wear|least worn|donate|get rid|dead)\b", text):
+    if not re.search(
+        r"\b(never worn|unworn|don't wear|dont wear|never wear|least worn|worn the least|"
+        r"wearing the least|wear the least|haven't i worn|havent i worn|haven't worn|"
+        r"havent worn|not worn|gathering dust|collecting dust|donate|get rid|dead)\b",
+        text,
+    ):
         return None
     unworn = sorted([i for i in w.items if w.wears(i) == 0], key=lambda i: -i.price)
     if not unworn:

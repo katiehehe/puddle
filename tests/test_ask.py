@@ -152,6 +152,10 @@ def test_a_stranger_is_refused_wherever_the_grammar_puts_them():
         "can you count crewnecks rihanna owns?",
         "what do i own for rain, paris?",
         "how many balenciaga shoes do i own?",
+        "how much have i spent if bitcoin crashes?",
+        "what do i own for rain when tokyo floods?",
+        "how many jackets do i own if oprah asks?",
+        "what is my best purchase unless tesla crashes?",
     ):
         assert ask(question)["intent"] == "unknown", question
 
@@ -166,6 +170,8 @@ def test_a_colour_the_closet_lacks_is_a_question_not_a_stranger():
     assert ask("How many gray crewnecks do I own?")["answer"] == "One: Grey crewneck. $45, 5 wears."
     mixed = ask("How many black or white cotton tops do I own?")
     assert mixed["facts"]["count"] == 0
+    fabrics = ask("How many cotton or wool crewnecks do I own?")
+    assert fabrics["facts"]["count"] == 3
 
 
 def test_plain_english_around_a_wardrobe_question_is_not_a_stranger():
@@ -173,11 +179,15 @@ def test_plain_english_around_a_wardrobe_question_is_not_a_stranger():
     answerable = {
         "Quickly count my crewnecks, please.": "count",
         "How many jackets do I currently possess?": "count",
-        "What clothes are gathering dust in my closet?": "summary",
         "How much have I splurged on clothes?": "spend",
         "What percentage of purchases am I returning?": "returns",
         "How much money have I saved by skipping purchases?": "saved",
         "Which clothes have I never worn even once?": "unworn",
+        "What clothes are gathering dust in my closet?": "unworn",
+        "What have I been wearing the least?": "unworn",
+        "Which of my clothes haven't I worn?": "unworn",
+        "Can you tally my jackets?": "count",
+        "How many jeans do I actually have right now?": "count",
     }
     for question, intent in answerable.items():
         assert ask(question)["intent"] == intent, question
