@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import desk, history, insights, ledger, market, payments, pond, storage, voice
+from . import ask, desk, history, insights, ledger, market, payments, pond, storage, voice
 from .catalog import CLOSET, STOREFRONT, Item, coerce_item
 from .miner import Miner, rank, verdict
 from .portfolio import Closet
@@ -35,6 +35,7 @@ DEFAULT_BUDGET = 500.0
 
 app = FastAPI(title="Puddle Brain", version="0.3.0")
 app.include_router(voice.router)
+app.include_router(ask.router)
 app.mount("/demo-assets", StaticFiles(directory=PROJECT_ROOT / "extension"), name="demo-assets")
 
 DASHBOARD_DIST = PROJECT_ROOT / "web" / "dist"

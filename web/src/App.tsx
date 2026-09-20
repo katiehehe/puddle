@@ -13,6 +13,7 @@ import {
   Score,
   Status,
 } from "./api";
+import { AskPuddle } from "./AskPuddle";
 import { Garment } from "./Garment";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -545,6 +546,7 @@ function Dashboard() {
   const [status, setStatus] = useState<Status | null>(null);
   const [tab, setTab] = useState<Tab>("Closet");
   const [failed, setFailed] = useState(false);
+  const [asking, setAsking] = useState(false);
 
   useEffect(() => {
     getMe().then(setMe).catch(() => setFailed(true));
@@ -619,6 +621,12 @@ function Dashboard() {
         <Duck size={22} />
         <span>Quant Quack — built at HackMIT.</span>
       </footer>
+
+      <button className="askfab" onClick={() => setAsking(!asking)} aria-expanded={asking}>
+        <Duck size={24} />
+        Ask Puddle
+      </button>
+      <AskPuddle open={asking} onClose={() => setAsking(false)} />
     </div>
   );
 }

@@ -85,10 +85,35 @@ duck silent.
 - “Buy it” points to checkout; voice never places an order.
 
 This is a small deterministic intent handler, not a general conversation model.
-Unknown questions get a list of supported requests. No LLM API key is required.
+A question the item handler has no reading of falls through to the wardrobe
+answers below; anything neither can cite a statistic for gets a list of
+supported requests. No LLM API key is required.
 The response handler itself does not change savings, predictions or purchases.
 Confirmed skips use the persistent action API with a retry-safe event ID. The
 existing Skip button now uses the same API so the two entry points agree.
+
+## Ask Puddle: the whole closet
+
+The dashboard has an **Ask Puddle** button that opens a panel with the same
+microphone and a text box, scoped to everything you own rather than one item:
+
+- “What am I missing?” names the uncovered occasions and the cheapest catalog
+  item that would cover the worst one.
+- “What do I own for rain?” lists what clears the coverage bar for an occasion,
+  best first, with the wears behind them. Also gym, formal, night out, cold,
+  lounge, date.
+- “How many crewnecks do I own?” counts a kind, category or colour, with what
+  the pile cost and how often it gets worn.
+- “What do I never wear?” the unworn pile, its value, and which piece can go
+  without opening a coverage gap.
+- “Do I have duplicates?” the biggest same-kind pile and its shared wears.
+- “How much have I spent?”, “Do I return a lot?”, “What happens when I shop
+  late at night?”, “Am I overexposed?”, “What's my best buy?”, “What have I
+  saved?”, “How often are you right?”
+
+Every answer ships the statistic it was rendered from in `facts`, and an
+unmatched question returns `intent: "unknown"` with examples rather than a
+guess. Nothing here calls a model, and nothing here writes state.
 
 ## API
 
@@ -102,7 +127,12 @@ existing Skip button now uses the same API so the two entry points agree.
   "use browser speech".
 - `POST /voice/respond`: `{transcript, item_id}` or `{transcript, item}`;
   optional `now_hour`. Returns answer, intent, decision, item, pending_action,
-  alternatives, and evaluated_item for a size question.
+  alternatives, and evaluated_item for a size question. An unrecognised
+  question is answered from the wardrobe when possible (`scope: "wardrobe"`).
+- `POST /ask`: `{question}`, optionally `{item_id | item, now_hour}`. Returns
+  `{intent, answer, facts, scope, examples}`. With an item in context an
+  item-scoped question is delegated to `/voice/respond` so the panel and the
+  checkout duck never disagree about the same garment.
 
 Errors: 413 oversized recording; 415 unsupported format; 422 empty audio/speech
 or invalid question; 503 missing configuration or provider rate limit;

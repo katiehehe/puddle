@@ -160,6 +160,12 @@ class Closet:
     def gaps(self) -> list[dict]:
         return [c for c in self.coverage() if not c["covered"]]
 
+    def serving(self, state_key: str) -> list[tuple[Item, float]]:
+        """Items that clear the coverage bar for one occasion, best first."""
+        j = next(k for k, s in enumerate(STATES) if s.key == state_key)
+        scored = [(item, round(float(self._A[i][j]), 3)) for i, item in enumerate(self.items)]
+        return sorted([pair for pair in scored if pair[1] >= COVERED], key=lambda pair: -pair[1])
+
     def donatable(self) -> list[str]:
         """Ids of items you can let go without opening a hole.
 

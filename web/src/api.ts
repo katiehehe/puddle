@@ -190,6 +190,43 @@ export async function askDuck(itemId: string, question: string, nowHour: number)
   return r.answer ?? "I don't have a read on that one.";
 }
 
+export type WardrobeAnswer = {
+  intent: string;
+  answer: string;
+  scope?: string;
+  facts?: Record<string, unknown>;
+  examples?: string[];
+};
+
+/** The duck, answering across the whole closet rather than one item. Same
+ *  deterministic brain as checkout: every line is a statistic it can show. */
+export async function askPuddle(question: string): Promise<WardrobeAnswer> {
+  return call<WardrobeAnswer>("/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+  });
+}
+
+/** Deepgram, via the brain — the key never reaches the browser. */
+export async function transcribe(clip: Blob): Promise<string> {
+  const r = await call<{ transcript: string }>("/voice/transcribe", {
+    method: "POST",
+    headers: { "Content-Type": clip.type || "audio/webm" },
+    body: clip,
+  });
+  return r.transcript;
+}
+
+/** Hosted speech when a key is set; callers fall back to the browser voice. */
+export async function speakLine(text: string): Promise<{ audio: string; mime: string }> {
+  return call<{ audio: string; mime: string }>("/voice/speak", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+
 export async function gradePrediction(id: string, correct: boolean): Promise<void> {
   await call(`/predict/${encodeURIComponent(id)}/grade?correct=${correct}`, { method: "POST" });
 }
