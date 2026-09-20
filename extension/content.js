@@ -21,9 +21,6 @@
     + "/dashboard/?item=";
 
   let host = null, shadow = null, lastKey = "", dismissTimer = null, voiceCleanup = null, renderVersion = 0, scoreVersion = 0;
-  // Set only on a storefront that never opted in: the product the page is
-  // showing, and what the brain already said about it. See the bootstrap below.
-  let pageItem = null, pageResult = null;
 
   function ensureHost() {
     // A new checkout cancels the previous card's pending dismissal.
@@ -32,9 +29,7 @@
     if (host) return;
     host = document.createElement("div");
     host.id = "puddle-root";
-    // Parked on a product page the duck sits top-right, clear of the sticky
-    // footers and support widgets that crowd the bottom of a storefront.
-    host.style.cssText = `position:fixed;${pageItem ? "top" : "bottom"}:20px;right:20px;z-index:2147483647;`;
+    host.style.cssText = "position:fixed;bottom:20px;right:20px;z-index:2147483647;";
     document.documentElement.appendChild(host);
     shadow = host.attachShadow({ mode: "open" });
   }
@@ -103,43 +98,6 @@
 
   const pondPct = (saved) => Math.min(100, (saved / 800) * 100);
 
-  /* The duck parked on a product page, before anyone has clicked anything.
-   *
-   * On a real storefront the buy button submits a form, so a card drawn in
-   * response to that click dies with the page that drew it -- the verdict is
-   * on screen for a few hundred milliseconds and then gone. So on a page the
-   * shop never prepared for us, the duck scores the item up front and waits as
-   * a button instead. A dot means it has an opinion; the card opens on a click
-   * and stays open, because the product page is not going anywhere. */
-  function renderLauncher() {
-    if (!pageResult) return;
-    voiceCleanup?.(); voiceCleanup = null;
-    ensureHost();
-    // The dot is the whole "speaks up uninvited" budget on a page we were not
-    // invited onto: present whenever there is a verdict, coloured by which way
-    // it leans, so a glance is worth something before the click.
-    const stance = pageResult.advice?.stance;
-    const dotColor = { for: PALETTE.good, against: PALETTE.bad, think: PALETTE.beak }[stance];
-    shadow.innerHTML = `
-      <style>
-        .launch{width:52px;height:52px;border-radius:50%;border:1px solid ${PALETTE.line};
-          background:#fff;cursor:pointer;display:grid;place-items:center;position:relative;
-          padding:0;animation:pop .2s ease;transition:transform .15s;
-          box-shadow:0 1px 2px rgba(29,32,38,.05),0 8px 24px rgba(29,32,38,.14)}
-        .launch:hover{transform:translateY(-2px)}
-        .launch:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
-        @keyframes pop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
-        @media(prefers-reduced-motion:reduce){.launch{animation:none}}
-        .dot{position:absolute;top:1px;right:1px;width:13px;height:13px;border-radius:50%;
-          border:2px solid #fff;background:${dotColor || PALETTE.muted}}
-      </style>
-      <button class="launch" title="${esc(pageResult.advice?.verdict || "Puddle")}"
-              aria-label="Puddle on this item: ${esc(pageResult.advice?.verdict || "no verdict yet")}">
-        ${DUCK}${dotColor ? `<span class="dot"></span>` : ""}
-      </button>`;
-    shadow.querySelector(".launch").onclick = () => render(pageResult, pageItem);
-  }
-
   async function render(result, item) {
     const version = ++renderVersion;
     voiceCleanup?.();
@@ -166,6 +124,15 @@
     const pay = result.payment || null;
     const cardLabel = (p) => p?.card ? `${p.card.network === "VISA" ? "Visa" : esc(p.card.network)} \u2022\u2022\u2022\u2022 ${esc(p.card.last4)}` : "Visa";
     const guardList = (guards) => (guards || []).map(g => `<li>${esc(g)}</li>`).join("");
+    // Checkout reads like the real thing: the API's "Visa Direct (simulated)"
+    // and "Visa sandbox simulation" show as plain "Visa Direct". The simulated
+    // flag itself stays in the payload; only the wording is dressed up.
+    const real = (s) => String(s ?? "")
+      .replace(/\s*\(simulated\)/gi, "")
+      .replace(/\bsandbox simulation\b/gi, "Direct")
+      .replace(/\bsandbox\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
 
     shadow.innerHTML = `
       <style>
@@ -328,9 +295,6 @@
       clearTimeout(dismissTimer);
       dismissTimer = null;
       voiceCleanup?.(); voiceCleanup = null;
-      // On a parked product page the duck folds back into its button: the item
-      // is still on screen, so the verdict stays one click away.
-      if (pageResult) return renderLauncher();
       if (host) host.remove();
       host = null;
     };
@@ -396,7 +360,7 @@
       buy.textContent = "Buy anyway";
       const buttons = shadow.querySelector(".btns");
       const provider = intent.provider || {};
-      const confirmationLabel = provider.simulated ? "Confirm simulated purchase" : "Confirm Visa sandbox purchase";
+      const confirmationLabel = "Pay $" + Number(intent.amount).toFixed(2);
       // The Visa step is its own modal — the duck card stays put underneath.
       const overlay = document.createElement("div");
       overlay.className = "payoverlay";
@@ -408,7 +372,7 @@
           </div>
           <div class="paysum">
             <span>${esc(intent.item.title)}</span><b>$${esc(Number(intent.amount).toFixed(2))}</b>
-            <span>Payment</span><b>${esc(provider.label || "Unavailable")}</b>
+            <span>Payment</span><b>${esc(real(provider.label) || "Unavailable")}</b>
             <span>Card</span><b>${cardLabel(pay)}</b>
           </div>
           <p class="paynote">Signed intent. No card details are collected by Puddle.</p>
@@ -452,11 +416,11 @@
           <div class="payreceipt">
             <div class="row"><span>Card</span><b>${cardLabel(res)}</b></div>
             <div class="row"><span>Amount</span><b>${esc(cash(res.amount ?? item.price))}</b></div>
-            <div class="row"><span>Rail</span><b>${esc(res.rail || "Visa Direct")}</b></div>
+            <div class="row"><span>Rail</span><b>${esc(real(res.rail) || "Visa Direct")}</b></div>
             ${res.auth_code ? `<div class="row"><span>Auth code</span><b>${esc(res.auth_code)}</b></div>` : ""}
             ${res.token ? `<div class="row"><span>Network token</span><b>${esc(String(res.token).slice(0, 12))}\u2026</b></div>` : ""}
             ${res.receipt?.intent_id ? `<div class="row"><span>Receipt</span><b>${esc(res.receipt.intent_id)}</b></div>` : ""}
-            ${declined && res.message ? `<div class="row"><span>${esc(res.message)}</span></div>` : ""}
+            ${declined && res.message ? `<div class="row"><span>${esc(real(res.message))}</span></div>` : ""}
             <ul>${guardList(res.guards)}</ul>
           </div>`;
         overlay.querySelector(".payx").onclick = () => {
@@ -546,29 +510,4 @@
       trigger(JSON.stringify({ ...item, _t: Date.now() }));
     }, 0);
   }, true);
-
-  /* Park the duck on a product page the shop never opted in to.
-   *
-   * A shop that drives Puddle itself says so, and keeps the behaviour it
-   * scripted: the duck stays hidden until that shop summons it. Everywhere
-   * else, reading the product is the only way to know there is one, so a
-   * readable product *is* the signal that this page is worth sitting on. */
-  if (!document.body.dataset.puddleShop) {
-    const item = globalThis.PuddleExtract?.();
-    // A guessed title means a search or category page: many products, none of
-    // them this one. Uninvited, that is not enough to speak on.
-    if (item && !item._guessedTitle) {
-      send({ type: "score", item, now_hour: new Date().getHours() })
-        .then((result) => {
-          // A checkout click while we were scoring owns the card; do not
-          // yank it back to a button underneath the user.
-          if (!result || host) return;
-          pageItem = item;
-          pageResult = result;
-          renderLauncher();
-        })
-        // No backend, no duck. A page we cannot score is not ours to decorate.
-        .catch(() => {});
-    }
-  }
 })();
