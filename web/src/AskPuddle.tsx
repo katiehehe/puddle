@@ -19,11 +19,14 @@ const SUGGESTIONS = [
 
 type Turn = { question: string; answer: string; intent: string };
 
-function browserSpeak(text: string) {
+// Donald-duck playback: speeding the clip up without pitch correction.
+const DUCKY_RATE = 1.5;
+
+function browserSpeak(text: string, ducky: boolean) {
   if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.02;
-  utterance.pitch = 1.15;
+  utterance.rate = ducky ? 1.25 : 1.02;
+  utterance.pitch = ducky ? 2 : 1.15;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -33,6 +36,7 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [ducky, setDucky] = useState(false);
   const [error, setError] = useState("");
   const recorder = useRef<MediaRecorder | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -72,13 +76,17 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
         if (turn !== speech.current) return;
         const bytes = Uint8Array.from(atob(hosted.audio), (c) => c.charCodeAt(0));
         const player = new Audio(URL.createObjectURL(new Blob([bytes], { type: hosted.mime })));
+        if (ducky) {
+          player.preservesPitch = false;
+          player.playbackRate = DUCKY_RATE;
+        }
         audio.current = player;
         await player.play();
       } catch {
-        if (turn === speech.current) browserSpeak(line);
+        if (turn === speech.current) browserSpeak(line, ducky);
       }
     },
-    [muted, silence],
+    [ducky, muted, silence],
   );
 
   const ask = useCallback(
@@ -193,16 +201,28 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
           Ask
         </button>
       </div>
-      <button
-        className="askmute"
-        aria-pressed={muted}
-        onClick={() => {
-          setMuted(!muted);
-          if (!muted) silence();
-        }}
-      >
-        {muted ? "Replies muted" : "Mute replies"}
-      </button>
+      <div className="askfoot">
+        <button
+          className="askmute"
+          aria-pressed={muted}
+          onClick={() => {
+            setMuted(!muted);
+            if (!muted) silence();
+          }}
+        >
+          {muted ? "Replies muted" : "Mute replies"}
+        </button>
+        <button
+          className="askmute"
+          aria-pressed={ducky}
+          onClick={() => {
+            setDucky(!ducky);
+            silence();
+          }}
+        >
+          {ducky ? "Ducky voice on" : "Ducky voice"}
+        </button>
+      </div>
     </aside>
   );
 }

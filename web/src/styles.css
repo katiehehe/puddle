@@ -485,6 +485,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .askpanel .askrow button { flex: 0 0 auto; padding: 11px 14px; }
 .askmic { background: var(--duck) !important; color: var(--ink) !important; }
 .askmic.on { background: var(--bad) !important; color: #fff !important; }
+.askfoot { display: flex; gap: 16px; align-items: center; }
+.askmute[aria-pressed="true"] { color: var(--ink); font-weight: 700; }
 .askmute {
   align-self: flex-start; font: inherit; font-size: 13px; cursor: pointer;
   border: 0; background: none; color: var(--muted); padding: 0; text-decoration: underline;
