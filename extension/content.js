@@ -145,6 +145,7 @@
           padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
           color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:99px}
         .btns{display:flex;gap:8px}
+        .btns[hidden]{display:none}
         .btns button{flex:1;padding:11px 0;font-size:14px;font-weight:700;cursor:pointer;
           border-radius:12px;transition:all .15s}
         button:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
