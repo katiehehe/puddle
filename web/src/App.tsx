@@ -114,7 +114,7 @@ function Home() {
             purchase through with you at checkout.
           </p>
           <div className="herobtns">
-            <a className="cta" href="#install">
+            <a className="cta" href="#/home?install">
               Add to Chrome — free
             </a>
           </div>
@@ -240,8 +240,11 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 }
 
 function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string) => void }) {
-  // Optimistic: a wear tap has to feel free, or nobody logs the fifth one.
-  const [extra, setExtra] = useState(0);
+  // Optimistic: a wear tap has to feel free, or nobody logs the fifth one. The
+  // tap is forgotten the moment the server's own count moves, so the two never
+  // add up to one wear twice.
+  const [tapped, setTapped] = useState({ counted: piece.wears, extra: 0 });
+  const extra = tapped.counted === piece.wears ? tapped.extra : 0;
   const wears = piece.wears + extra;
   const perWear = wears > 0 ? piece.paid / wears : null;
   return (
@@ -275,7 +278,7 @@ function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string)
       <button
         className="worebtn"
         onClick={() => {
-          setExtra((n) => n + 1);
+          setTapped({ counted: piece.wears, extra: extra + 1 });
           onWear(piece.id);
         }}
       >

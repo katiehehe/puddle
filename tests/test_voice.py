@@ -219,3 +219,33 @@ def test_dashboard_scope_answers_from_the_closet_or_not_at_all():
     stranger = client.post("/voice/respond", json={"scope": "wardrobe", "transcript": "What is Tesla stock doing?"})
     assert stranger.json()["intent"] == "unknown"
     assert "only answer from your own history" in stranger.json()["answer"]
+
+
+def test_every_question_the_card_offers_is_answered():
+    """A chip the card prints has to have a handler behind it, not the help text."""
+    card = client.post("/score_item", json={"item_id": "cand_boots", "now_hour": 23}).json()
+    offered = card["advice"]["questions"]
+    assert offered
+    for text in offered:
+        reply = question(text).json()
+        assert reply["intent"] != "unknown", text
+        assert "Ask why I recommend this item" not in reply["answer"], text
+
+
+def test_card_questions_answer_from_the_shopper_s_own_numbers():
+    duplicates = question("Show me similar things I own").json()
+    assert duplicates["intent"] == "duplicates"
+    assert duplicates["owned"] and all("wears" in o for o in duplicates["owned"])
+    assert duplicates["owned"][0]["title"] in duplicates["answer"]
+
+    hoped = question("What if I wear them 30 times?").json()
+    assert hoped["intent"] == "per_wear"
+    assert "30 wears" in hoped["answer"] and "a wear" in hoped["answer"]
+
+    price = question("Is $320 a good price?").json()
+    assert price["intent"] == "price"
+    assert price["deal"]["verdict"] in price["answer"] or "cannot price" in price["answer"]
+
+    wear = question("Will I wear it?").json()
+    assert wear["intent"] == "per_wear"
+    assert "wears" in wear["answer"]
