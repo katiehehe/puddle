@@ -53,11 +53,21 @@ function Duck({ size = 40 }: { size?: number }) {
 /* ------------------------------------------------------------------ home */
 
 function CheckoutMock() {
+  const [url, setUrl] = useState("northwick.com/shoes/chelsea-boots");
+  useEffect(() => {
+    // The embedded shop reports which item it's showing so the URL bar follows.
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === "puddle-demo-item") setUrl(event.data.path);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
   return (
     <div className="mock">
       <div className="mockbar">
         <span /> <span /> <span />
-        <div className="mockurl">northwick.com/shoes/chelsea-boots</div>
+        <div className="mockurl">{url}</div>
       </div>
       <iframe className="demoframe" src="/demo?embed=1" title="Puddle live demo" />
     </div>
