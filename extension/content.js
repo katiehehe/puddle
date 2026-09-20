@@ -42,6 +42,13 @@
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
   ));
 
+  // Escaped text with the numbers that matter picked out — prices and
+  // percentages get a duck-yellow underline.
+  const emph = (text) => esc(text).replace(
+    /(\$\d[\d,]*(?:\.\d+)?|\b\d+(?:\.\d+)?%)/g,
+    '<u class="hl">$1</u>'
+  );
+
   function chip(result) {
     const i = (result.insights || [])[0];
     if (!i) return "";
@@ -103,6 +110,8 @@
     const advice = result.advice || null;
     // Puddle's own sentences when the brain has them; the old facts otherwise.
     const plain = advice ? advice.reasons.map(r => r.text) : facts(money);
+    // The card stays compact: three reasons up front, the rest under "Tell me more".
+    const shown = plain.slice(0, 3), rest = plain.slice(3);
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
     const verdictTone = advice
       ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.ink
@@ -116,14 +125,19 @@
     shadow.innerHTML = `
       <style>
         *{box-sizing:border-box;font-family:"Outfit",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-        .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
-          background:#fff;color:${PALETTE.ink};border-radius:20px;
+        .card{width:min(320px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
+          background:#fff;color:${PALETTE.ink};border-radius:18px;
           border:1px solid ${PALETTE.line};
-          padding:20px 22px;animation:pop .2s ease;
+          padding:16px 18px;animation:pop .2s ease;
           box-shadow:0 1px 2px rgba(29,32,38,.05),0 12px 32px rgba(29,32,38,.12)}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
         .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px}
         .duckhead b{color:${PALETTE.muted};font-weight:700}
+        .x{margin-left:auto;background:none;border:0;color:${PALETTE.muted};
+          font-size:15px;line-height:1;padding:4px;cursor:pointer;border-radius:6px}
+        .x:hover{color:${PALETTE.ink};background:#f4f1ea}
+        .hl{font-weight:700;text-decoration:underline;text-decoration-color:${PALETTE.duck};
+          text-decoration-thickness:2.5px;text-underline-offset:2px}
         .verdict{display:inline-block;font-size:15px;font-weight:800;color:${verdictTone};
           background:${verdictBg};border-radius:99px;padding:5px 14px;margin:0 0 12px}
         .line{font-size:14px;line-height:1.5;color:${PALETTE.ink};margin:0 0 10px}
@@ -149,30 +163,38 @@
         .done{font-size:14px;color:${PALETTE.ink}}
         .facts{margin:0 0 10px;padding:0;list-style:none}
         .facts li{font-size:13px;line-height:1.5;color:${PALETTE.muted};margin-bottom:4px}
+        .cardlinks{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 12px}
         .more,.why{font-size:12px;font-weight:600;color:${PALETTE.muted};
           text-decoration:underline;text-underline-offset:2px}
-        .more{display:block;background:none;border:none;padding:0 0 10px;cursor:pointer}
-        .why{display:inline-block;margin-bottom:10px}
+        .more{background:none;border:none;padding:0;cursor:pointer}
+        .why{display:inline-block}
         .nums{display:none;font-size:12px;color:${PALETTE.muted};margin-bottom:10px;line-height:1.6}
         .nums.open{display:block}
         .nums b{color:${PALETTE.ink}}
       </style>
       <div class="card" id="card">
-        <div class="duckhead">${DUCK}<b>Puddle</b></div>
+        <div class="duckhead">${DUCK}<b>Puddle</b>
+          <button class="x" id="close" aria-label="Close" title="Close">✕</button>
+        </div>
         ${advice ? `<div class="verdict">${esc(advice.verdict)}</div>` : ""}
-        <div class="line">${esc(line)}</div>
+        <div class="line">${emph(line)}</div>
         ${c ? `<span class="chip">${esc(c)}</span>` : ""}
-        <ul class="facts">${plain.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+        <ul class="facts">${shown.map(f => `<li>${emph(f)}</li>`).join("")}</ul>
         <div class="ask">Still worth it?</div>
-        <button class="more" id="more">View numbers</button>
+        <div class="cardlinks">
+          <button class="more" id="more">Tell me more</button>
+          <a class="why" target="_blank" rel="noopener"
+             href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">See my closet</a>
+          <button class="more" id="asktoggle">Ask the duck</button>
+        </div>
         <div class="nums" id="nums">
+          ${rest.length ? `<ul class="facts">${rest.map(f => `<li>${emph(f)}</li>`).join("")}</ul>` : ""}
           ${money ? `Worth about <b>${esc(cash(money.resale))}</b> resold. ` : ""}
           At 5 wears <b>${esc(cash((money?.per_wear_at || {})[5] || 0))}</b> each,
           at 10 <b>${esc(cash((money?.per_wear_at || {})[10] || 0))}</b>,
           at 20 <b>${esc(cash((money?.per_wear_at || {})[20] || 0))}</b>.
         </div>
-        <a class="why" target="_blank" rel="noopener"
-           href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">See my closet</a>
+        <div id="voiceslot" hidden></div>
         <div class="btns">
           <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
           <button class="buy" id="buy">Buy anyway</button>
@@ -186,7 +208,7 @@
       more.onclick = () => {
         const nums = shadow.getElementById("nums");
         const open = nums.classList.toggle("open");
-        more.textContent = open ? "Hide the numbers" : "View numbers";
+        more.textContent = open ? "Show less" : "Tell me more";
       };
     }
 
@@ -196,14 +218,30 @@
     }, result.prediction_id);
     if (result.speak) speak(line);
 
+    // The voice panel starts tucked away — "Ask the duck" opens it.
+    const slot = shadow.getElementById("voiceslot");
+    const panelEl = shadow.querySelector(".voice-panel");
+    if (slot && panelEl) slot.appendChild(panelEl);
+    const askToggle = shadow.getElementById("asktoggle");
+    if (askToggle && slot) {
+      askToggle.onclick = () => {
+        slot.hidden = !slot.hidden;
+        askToggle.textContent = slot.hidden ? "Ask the duck" : "Hide the duck";
+      };
+    }
+
+    const close = () => {
+      clearTimeout(dismissTimer);
+      dismissTimer = null;
+      voiceCleanup?.(); voiceCleanup = null;
+      if (host) host.remove();
+      host = null;
+    };
+    shadow.getElementById("close").onclick = close;
+
     const dismiss = (after) => {
       clearTimeout(dismissTimer);
-      dismissTimer = setTimeout(() => {
-        voiceCleanup?.(); voiceCleanup = null;
-        if (host) host.remove();
-        host = null;
-        dismissTimer = null;
-      }, after);
+      dismissTimer = setTimeout(close, after);
     };
 
     shadow.getElementById("skip").onclick = async () => {
