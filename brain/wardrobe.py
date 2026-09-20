@@ -106,6 +106,7 @@ def _purchase(row: dict, index: int) -> dict:
         "hour": hour,
         "returned": bool(row.get("returned", False)),
         "return_reason": row.get("return_reason"),
+        "color": row.get("color", ""),
     }
 
 

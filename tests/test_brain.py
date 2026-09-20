@@ -71,6 +71,14 @@ def test_return_pattern_finds_the_planted_boots():
     assert "boots" in insight["line"]
 
 
+def test_every_purchase_knows_its_colour_and_agrees_with_the_closet():
+    owned = {item.title: item.color for item in CLOSET}
+    for p in history.purchases():
+        assert p.color, p.title
+        if p.title in owned:
+            assert p.color == owned[p.title], p.title
+
+
 def test_time_pattern_only_fires_late():
     miner = Miner(history.purchases(), history.wear_counts())
     assert miner.time_pattern(datetime(2026, 3, 1, 14, 0)) is None

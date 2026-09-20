@@ -26,7 +26,7 @@ import {
   Usage,
 } from "./api";
 import { AskPuddle } from "./AskPuddle";
-import { Garment, kindGuess } from "./Garment";
+import { Garment, colourGuess, kindGuess } from "./Garment";
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const round = (n: number) => `$${Math.round(n).toLocaleString()}`;
@@ -622,7 +622,7 @@ function PurchaseCard({ p, onChange }: { p: PurchaseRow; onChange: () => void })
   return (
     <article className={`buycard${kept ? "" : " gone"}`}>
       <div className="buypic">
-        <Garment category={p.category} colour={p.color || "grey"} kind={kindGuess(p.title)} size={64} />
+        <Garment category={p.category} colour={p.color || colourGuess(p.title) || "grey"} kind={kindGuess(p.title)} size={64} />
       </div>
       <div className="buybody">
         <h4>{p.title}</h4>
@@ -1118,7 +1118,7 @@ function StagedCard({ item, onChange }: { item: StagedItem; onChange: () => void
   return (
     <article className="piece">
       <div className="piecepic">
-        <Garment category={item.category} colour={item.color || "grey"} kind={item.kind} />
+        <Garment category={item.category} colour={item.color || colourGuess(item.title) || "grey"} kind={item.kind} />
         <span className={`railverdict ${review.stance}`}>{review.verdict}</span>
       </div>
       <h4>{item.title}</h4>
