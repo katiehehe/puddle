@@ -125,6 +125,73 @@ def test_a_count_follows_the_words_the_question_used():
     assert black["answer"].startswith("One: Black jeans.")
     assert ask("How many black tops do I own?")["answer"].startswith("4 black tops")
 
+    red = ask("How many red jeans do I own?")
+    assert red["facts"]["count"] == 0
+    assert red["answer"] == "None: you own no red jeans."
+
+    assert ask("How many denim jackets do I own?")["facts"]["count"] == 1
+    assert ask("How many trousers do I own?")["facts"]["count"] == 4
+    assert ask("How many boots do I own?")["answer"].startswith("2 pairs of boots")
+    assert ask("How many dresses do I own?")["intent"] == "count"
+
+
+def test_a_named_garment_beats_the_occasion_it_belongs_to():
+    boots = ask("How many rain boots do I own?")
+    assert boots["intent"] == "count"
+    assert boots["facts"]["count"] == 1
+    assert ask("What do I own for rain?")["intent"] == "occasion"
+
+
+def test_a_stranger_is_refused_wherever_the_grammar_puts_them():
+    for question in (
+        "how many crewnecks might taylor swift own?",
+        "how many crewnecks would beyonce own?",
+        "how many jackets does Elon Musk own?",
+        "What did I spend at Zara?",
+        "how many gucci jackets do i own?",
+        "can you count crewnecks rihanna owns?",
+        "what do i own for rain, paris?",
+        "how many balenciaga shoes do i own?",
+        "how much have i spent if bitcoin crashes?",
+        "what do i own for rain when tokyo floods?",
+        "how many jackets do i own if oprah asks?",
+        "what is my best purchase unless tesla crashes?",
+    ):
+        assert ask(question)["intent"] == "unknown", question
+
+
+def test_a_colour_the_closet_lacks_is_a_question_not_a_stranger():
+    assert ask("How many suede boots do I own?")["facts"]["count"] == 0
+    assert ask("How many navy jackets do I own?")["facts"]["count"] == 0
+    both = ask("How many black or white tops do I own?")
+    assert both["facts"]["count"] == 6
+    assert both["answer"].startswith("6 black or white tops")
+    assert ask("Could someone count my crewnecks?")["intent"] == "count"
+    assert ask("How many gray crewnecks do I own?")["answer"] == "One: Grey crewneck. $45, 5 wears."
+    mixed = ask("How many black or white cotton tops do I own?")
+    assert mixed["facts"]["count"] == 0
+    fabrics = ask("How many cotton or wool crewnecks do I own?")
+    assert fabrics["facts"]["count"] == 3
+
+
+def test_plain_english_around_a_wardrobe_question_is_not_a_stranger():
+    """Refusal reads noun slots, so ordinary words elsewhere cost nothing."""
+    answerable = {
+        "Quickly count my crewnecks, please.": "count",
+        "How many jackets do I currently possess?": "count",
+        "How much have I splurged on clothes?": "spend",
+        "What percentage of purchases am I returning?": "returns",
+        "How much money have I saved by skipping purchases?": "saved",
+        "Which clothes have I never worn even once?": "unworn",
+        "What clothes are gathering dust in my closet?": "unworn",
+        "What have I been wearing the least?": "unworn",
+        "Which of my clothes haven't I worn?": "unworn",
+        "Can you tally my jackets?": "count",
+        "How many jeans do I actually have right now?": "count",
+    }
+    for question, intent in answerable.items():
+        assert ask(question)["intent"] == intent, question
+
 
 def test_item_questions_still_go_to_the_checkout_handler():
     reply = ask("Why should I skip these?", item_id="cand_boots", now_hour=23)

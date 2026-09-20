@@ -43,14 +43,35 @@ STATE_WORDS: dict[str, tuple[str, ...]] = {
 CATEGORY_WORDS = {
     "outer": ("jacket", "coat", "outerwear"),
     "top": ("top", "shirt", "sweater"),
-    "bottom": ("bottom", "pant", "trouser"),
+    "bottom": ("bottom",),
     "shoes": ("shoe", "footwear"),
     "dress": ("dress",),
 }
 
+# Words for a group of kinds rather than a whole rail: trousers are not skirts.
+KIND_WORDS = {
+    "trousers": ("trouser", "pant", "slack"),
+}
+KIND_GROUPS = {
+    "trousers": ("jeans", "sweatpants", "leggings"),
+}
+
 _QUANTITY = re.compile(
     r"\b(how many|how much|do i own|do i have|what do i own|what do i have|own any|have any|"
-    r"count|number of)\b"
+    r"count|tally|number of)\b"
+)
+
+# What the question is *about* sits after one of these: a preposition, a
+# determiner, or a verb of owning and buying. "Spent on Bitcoin" and "own for
+# rain" are the same grammar, and only one of the two subjects exists here.
+_SUBJECT = re.compile(
+    r"\b(?:if|when|whenever|unless|while|whether|because|since|though|although|until|"
+    r"on|in|at|for|about|from|with|by|near|among|between|versus|than|like|"
+    r"into|onto|off|via|during|before|after|inside|outside|around|"
+    r"my|your|a|an|the|this|that|more|another|other|new|some|any|\w+ing|"
+    r"do|does|did|is|are|was|were|has|have|had|"
+    r"can|could|may|might|must|shall|should|will|would|"
+    r"buy|bought|own|owns|wear|spend|spent)\s+(?=(\w+))"
 )
 
 # A question has to be about the shopper's own things before any handler gets
@@ -60,17 +81,6 @@ _MINE = re.compile(
     r"\b(i|i'm|im|i've|ive|my|mine|me|we|our|you|your|puddle|closet|wardrobe|clothes|outfit|"
     r"own|owned|wear|worn|wearing|buy|bought|purchase|purchases|spend|spent|return|returns|"
     r"returned|saved|savings|pond|skip|skipped|donate)\b"
-)
-
-# What the question is *about* sits after one of these: a preposition, a
-# determiner, or a verb of owning and buying. "Spent on Bitcoin" and "own for
-# rain" are the same grammar, and only one of the two subjects exists here.
-_SUBJECT = re.compile(
-    r"\b(?:on|in|at|for|about|to|from|with|by|near|among|between|versus|than|like|"
-    r"into|onto|off|out|via|during|before|after|inside|outside|around|"
-    r"my|your|a|an|the|this|that|more|another|other|new|some|any|\w+ing|"
-    r"do|does|did|is|are|was|were|has|have|had|"
-    r"buy|bought|own|owns|wear|spend|spent)\s+(?=(\w+))"
 )
 
 # Words that name nothing in particular: question words, verbs about shopping,
@@ -96,17 +106,49 @@ _GENERIC = set(
     concentrated summary summarise summarize overview tell told say said show shows
     right wrong accurate accuracy track record score trust often times
     day days night nights morning afternoon evening late later time today tomorrow yesterday
-    week weeks month months year years season seasons now recently lately ago
+    week weeks month months year years season seasons now recently lately ago tonight weekend
     happen happens happened doing well good bad better worse best worst first last next
     per each all any some enough really actually please thanks ok okay
     total altogether overall average percentage percent rate ratio share number count
     one two three four five six seven eight nine ten dozen pair pairs half twice
     currently usually normally mostly suitable appropriate sensible useful
-    suggest suggests suggestion recommend recommends advice think thoughts
+    suggest suggests suggestion recommend recommends advice think thoughts tally tallies
     dont doesnt didnt wont cant isnt arent wasnt havent hasnt shouldnt couldnt wouldnt
     whats thats theres heres lets youre theyre
-    size sizes fit fits color colors colour colours brand brands""".split()
+    size sizes fit fits color colors colour colours brand brands
+    someone somebody anyone anybody everyone nobody people person myself yourself
+    kindly maybe perhaps probably honestly roughly about approximately exactly quite
+    pretty bit rather fairly around nearly almost over under above below within
+    give given list listing name names describe description break down breakdown
+    compare comparison worth while going out formal casual work gym rain snow cold warm
+    hot summer winter spring autumn fall weather occasion occasions event events
+    wedding interview party date office travel trip holiday vacation
+    left over leftover unused unworn untouched forgotten hanging sitting
+    end up ends ended instead rather worthwhile sensible smart wise
+    honest truth truthfully seriously curious wondering wonder know knows
+    help helping useful usefully anyway besides currently presently
+    waste wasted wasting predict predicts prediction predictions predicted
+    balanced unbalanced worn wears worth accurate inaccurate mistake mistakes
+    regret regrets regretted flag flagged flags ledger history log logged
+    quick quickly simple simply brief briefly ideal ideally possess possesses
+    proportion proportions splurge splurged gather gathering dust habit habits
+    once twice already truly basically essentially exactly specifically""".split()
 )
+
+# Colours and fabrics a shopper may reasonably name. One the closet does not
+# stock is a real question with a zero answer, not a stranger.
+COLOUR_WORDS = set(
+    """black white grey navy blue red green yellow orange pink purple brown beige
+    cream ivory tan khaki olive burgundy maroon charcoal silver gold""".split()
+)
+FABRIC_WORDS = set(
+    """denim leather suede cotton wool linen silk satin cashmere fleece nylon polyester
+    mesh sequin corduroy velvet knit tweed canvas rubber""".split()
+)
+QUALITY_WORDS = COLOUR_WORDS | FABRIC_WORDS | {"gray"}
+
+# One spelling of a colour, so "gray crewneck" finds the Grey one.
+SPELLINGS = {"gray": "grey"}
 
 
 def _vocabulary() -> set[str]:
@@ -119,10 +161,24 @@ def _vocabulary() -> set[str]:
         words.update(word for phrase in group for word in phrase.split())
     for state in STATES:
         words.update(re.findall(r"\w+", state.label.lower()))
-    return words
+    words.update(word for group in KIND_WORDS.values() for word in group)
+    words.update(word for group in CATEGORY_WORDS.values() for word in group)
+    return words | QUALITY_WORDS
 
 
 _VOCABULARY = _vocabulary()
+
+
+def _stems(word: str) -> set[str]:
+    """The word as it might be listed: dresses -> dress, wasted -> waste."""
+    forms = {word}
+    for ending, stem in (("es", 2), ("s", 1), ("ing", 3), ("ed", 2), ("ly", 2)):
+        if word.endswith(ending) and len(word) - stem >= 3:
+            cut = word[:-stem]
+            forms.update({cut, cut + "e"})
+            if len(cut) > 3 and cut[-1] == cut[-2]:  # skipping -> skip
+                forms.add(cut[:-1])
+    return forms
 
 
 def _stranger(word: str) -> bool:
@@ -130,18 +186,35 @@ def _stranger(word: str) -> bool:
     plain = word.replace("'", "").lower()
     if len(plain) <= 2 or plain.isdigit():
         return False
-    return not {plain, plain.rstrip("s")} & (_GENERIC | _VOCABULARY)
+    return not _stems(plain) & (_GENERIC | _VOCABULARY)
 
 
-def _known(question: str, text: str) -> bool:
-    """False as soon as the question names something the closet has never seen."""
+def _known(text: str) -> bool:
+    """False as soon as the question names something the closet has never seen.
+
+    Only the noun slots are read. A stranger is a stranger where a subject goes
+    -- "spent on Bitcoin" -- and beside a garment the closet does own: "gucci
+    jackets", "crewnecks rihanna owns", "for rain, paris". Everywhere else the
+    shopper may say what they like, because English is larger than any list.
+    """
     if any(_stranger(word) for word in _SUBJECT.findall(text)):
         return False
-    # A capital letter mid-sentence is a name, wherever it sits in the grammar.
-    words = re.findall(r"[A-Za-z']+", question)
-    if question.isupper():
-        return True
-    return not any(word[:1].isupper() and _stranger(word) for word in words[1:])
+    words = text.split()
+    for i, word in enumerate(words):
+        if not _stems(word) & _VOCABULARY:
+            continue
+        neighbours = words[max(i - 1, 0) : i] + words[i + 1 : i + 2]
+        if any(_stranger(other) for other in neighbours):
+            return False
+    return True
+
+
+def _plural(subject: str, qualities: list[str]) -> str:
+    """How the shopper would say it: black tops, pairs of jeans, rain boots."""
+    spelled = insights.KIND_PLURAL.get(subject.replace(" ", "_"))
+    if spelled is None or qualities:
+        spelled = subject if subject.endswith("s") else subject + ("es" if subject[-1] in "sxz" else "s")
+    return " ".join([*qualities, spelled])
 
 
 def money(value: float) -> str:
@@ -179,34 +252,84 @@ class Wardrobe:
     def wears(self, item: Item) -> int:
         return self.counts.get(item.id, 0)
 
-    def matching(self, text: str) -> tuple[str, list[Item]] | None:
-        """Items the question names, by kind, category, colour or title word."""
+    def matching(self, text: str) -> tuple[str, list[str], list[Item]] | None:
+        """Items the question names, by kind, category, colour or title word.
+
+        A colour or fabric in the question narrows the answer, and narrows it to
+        nothing when the closet holds no such thing: red jeans are not jeans.
+        """
         found = self._named(text)
         if found is None:
             return None
-        subject, items = found
-        for colour in {i.color for i in items}:
-            if colour != subject and re.search(rf"\b{re.escape(colour)}\b", text):
-                return f"{colour} {subject}", [i for i in items if i.color == colour]
-        return subject, items
+        subject, items, _ = found
+        qualities = [q for q in self._qualities(text) if q not in subject.split()]
+        spoken = qualities
+        if re.search(r"\bor\b", text):
+            # "black or white cotton tops" is two colours and one fabric: an
+            # "or" widens within a kind of quality, never across two of them.
+            for group, field in ((COLOUR_WORDS, "color"), (FABRIC_WORDS, "material")):
+                said = [q for q in qualities if q in group]
+                if len(said) < 2:
+                    continue
+                items = [i for i in items if getattr(i, field) in said]
+                qualities = [q for q in qualities if q not in said]
+                spoken = [" or ".join(said), *qualities]
+        for quality in qualities:
+            items = [i for i in items if quality in (i.color, i.material)]
+        return subject, spoken, items
 
-    def _named(self, text: str) -> tuple[str, list[Item]] | None:
-        for item in self.items:
-            kind = (item.kind or item.category).replace("_", " ")
-            if kind and re.search(rf"\b{re.escape(kind)}s?\b", text):
-                matched = [i for i in self.items if (i.kind or i.category) == item.kind]
-                return kind, matched
+    def _qualities(self, text: str) -> list[str]:
+        """Colours and fabrics named in the question, stocked here or not."""
+        known = {i.color for i in self.items} | {i.material for i in self.items}
+        spoken = {q for q in known if q} | QUALITY_WORDS
+        found = [q for q in sorted(spoken) if re.search(rf"\b{re.escape(q)}\b", text)]
+        said = [SPELLINGS.get(q, q) for q in found]
+        return [q for q in dict.fromkeys(said) if not any(q != o and q in o.split() for o in said)]
+
+    def names_a_rail(self, text: str) -> bool:
+        """True when the question names a kind or a rail, not just a stray word.
+
+        "How many rain boots" is a count; "what do I own for rain" is coverage.
+        """
+        found = self._named(text)
+        return found is not None and found[2]
+
+    def _named(self, text: str) -> tuple[str, list[Item], bool] | None:
+        # Longest kind first, so "rain boots" beats "boots"; a plain "boots"
+        # still gathers the rain pair, which is what the shopper means.
+        kinds = sorted({i.kind or i.category for i in self.items}, key=len, reverse=True)
+        for kind in kinds:
+            spoken = kind.replace("_", " ")
+            if re.search(rf"\b{re.escape(spoken)}(?:s|es)?\b", text):
+                return (
+                    spoken,
+                    [
+                        i
+                        for i in self.items
+                        if (i.kind or i.category).replace("_", " ").endswith(spoken)
+                    ],
+                    True,
+                )
+        for label, words in KIND_WORDS.items():
+            if any(re.search(rf"\b{word}(?:s|es)?\b", text) for word in words):
+                kinds = KIND_GROUPS[label]
+                return label, [i for i in self.items if i.kind in kinds], True
         for category, words in CATEGORY_WORDS.items():
-            if any(re.search(rf"\b{word}s?\b", text) for word in (category, *words)):
-                return words[0], [i for i in self.items if i.category == category]
+            if any(re.search(rf"\b{word}(?:s|es)?\b", text) for word in (category, *words)):
+                return words[0], [i for i in self.items if i.category == category], True
         for colour in {i.color for i in self.items}:
             if re.search(rf"\b{re.escape(colour)}\b", text):
-                return colour, [i for i in self.items if i.color == colour]
+                return f"{colour} piece", [i for i in self.items if i.color == colour], False
         titles = {word for i in self.items for word in re.findall(r"\w{4,}", i.title.lower())}
         for word in sorted(titles):
-            if re.search(rf"\b{re.escape(word)}s?\b", text):
-                return word, [i for i in self.items if word in i.title.lower()]
+            if re.search(rf"\b{re.escape(word)}(?:s|es)?\b", text):
+                return word, [i for i in self.items if word in i.title.lower()], False
         return None
+
+
+def _counting(text: str, w: Wardrobe) -> bool:
+    """"How many rain boots do I own" is a count, not a question about rain."""
+    return bool(_QUANTITY.search(text)) and w.names_a_rail(text)
 
 
 # --- answers ----------------------------------------------------------------
@@ -233,6 +356,9 @@ def _saved(text: str, w: Wardrobe):
 def _accuracy(text: str, w: Wardrobe):
     if not re.search(r"\b(accurate|accuracy|right|wrong|track record|score|trust)\b", text):
         return None
+    # "How many jeans do I have right now" is a count; "right now" is a time.
+    if re.search(r"\bright (now|away|then)\b", text) or _counting(text, w):
+        return None
     stat = ledger.accuracy()
     if not stat["total"]:
         return (
@@ -245,6 +371,8 @@ def _accuracy(text: str, w: Wardrobe):
 
 def _gaps(text: str, w: Wardrobe):
     if not re.search(r"\b(gap|gaps|missing|uncovered|hole|holes)\b|\bwhat (do|should) i need\b", text):
+        return None
+    if _counting(text, w):
         return None
     gaps = sorted(w.closet.gaps(), key=lambda g: -g["p"])
     if not gaps:
@@ -291,7 +419,12 @@ def _duplicates(text: str, w: Wardrobe):
 
 
 def _unworn(text: str, w: Wardrobe):
-    if not re.search(r"\b(never worn|unworn|don't wear|dont wear|never wear|least worn|donate|get rid|dead)\b", text):
+    if not re.search(
+        r"\b(never worn|unworn|don't wear|dont wear|never wear|least worn|worn the least|"
+        r"wearing the least|wear the least|haven't i worn|havent i worn|haven't worn|"
+        r"havent worn|not worn|gathering dust|collecting dust|donate|get rid|dead)\b",
+        text,
+    ):
         return None
     unworn = sorted([i for i in w.items if w.wears(i) == 0], key=lambda i: -i.price)
     if not unworn:
@@ -316,7 +449,11 @@ def _unworn(text: str, w: Wardrobe):
 
 
 def _value(text: str, w: Wardrobe):
-    if not re.search(r"\b(cost per wear|per wear|best buy|best value|worst value|worth it)\b", text) or not re.search(
+    if not re.search(
+        r"\b(cost per wear|per wear|best buy|best value|worst value|worth it|"
+        r"best purchase|worst purchase|best buys)\b",
+        text,
+    ) or not re.search(
         r"\b(my|i|mine|closet|wardrobe|own)\b", text
     ):
         return None
@@ -350,7 +487,7 @@ def _spend(text: str, w: Wardrobe):
 
 
 def _returns(text: str, w: Wardrobe):
-    if not re.search(r"\b(return|returns|returned|send back|sent back|refund)\b", text):
+    if not re.search(r"\b(return|returns|returned|returning|send back|sent back|refund|refunds)\b", text):
         return None
     baseline = w.miner.baseline_return_rate()
     returned = [p for p in w.purchases if p.returned]
@@ -418,6 +555,8 @@ def _for_occasion(text: str, w: Wardrobe):
     state_key = _state_in(text)
     if state_key is None:
         return None
+    if _counting(text, w):
+        return None
     covering = w.closet.serving(state_key)
     label = _label(state_key).lower()
     if not covering:
@@ -443,25 +582,26 @@ def _count(text: str, w: Wardrobe):
     match = w.matching(text)
     if match is None:
         return None
-    subject, items = match
+    subject, qualities, items = match
     if not _QUANTITY.search(text) and not re.search(r"\b(own|have|got)\b", text):
         return None
+    named = " ".join([*qualities, subject])
     worn = sum(w.wears(i) for i in items)
     paid = round(sum(i.price for i in items))
+    if not items:
+        return (
+            f"None: you own no {_plural(subject, qualities)}.",
+            {"subject": named, "count": 0, "wears": 0, "paid": 0},
+        )
     if len(items) == 1:
         return (
             f"One: {items[0].title}. {money(paid)}, {worn} wears.",
-            {"subject": subject, "count": 1, "wears": worn, "paid": paid},
+            {"subject": named, "count": 1, "wears": worn, "paid": paid},
         )
-    colours = {i.color for i in w.items}
-    colour, _, base = subject.partition(" ")
-    label = insights.kind_label((base if colour in colours else subject).replace(" ", "_"), len(items))
-    if colour in colours and base:
-        label = label.replace(" ", f" {colour} ", 1)
     return (
-        f"{label.capitalize()}: {_listing([i.title for i in items])}. "
+        f"{len(items)} {_plural(subject, qualities)}: {_listing([i.title for i in items])}. "
         f"{money(paid)} of them, {worn} wears between them.",
-        {"subject": subject, "count": len(items), "wears": worn, "paid": paid},
+        {"subject": named, "count": len(items), "wears": worn, "paid": paid},
     )
 
 
@@ -505,7 +645,7 @@ EXAMPLES = [
 def answer(question: str, closet: Closet, miner: Miner, counts: dict[str, int]) -> dict | None:
     """The best-supported wardrobe answer, or None if nothing here fits."""
     text = re.sub(r"[^\w\s']", " ", question.lower()).strip()
-    if not text or not _MINE.search(text) or not _known(question, text):
+    if not text or not _MINE.search(text) or not _known(text):
         return None
     wardrobe = Wardrobe(closet, miner, counts)
     for intent, handler in ANSWERS:
