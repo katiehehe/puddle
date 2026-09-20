@@ -25,7 +25,7 @@ description: Test Puddle's Chrome extension and embedded demo against the local 
 - Crewneck ($68): redundancy insight for three crewnecks. A negative recommendation must still allow buying.
 - Suit ($320): approving duck and Formal/interview gap if not already owned. Buy anyway creates `POST /payment-intents` and opens Secure checkout. Verify item/amount/provider/limit, original action buttons hidden, and Back restores them with no database changes. Only explicit Confirm should POST `/payment-intents/confirm` with `confirmed:true` and persist one buy action/holding. Legacy `/checkout` returns410 and `/actions` rejects buy.
 - Double activation and replay of the same signed token should return the same event/receipt without extra actions or holdings. Snapshot every SQLite table around review/Back and mutation; scoring legitimately creates predictions, and actions can update a prediction's outcome.
-- The card's Skip it/Not now button records immediately. The typed/voice "skip it" path instead requires a separate Confirm skip and uses `/actions`. Distinguish these paths when interpreting confirmation requirements. Use an unpurchased item for positive skip tests: already-purchased items can produce409 with generic retry text.
+- The card's Skip it/Not now button records immediately and closes the card. The typed/voice "skip it" path instead requires a separate Confirm skip and uses `/actions`. Distinguish these paths when interpreting confirmation requirements. Owning the item already does not block a skip or a buy — a re-buy is a real second purchase, a skip means not buying another one.
 - A VISA-labelled confirmation alone does not prove network settlement. Default mock mode is labelled "Visa sandbox simulation"; its receipt has `simulated:true`. For real settlement inspect `mode=visa_sandbox`, `approved=true`, and the provider message. Current provider approves only Visa action code `00`; distinguish that gated result from directly capturing the upstream payload.
 - Partial-provider negative testing can use a separate brain/isolated DB on another port with only a non-secret `VISA_API_KEY` sentinel. Expect `visa_incomplete`, `checkout_enabled:false`, confirmation503, and zero actions/purchases; do not present this as real provider testing.
 - Open popup and reload dashboard; both must agree with brain pond and show live data and new ledger entries. New predictions remain pending until graded, so accuracy need not change.
@@ -57,7 +57,7 @@ description: Test Puddle's Chrome extension and embedded demo against the local 
 
 ## Evidence
 - The duck is in the open shadow root of `#puddle-root`; buttons are `#buy` and `#skip`, and text is `.line`.
-- Confirmation cards auto-dismiss quickly (skip roughly2 seconds; purchase receipt roughly3.2 seconds). Capture immediately; consecutive screenshot calls may be too slow.
+- Confirmation cards auto-dismiss quickly (skip closes immediately; purchase receipt roughly1.6 seconds, declined roughly6 seconds). Capture immediately; consecutive screenshot calls may be too slow.
 - For timing races, batch native pointer actions and use read-only click/MutationObserver instrumentation. Do not substitute scripted DOM clicks for UI flow.
 - Record GUI actions and compare server POST logs and persisted actions, not only card copy: the extension has an offline fallback.
 - Distinguish native speech errors, diagnostic probe errors, expected hosted unconfigured responses, and actual uncaught application errors.
