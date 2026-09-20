@@ -992,7 +992,7 @@ function Dashboard() {
 
       <header className="dashhead">
         <h1>Your closet</h1>
-        <p>What you own, what you actually wear, and whether the next thing is worth it.</p>
+        <p>What you own and whether the next thing is worth it.</p>
         <div className="statrow">
           {summary.map((s) => (
             <Stat key={s.label} label={s.label} value={s.value} />
