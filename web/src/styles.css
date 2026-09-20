@@ -43,12 +43,22 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   content: ""; position: absolute; left: -10px; right: -10px; bottom: -6px; height: 0; z-index: -1;
   pointer-events: none; overflow: hidden;
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='16' viewBox='0 0 40 16'%3E%3Cpath d='M0 16V9C5 2 15 2 20 9s15 7 20 0v7z' fill='%235fc4f5'/%3E%3C/svg%3E")
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='16' viewBox='0 0 40 16'%3E%3Cpath d='M0 16V9C5 2 15 2 20 9s15 7 20 0v7z' fill='%2394d6f7'/%3E%3Cpath d='M0 9C5 2 15 2 20 9s15 7 20 0' fill='none' stroke='%232e9fe0' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E")
       repeat-x 0 0 / 52px 20px,
-    linear-gradient(#5fc4f5, #2e9fe0) no-repeat 0 18px / 100% calc(100% - 18px);
+    linear-gradient(#94d6f7, #5fc4f5 30%, #2e9fe0) no-repeat 0 18px / 100% calc(100% - 18px);
+  /* A drawn crest line, softened into the page just above it. */
+  -webkit-mask-image: linear-gradient(rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, .75) 8px, #000 22px);
+  mask-image: linear-gradient(rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, .75) 8px, #000 22px);
   transition: height 1.2s cubic-bezier(.3, .7, .3, 1);
 }
 .brand:hover::after { height: 92%; animation: brandwave 2.2s linear infinite; }
+.brand > svg { transition: transform .6s ease; }
+.brand:hover > svg { animation: brandbob 2.2s ease-in-out infinite; }
+
+@keyframes brandbob {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-5px) rotate(4deg); }
+}
 
 @keyframes brandwave {
   from { background-position: 0 0, 0 18px; }
@@ -117,6 +127,25 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .duckhead { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }
 
 /* --- home sections ------------------------------------------------------ */
+/* Landing copy pops up from below, one line after another. */
+.home .hero > div > *, .home .steps h2, .home .step, .home .tells h2, .home .tell, .home .install > div > * {
+  animation: popup .7s cubic-bezier(.2, .8, .2, 1) both;
+}
+.home .hero > div > :nth-child(2) { animation-delay: .12s; }
+.home .hero > div > :nth-child(3) { animation-delay: .24s; }
+.home .hero > div > :nth-child(4) { animation-delay: .36s; }
+.home .steps h2, .home .tells h2, .home .install > div > :nth-child(1) { animation-delay: .5s; }
+.home .step:nth-child(1), .home .tell:nth-child(1), .home .install > div > :nth-child(2) { animation-delay: .62s; }
+.home .step:nth-child(2), .home .tell:nth-child(2), .home .install > div > :nth-child(3) { animation-delay: .74s; }
+.home .step:nth-child(3), .home .tell:nth-child(3) { animation-delay: .86s; }
+.home .tell:nth-child(4) { animation-delay: .98s; }
+.home .tell:nth-child(n+5) { animation-delay: 1.1s; }
+
+@keyframes popup {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: none; }
+}
+
 .steps, .tells, .install { padding: 64px 0 0; }
 .steps h2, .tells h2, .install h2 { font-size: 30px; margin-bottom: 26px; }
 .stepgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
@@ -146,6 +175,19 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 }
 
 /* --- dashboard ---------------------------------------------------------- */
+/* The closet page pops up from below the same way the landing page does. */
+.shell .dashhead h1, .shell .dashhead > p, .shell .statrow, .shell .noticed h3, .shell .note, .shell .tabs, .shell .tabbody > * {
+  animation: popup .7s cubic-bezier(.2, .8, .2, 1) both;
+}
+.shell .dashhead > p { animation-delay: .12s; }
+.shell .statrow { animation-delay: .24s; }
+.shell .noticed h3 { animation-delay: .36s; }
+.shell .note:nth-child(1) { animation-delay: .46s; }
+.shell .note:nth-child(2) { animation-delay: .56s; }
+.shell .note:nth-child(n+3) { animation-delay: .66s; }
+.shell .tabs { animation-delay: .76s; }
+.shell .tabbody > * { animation-delay: .88s; }
+
 .dashhead { padding: 18px 0 8px; }
 .dashhead h1 { font-size: 44px; }
 .dashhead > p { color: var(--muted); margin: 8px 0 26px; }

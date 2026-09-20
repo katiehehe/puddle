@@ -4,8 +4,9 @@ import { askPuddle, speakLine, transcribe } from "./api";
 /* Ask Puddle: the duck, answering about the whole closet.
  *
  * Checkout answers are about the one thing in front of you. These are about
- * everything you own, and they come from the same deterministic brain -- a
- * question it has no statistic for gets told so rather than answered. */
+ * everything you own. The brain computes the facts; when it has a language
+ * model it phrases them and keeps the thread, otherwise the computed line
+ * stands on its own. */
 
 const MAX_TURNS = 8;
 const MAX_RECORD_MS = 20_000;
@@ -17,7 +18,7 @@ const SUGGESTIONS = [
   "How much have I spent?",
 ];
 
-type Turn = { question: string; answer: string; intent: string };
+type Turn = { question: string; answer: string; intent: string; followups: string[] };
 
 // Donald-duck playback: the clip is rendered slow and warm, then sped up
 // without pitch correction, which lifts the pitch but keeps the pace gentle.
@@ -33,6 +34,7 @@ function browserSpeak(text: string, ducky: boolean) {
 
 export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [turns, setTurns] = useState<Turn[]>([]);
+  const thread = useRef<Turn[]>([]);
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -99,10 +101,18 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
       setBusy(true);
       try {
         const turn = speech.current;
-        const reply = await askPuddle(asked);
-        setTurns((previous) =>
-          [...previous, { question: asked, answer: reply.answer, intent: reply.intent }].slice(-MAX_TURNS),
+        const reply = await askPuddle(
+          asked,
+          thread.current.map((t) => ({ question: t.question, answer: t.answer })),
         );
+        const answered = {
+          question: asked,
+          answer: reply.answer,
+          intent: reply.intent,
+          followups: reply.followups ?? [],
+        };
+        thread.current = [...thread.current, answered].slice(-MAX_TURNS);
+        setTurns(thread.current);
         // Muting or closing while the answer is still in flight counts.
         if (turn === speech.current) void say(reply.answer);
       } catch {
@@ -176,7 +186,7 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
       </div>
 
       <div className="askchips">
-        {SUGGESTIONS.map((s) => (
+        {(turns[turns.length - 1]?.followups.length ? turns[turns.length - 1].followups : SUGGESTIONS).map((s) => (
           <button key={s} disabled={busy} onClick={() => ask(s)}>
             {s}
           </button>
