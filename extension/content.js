@@ -21,7 +21,6 @@
     + "/dashboard/?item=";
 
   let host = null, shadow = null, lastKey = "", dismissTimer = null, voiceCleanup = null, renderVersion = 0, scoreVersion = 0;
-  let lastCheckoutEl = null;
 
   function ensureHost() {
     // A new checkout cancels the previous card's pending dismissal.
@@ -98,32 +97,6 @@
   }
 
   const pondPct = (saved) => Math.min(100, (saved / 800) * 100);
-
-  /* Open beside the checkout control rather than over it when there's room:
-   * right of the button, then left, then above, then below. If none fit
-   * unclipped the card keeps its default corner. */
-  function placeCard(anchor) {
-    if (!(anchor instanceof Element) || !anchor.isConnected || !host) return;
-    const rect = anchor.getBoundingClientRect();
-    const w = host.offsetWidth, h = host.offsetHeight;
-    if (!w || !h) return;
-    const gap = 12;
-    const spots = [
-      { left: rect.right + gap, top: rect.top + rect.height / 2 - h / 2 },
-      { left: rect.left - w - gap, top: rect.top + rect.height / 2 - h / 2 },
-      { left: rect.left + rect.width / 2 - w / 2, top: rect.top - h - gap },
-      { left: rect.left + rect.width / 2 - w / 2, top: rect.bottom + gap },
-    ];
-    for (const s of spots) {
-      if (s.left >= 0 && s.left + w <= innerWidth && s.top >= 0 && s.top + h <= innerHeight) {
-        host.style.left = s.left + "px";
-        host.style.top = s.top + "px";
-        host.style.right = "auto";
-        host.style.bottom = "auto";
-        return;
-      }
-    }
-  }
 
   async function render(result, item) {
     const version = ++renderVersion;
@@ -243,8 +216,6 @@
         <div class="pond"><div class="fill"></div></div>
         <div class="saved">$${esc(pond.saved)} in the pond</div>
       </div>`;
-
-    placeCard(lastCheckoutEl);
 
     const more = shadow.getElementById("more");
     if (more) {
@@ -435,11 +406,11 @@
   const BUY_WORDS =
     /\b(check ?out|buy|add to (bag|cart|basket)|place (your )?order|complete (your )?(order|purchase)|pay now|purchase)\b/i;
 
-  function checkoutControl(element) {
+  function looksLikeCheckout(element) {
     const control = element.closest?.(
       "button, a, input[type='submit'], [role='button'], [class*='checkout' i], [id*='checkout' i]"
     );
-    if (!control) return null;
+    if (!control) return false;
     const label = [
       control.getAttribute?.("aria-label"),
       control.value,
@@ -448,15 +419,11 @@
       control.id,
       control.className,
     ].filter(Boolean).join(" ");
-    return BUY_WORDS.test(label) ? control : null;
+    return BUY_WORDS.test(label);
   }
 
   document.addEventListener("click", (event) => {
-    const control = checkoutControl(event.target);
-    if (!control) return;
-    // Remember where checkout was pressed so the card opens beside it.
-    lastCheckoutEl = control;
-    if (!event.isTrusted) return;
+    if (!event.isTrusted || !looksLikeCheckout(event.target)) return;
     // Capture runs before the page's own handler, so a shop that sets the
     // attribute has not set it yet. Yield once and let it: an opted-in shop
     // describes its product better than we can infer it, and scoring both

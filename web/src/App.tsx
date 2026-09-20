@@ -63,49 +63,13 @@ function CheckoutMock() {
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, []);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const [fs, setFs] = useState(false);
-  useEffect(() => {
-    const onFs = () => {
-      const on = Boolean(document.fullscreenElement);
-      setFs(on);
-      // The shop inside scales up when it knows it's fullscreen.
-      wrapRef.current
-        ?.querySelector("iframe")
-        ?.contentWindow?.postMessage({ type: "puddle-fs", on }, window.location.origin);
-    };
-    document.addEventListener("fullscreenchange", onFs);
-    return () => document.removeEventListener("fullscreenchange", onFs);
-  }, []);
-  const toggleFull = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {});
-      return;
-    }
-    const el = wrapRef.current;
-    if (el?.requestFullscreen) {
-      el.requestFullscreen().catch(() => window.open("/demo", "_blank", "noopener"));
-    } else {
-      window.open("/demo", "_blank", "noopener");
-    }
-  };
   return (
-    <div className="mockwrap" ref={wrapRef}>
-      <div className="mock">
-        <div className="mockbar">
-          <span /> <span /> <span />
-          <div className="mockurl">{url}</div>
-        </div>
-        <iframe className="demoframe" src="/demo?embed=1" title="Puddle live demo" />
+    <div className="mock">
+      <div className="mockbar">
+        <span /> <span /> <span />
+        <div className="mockurl">{url}</div>
       </div>
-      <button
-        className="fsbtn"
-        onClick={toggleFull}
-        title={fs ? "Exit full screen" : "Open the demo full screen"}
-        aria-label={fs ? "Exit full screen" : "Open the demo full screen"}
-      >
-        {fs ? "✕" : "⤢"}
-      </button>
+      <iframe className="demoframe" src="/demo?embed=1" title="Puddle live demo" />
     </div>
   );
 }
@@ -158,8 +122,11 @@ function Home() {
             </a>
           </div>
         </div>
-        <CheckoutMock />
       </header>
+
+      <section className="demosec">
+        <CheckoutMock />
+      </section>
 
       <section className="steps" id="how">
         <h2>It gets better the more you wear</h2>
