@@ -143,12 +143,28 @@ _WEAR_MIX = {
 _TITLE_TO_ID = {item.title: item.id for item in CLOSET}
 
 
+_PERSONAL_CACHE: dict | None | str = "unset"
+
+
+def _personal() -> dict | None:
+    """The personal wardrobe, or None when PUDDLE_WARDROBE is not set."""
+    global _PERSONAL_CACHE
+    if _PERSONAL_CACHE == "unset":
+        from .wardrobe import load
+
+        _PERSONAL_CACHE = load()
+    return _PERSONAL_CACHE if isinstance(_PERSONAL_CACHE, dict) else None
+
+
 def _spread(n: int, rng: random.Random) -> list[datetime]:
     days = sorted(rng.sample(range(0, 420), n))
     return [_START + timedelta(days=d) for d in days]
 
 
 def purchases() -> list[Purchase]:
+    personal = _personal()
+    if personal is not None:
+        return [Purchase(**row) for row in personal["purchases"]]
     rng = random.Random(SEED)
     rows: list[tuple] = []
     for title, price, hour, reason in _BOOT_BUYS:
@@ -199,6 +215,9 @@ def _eligible(state: str, item) -> bool:
 
 
 def wears() -> list[Wear]:
+    personal = _personal()
+    if personal is not None:
+        return [Wear(**row) for row in personal["wears"]]
     rng = random.Random(SEED + 1)
     out: list[Wear] = []
     for state, count in _WEAR_MIX.items():

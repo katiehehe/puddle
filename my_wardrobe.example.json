@@ -1,0 +1,58 @@
+{
+  "_readme": [
+    "Copy this to my_wardrobe.json and replace it with your actual clothes.",
+    "Run:  PUDDLE_WARDROBE=my_wardrobe.json python3 scripts/wardrobe_check.py",
+    "",
+    "You write title, price and wears. Category, formality, warmth, kind and",
+    "rain are inferred from the words in the title. State any of them",
+    "explicitly to override the guess.",
+    "",
+    "wears  = roughly how many times you have worn it. It does not need to be",
+    "         exact; it is what tells the engine which occasions your life",
+    "         actually consists of. Things you never wear should be 0 or 1.",
+    "",
+    "purchases = what you have BOUGHT, including things you sent back. This is",
+    "         where the duck's best lines come from, so it matters more than",
+    "         the closet. 'hour' is the hour of day you bought it (0-23) and",
+    "         'returned' is whether you sent it back."
+  ],
+
+  "closet": [
+    { "title": "Charcoal crewneck",   "price": 58,  "wears": 40 },
+    { "title": "Grey hoodie",         "price": 64,  "wears": 55 },
+    { "title": "Straight-leg jeans",  "price": 88,  "wears": 70, "size": "27" },
+    { "title": "Black jeans",         "price": 78,  "wears": 30, "size": "27" },
+    { "title": "Leggings",            "price": 32,  "wears": 45 },
+    { "title": "Sweatpants",          "price": 45,  "wears": 38 },
+    { "title": "Training tee",        "price": 26,  "wears": 25 },
+    { "title": "Sports bra",          "price": 34,  "wears": 25 },
+    { "title": "White sneakers",      "price": 85,  "wears": 60, "size": "8" },
+    { "title": "Puffer jacket",       "price": 140, "wears": 20 },
+    { "title": "Denim jacket",        "price": 95,  "wears": 12 },
+    { "title": "Black satin cami",    "price": 42,  "wears": 6 },
+    { "title": "Sequin halter top",   "price": 55,  "wears": 2 },
+    { "title": "Strappy heels",       "price": 78,  "wears": 3,  "size": "8" },
+    { "title": "Black slip dress",    "price": 95,  "wears": 4 }
+  ],
+
+  "purchases": [
+    { "title": "Suede boots",     "price": 128, "size": "8", "hour": 23, "returned": true },
+    { "title": "Combat boots",    "price": 145, "size": "8", "hour": 0,  "returned": true },
+    { "title": "Leather boots",   "price": 160, "size": "8", "hour": 22, "returned": true },
+    { "title": "Chelsea boots",   "price": 120, "size": "8", "hour": 23, "returned": true },
+
+    { "title": "Charcoal crewneck",  "price": 58, "hour": 14, "returned": false },
+    { "title": "Grey hoodie",        "price": 64, "hour": 12, "returned": false },
+    { "title": "Straight-leg jeans", "price": 88, "hour": 15, "returned": false },
+    { "title": "White sneakers",     "price": 85, "hour": 11, "returned": false },
+    { "title": "Training tee",       "price": 26, "hour": 10, "returned": false },
+    { "title": "Puffer jacket",      "price": 140,"hour": 16, "returned": false },
+    { "title": "Leggings",           "price": 32, "hour": 13, "returned": false },
+    { "title": "Black jeans",        "price": 78, "hour": 17, "returned": false },
+    { "title": "Sweatpants",         "price": 45, "hour": 12, "returned": false },
+    { "title": "Denim jacket",       "price": 95, "hour": 14, "returned": false },
+    { "title": "Sports bra",         "price": 34, "hour": 9,  "returned": false },
+    { "title": "Black satin cami",   "price": 42, "hour": 15, "returned": false },
+    { "title": "Strappy heels",      "price": 78, "hour": 16, "returned": false }
+  ]
+}
