@@ -17,8 +17,9 @@ import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from . import closet_store, insights, ledger, market, pond
+from . import chat, closet_store, insights, ledger, market, pond
 from .catalog import CLOSET, STOREFRONT, Item
+from .facts import closet_facts
 from .miner import Miner
 from .portfolio import Closet
 from .states import STATES
@@ -711,11 +712,17 @@ def answer(question: str, closet: Closet, miner: Miner, counts: dict[str, int]) 
     return None
 
 
+class Turn(BaseModel):
+    question: str = Field(default="", max_length=1000)
+    answer: str = Field(default="", max_length=2000)
+
+
 class Question(BaseModel):
     question: str = Field(min_length=1, max_length=1000)
     item_id: str | None = None
     item: dict | None = None
     now_hour: int | None = Field(default=None, ge=0, le=23)
+    history: list[Turn] = Field(default_factory=list, max_length=16)
 
 
 @router.post("/ask")
@@ -738,12 +745,32 @@ def ask(req: Question) -> dict:
         )
     closet, miner, counts = _context()
     found = answer(text, closet, miner, counts)
+    if chat.enabled():
+        spoken = chat.reply(
+            text,
+            closet_facts(closet, miner, counts),
+            [t.model_dump() for t in req.history],
+            found,
+        )
+        if spoken is not None:
+            base = found or {"intent": "chat", "facts": {}, "scope": "wardrobe"}
+            return {
+                **base,
+                "answer": spoken["answer"],
+                "computed": found["answer"] if found else None,
+                "followups": spoken["followups"],
+                "source": "chat",
+                "question": text,
+                "examples": EXAMPLES,
+            }
     if found is None:
         return {
             "intent": "unknown",
             "scope": "wardrobe",
             "answer": "I can only answer from your own history. Try: " + " ".join(EXAMPLES[:3]),
             "facts": {},
+            "followups": [],
+            "source": "rules",
             "examples": EXAMPLES,
         }
-    return {**found, "question": text, "examples": EXAMPLES}
+    return {**found, "question": text, "followups": [], "source": "rules", "examples": EXAMPLES}

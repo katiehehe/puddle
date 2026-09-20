@@ -3,7 +3,12 @@ import { FIXTURE, Portfolio } from "./fixtures";
 // Dev server (vite, :5173) talks to the brain on :8000. Production builds go
 // same-origin: the brain serves the bundle at /dashboard/, and hardcoding
 // localhost would break the dashboard over a tunnel or another host.
-const BRAIN =
+/** Where the brain is. Empty in a production build because the brain serves
+ *  the dashboard itself there, so every path is same origin. Anything aimed at
+ *  the brain has to go through this: a bare "/demo" resolves to the vite dev
+ *  server in development, which answers with the dashboard and puts the page
+ *  inside its own frame. */
+export const BRAIN =
   import.meta.env.VITE_BRAIN ?? (import.meta.env.DEV ? "http://localhost:8000" : "");
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
@@ -388,15 +393,19 @@ export type WardrobeAnswer = {
   scope?: string;
   facts?: Record<string, unknown>;
   examples?: string[];
+  followups?: string[];
+  source?: "chat" | "rules";
 };
+
+export type AskTurn = { question: string; answer: string };
 
 /** The duck, answering across the whole closet rather than one item. Same
  *  deterministic brain as checkout: every line is a statistic it can show. */
-export async function askPuddle(question: string): Promise<WardrobeAnswer> {
+export async function askPuddle(question: string, history: AskTurn[] = []): Promise<WardrobeAnswer> {
   return call<WardrobeAnswer>("/ask", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history }),
   });
 }
 

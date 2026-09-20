@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  BRAIN,
   addPurchase,
   askDuck,
   editPurchase,
@@ -57,7 +58,10 @@ function CheckoutMock() {
   useEffect(() => {
     // The embedded shop reports which item it's showing so the URL bar follows.
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
+      // The frame is cross origin in development, where the brain serves it
+      // from another port, so a same-origin test drops every message.
+      const allowed = new Set([window.location.origin, BRAIN && new URL(BRAIN).origin]);
+      if (!allowed.has(event.origin)) return;
       if (event.data?.type === "puddle-demo-item") setUrl(event.data.path);
     };
     window.addEventListener("message", onMessage);
@@ -69,7 +73,7 @@ function CheckoutMock() {
         <span /> <span /> <span />
         <div className="mockurl">{url}</div>
       </div>
-      <iframe className="demoframe" src="/demo?embed=1" title="Puddle live demo" />
+      <iframe className="demoframe" src={`${BRAIN}/demo?embed=1`} title="Puddle live demo" />
     </div>
   );
 }
@@ -117,16 +121,13 @@ function Home() {
             purchase through with you at checkout.
           </p>
           <div className="herobtns">
-            <a className="cta" href="#install">
+            <a className="cta" href="#/home?install">
               Add to Chrome, free
             </a>
           </div>
         </div>
-      </header>
-
-      <section className="demosec">
         <CheckoutMock />
-      </section>
+      </header>
 
       <section className="steps" id="how">
         <h2>It gets better the more you wear</h2>
@@ -246,8 +247,11 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 }
 
 function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string) => void }) {
-  // Optimistic: a wear tap has to feel free, or nobody logs the fifth one.
-  const [extra, setExtra] = useState(0);
+  // Optimistic: a wear tap has to feel free, or nobody logs the fifth one. The
+  // tap is forgotten the moment the server's own count moves, so the two never
+  // add up to one wear twice.
+  const [tapped, setTapped] = useState({ counted: piece.wears, extra: 0 });
+  const extra = tapped.counted === piece.wears ? tapped.extra : 0;
   const wears = piece.wears + extra;
   const perWear = wears > 0 ? piece.paid / wears : null;
   return (
@@ -281,7 +285,7 @@ function PieceCard({ piece, onWear }: { piece: ClosetPiece; onWear: (id: string)
       <button
         className="worebtn"
         onClick={() => {
-          setExtra((n) => n + 1);
+          setTapped({ counted: piece.wears, extra: extra + 1 });
           onWear(piece.id);
         }}
       >
@@ -340,7 +344,6 @@ function ClosetTab({ me, onWear }: { me: Me; onWear: (id: string) => void }) {
   const unworn = me.closet.filter((p) => p.wears === 0).length;
   return (
     <>
-      <CoveragePanel coverage={me.coverage} />
       <h3 className="sub2">Everything you own</h3>
       <div className="chips">
         <button className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>
@@ -671,6 +674,10 @@ function DressTab({ me, usage }: { me: Me; usage: Usage }) {
   const top = usage.rows[0]?.wears || 1;
   return (
     <>
+      {/* Two views of the same occasions: what you own for each, then how
+          often each one actually comes up. They answer different questions
+          and are worth reading next to each other. */}
+      <CoveragePanel coverage={me.coverage} />
       <h3 className="sub2">How you actually dress</h3>
       {usage.lines.map((line) => (
         <div className="note" key={line}>
@@ -696,6 +703,18 @@ function DressTab({ me, usage }: { me: Me; usage: Usage }) {
       </p>
       <h3 className="sub2">What Puddle has noticed about your shopping</h3>
       <div className="notes">
+        {/* The headline observations and the one-line ones are the same kind
+            of thing, so they read as one list rather than two sections. */}
+        {me.notices.map((n) => (
+          <div className="note" key={n.title}>
+            <Duck size={26} />
+            <p>
+              <b>{n.title}</b>
+              <br />
+              {n.detail}
+            </p>
+          </div>
+        ))}
         {s.lines.map((line) => (
           <div className="note" key={line}>
             <Duck size={26} />
@@ -1173,24 +1192,6 @@ function Dashboard() {
           ))}
         </div>
       </header>
-
-      {me.notices.length > 0 && (
-        <section className="noticed">
-          <h3 className="sub2">Puddle noticed…</h3>
-          <div className="notes">
-            {me.notices.map((n) => (
-              <div className="note" key={n.title}>
-                <Duck size={26} />
-                <p>
-                  <b>{n.title}</b>
-                  <br />
-                  {n.detail}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       <div className="tabs">
         {TABS.map((t) => (

@@ -40,6 +40,13 @@ description: Test Puddle's Chrome extension and embedded demo against the local 
 - Browser machines may expose zero voices and emit `synthesis-failed`. In that case prove cancellation bookkeeping only, and explicitly leave audible playback and interruption of actively audible speech untested.
 - Inspect observed voice response fields for credentials. With keys absent, do not claim configured-provider credential non-disclosure has been tested.
 
+## Dashboard ownership and Ask
+- In Purchases, enter title/price, expand **Add more details** to set Brand, and leave **Put it in my closet** checked. Manual additions persist in the `wardrobe` table; they do not imply payment purchases or buy actions.
+- Test owned-brand vocabulary across the lifecycle: no active brand, multiple active branded items across categories, one item archived, then all items archived. Archive through **No longer own it… → Donated it**; expand the historical list to verify retained rows. A remaining branded shoe must keep the brand recognized even when its branded top count is zero.
+- Compare captured dashboard `/ask` response objects with direct `/ask`; compare answer/intent with `/voice/respond` using `scope:"wardrobe"`, and require null pending action. Voice responses do not expose the Ask facts payload.
+- Snapshot all SQLite tables around each read-only phase, separately from deliberate add/archive mutations and checkout scoring.
+- Recompute regression expectations after changing the closet. New garments affect spending, unworn totals, returns denominators, and coverage. In particular, wool raises inferred sweater warmth and the current coverage model can count a warm sweater as rain coverage; cross-check the live Closet coverage panel rather than assuming seed-only answers.
+
 ## Hosted speech
 - After enabling ElevenLabs in the brain, refresh both surfaces: a page that previously latched `hosted=false` will otherwise keep using browser speech.
 - Observe the real `Audio` constructor, `play`/`pause`, `URL.createObjectURL`/`revokeObjectURL`, and media events with pass-through wrappers. Keep audio playback unmodified; expose only diagnostic playback state in a clearly labelled overlay.
