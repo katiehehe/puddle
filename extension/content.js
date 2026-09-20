@@ -11,17 +11,16 @@
     page: "#f3f4f6"
   };
 
-  // The mascot is the duck emoji; mood rides in a small badge and the card accent.
-  const DUCK = (state) => {
-    const mark = { curious: "?", concerned: "!", approving: "✓" }[state] || "";
-    return `<div class="duckwrap"><span class="duckmoji">🦆</span>${
-      mark ? `<span class="mood">${mark}</span>` : ""}</div>`;
-  };
+  // The mascot, drawn rather than typed: a flat duck silhouette in one colour.
+  const DUCK = () => `<svg class="duckmark" viewBox="0 0 32 32" aria-hidden="true">
+      <path fill="${PALETTE.ink}" d="M20.5 6a4.5 4.5 0 0 0-4.42 5.33l-6.2 1.2A5.88 5.88 0 0 0 4 18.3C4 21.99 7.3 25 11.35 25h6.4C22.86 25 27 21.2 27 16.5v-6h-2.1A4.5 4.5 0 0 0 20.5 6Z"/>
+      <circle cx="20.6" cy="10.2" r="1.1" fill="#fff"/>
+      <path fill="${PALETTE.bill}" d="M25.2 11.6h5.3l-3 2.6-2.3-.6Z"/>
+    </svg>`;
 
-  const HEADER = {
-    idle: "Puddle", curious: "Puddle · hmm",
-    concerned: "Puddle · quack", approving: "Puddle · go on then",
-  };
+  // Where the duck's reasoning is shown in full.
+  const DASHBOARD = (document.body.dataset.puddleMode === "web" ? "" : "http://localhost:8000")
+    + "/dashboard/?item=";
 
   let host = null, shadow = null, lastKey = "", dismissTimer = null, voiceCleanup = null, renderVersion = 0, scoreVersion = 0;
 
@@ -89,13 +88,10 @@
           border-left:8px solid ${accent};outline:2px solid ${PALETTE.line}}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
         .row{display:flex;gap:12px;align-items:flex-start}
-        .duckwrap{position:relative;flex-shrink:0;width:56px;height:56px;border-radius:50%;
+        .duckwrap{flex-shrink:0;width:44px;height:44px;border-radius:50%;
           background:${PALETTE.duck};
           display:flex;align-items:center;justify-content:center}
-        .duckmoji{font-size:34px;line-height:1}
-        .mood{position:absolute;top:-4px;right:-4px;width:20px;height:20px;border-radius:50%;
-          background:${accent};color:#fff;font-size:12px;font-weight:800;
-          display:flex;align-items:center;justify-content:center}
+        .duckmark{width:28px;height:28px}
         .bubble{flex:1}
         .quack{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${PALETTE.muted};font-weight:700}
         .line{font-size:15px;line-height:1.45;color:${PALETTE.ink};margin:3px 0 8px;font-weight:500}
@@ -116,14 +112,18 @@
         @media(prefers-reduced-motion:reduce){.card{animation:none}}
         .saved{font-size:12px;color:${PALETTE.water};margin-top:5px;font-weight:600}
         .done{font-size:14px;color:${PALETTE.ink}}
+        .why{display:inline-block;margin-bottom:10px;font-size:12px;color:${PALETTE.muted};
+          text-decoration:underline}
       </style>
       <div class="card" id="card">
         <div class="row">
-          <div>${DUCK(state)}</div>
+          <div class="duckwrap">${DUCK()}</div>
           <div class="bubble">
-            <div class="quack">${esc(HEADER[state] || "Puddle")}</div>
+            <div class="quack">Puddle</div>
             <div class="line">${esc(line)}</div>
             ${c ? `<span class="chip">${esc(c)}</span>` : ""}
+            <a class="why" target="_blank" rel="noopener"
+               href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">Where this came from</a>
             <div class="btns">
               <button class="buy" id="buy">Buy anyway</button>
               <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
@@ -131,7 +131,7 @@
           </div>
         </div>
         <div class="pond"><div class="fill"></div></div>
-        <div class="saved">🪙 $${esc(pond.saved)} in the pond</div>
+        <div class="saved">$${esc(pond.saved)} in the pond</div>
       </div>`;
 
     voiceCleanup = globalThis.PuddleVoice.attach(shadow, item, total => {
@@ -157,7 +157,7 @@
       if (version !== renderVersion) return;
       shadow.querySelector(".line").textContent = "Skipped.";
       shadow.querySelector(".fill").style.width = pondPct(next.saved) + "%";
-      shadow.querySelector(".saved").textContent = `🪙 $${next.saved} in the pond`;
+      shadow.querySelector(".saved").textContent = `$${next.saved} in the pond`;
       shadow.querySelector(".btns").remove();
       dismiss(2000);
     };

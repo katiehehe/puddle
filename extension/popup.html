@@ -7,37 +7,27 @@
   body { width: 272px; margin: 0;
     font-family: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: #111827; background: #f3f4f6; }
-  .top { padding: 18px; display: flex; gap: 14px; align-items: center;
-    background: #f2b431; position: relative; overflow: hidden; }
-  .top::after { content: ""; position: absolute; width: 130px; height: 130px; border-radius: 50%;
-    background: rgba(255,255,255,.18); top: -70px; right: -40px; }
-  .ducklogo { width: 52px; height: 52px; border-radius: 50%; font-size: 32px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; position: relative; z-index: 1;
-    background: #ffffff; }
-  h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -.01em;
-    position: relative; z-index: 1; }
-  h1 span { display: inline-block; background: #111827; color: #f2b431;
-    padding: 2px 8px; margin: 1px 0; }
-  .tag { font-size: 12px; color: rgba(17,24,39,.75); margin-top: 3px; font-weight: 600;
-    position: relative; z-index: 1; }
+  .top { padding: 16px 18px; background: #f2b431; }
+  h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+  .tag { font-size: 12px; color: rgba(17,24,39,.75); margin-top: 2px; }
   .body { padding: 16px 18px; background: #fff; }
-  .saved { font-size: 30px; font-weight: 800; letter-spacing: -.02em; color: #2563eb; }
-  .lbl { font-size: 12px; color: #6b7280; font-weight: 600; }
-  .pond { height: 12px; border-radius: 6px; background: #e5e7eb; overflow: hidden; margin: 12px 0 4px; }
+  .saved { font-size: 28px; font-weight: 700; letter-spacing: -.02em; color: #2563eb; }
+  .lbl { font-size: 12px; color: #6b7280; }
+  .pond { height: 8px; border-radius: 4px; background: #e5e7eb; overflow: hidden; margin: 12px 0 4px; }
   .fill { height: 100%; width: 0; background: #3b82f6; transition: width .3s ease; }
-  a { display: inline-block; margin-top: 14px; font-size: 13px; color: #2563eb; font-weight: 700; }
+  a { display: inline-block; margin-top: 14px; font-size: 13px; color: #2563eb; }
 </style>
 </head>
 <body>
   <div class="top">
-    <div class="ducklogo">🦆</div>
-    <div><h1><span>Puddle</span></h1><div class="tag">A duck that lives in your cart.</div></div>
+    <h1>Puddle</h1>
+    <div class="tag">Your wardrobe, priced like a portfolio.</div>
   </div>
   <div class="body">
     <div class="saved" id="saved">$0</div>
-    <div class="lbl">saved from regret buys</div>
+    <div class="lbl">skipped, not spent</div>
     <div class="pond"><div class="fill" id="fill"></div></div>
-    <a href="http://localhost:5173" target="_blank">Open your closet portfolio →</a>
+    <a href="http://localhost:8000/dashboard/" target="_blank">Open the walkthrough</a>
   </div>
   <script src="popup.js"></script>
 </body>
