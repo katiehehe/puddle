@@ -341,7 +341,6 @@ function ClosetTab({ me, onWear }: { me: Me; onWear: (id: string) => void }) {
   const unworn = me.closet.filter((p) => p.wears === 0).length;
   return (
     <>
-      <CoveragePanel coverage={me.coverage} />
       <h3 className="sub2">Everything you own</h3>
       <div className="chips">
         <button className={filter === "all" ? "on" : ""} onClick={() => setFilter("all")}>
@@ -672,6 +671,10 @@ function DressTab({ me, usage }: { me: Me; usage: Usage }) {
   const top = usage.rows[0]?.wears || 1;
   return (
     <>
+      {/* Two views of the same occasions: what you own for each, then how
+          often each one actually comes up. They answer different questions
+          and are worth reading next to each other. */}
+      <CoveragePanel coverage={me.coverage} />
       <h3 className="sub2">How you actually dress</h3>
       {usage.lines.map((line) => (
         <div className="note" key={line}>
