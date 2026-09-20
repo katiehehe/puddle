@@ -103,7 +103,7 @@ class Miner:
             # The contrast is the insight. A late-night return rate on its own
             # says nothing unless you know what the rest of the day looks like.
             "line": (
-                f"It's {now.strftime('%I:%M%p').lstrip('0').lower()} — {round(100 * rate)}% of what you buy "
+                f"It's {now.strftime('%I:%M%p').lstrip('0').lower()}, {round(100 * rate)}% of what you buy "
                 f"this late comes back, against {round(100 * baseline)}% the rest of the day."
             ),
             "weight": min(1.0, 0.35 + 0.6 * (rate - baseline)),
@@ -122,10 +122,10 @@ class Miner:
         # Inventory language: what matters is the units on the shelf, not the
         # shopping trips that put them there.
         if len(dupes) == 1:
-            line = f"You hold one of these already ({titles.lower()}) — same days, {worn} wears."
+            line = f"You hold one of these already ({titles.lower()}), same days, {worn} wears."
         else:
             line = (
-                f"You hold {len(dupes)} units of this ({titles}) — same days, {worn} wears between them."
+                f"You hold {len(dupes)} units of this ({titles}), same days, {worn} wears between them."
             )
         return {
             "type": "redundancy",
@@ -154,7 +154,7 @@ class Miner:
                 "sharpe_after": evaluation["style_sharpe_after"],
             },
             "line": (
-                f"Get it. You have nothing for \"{covers['label'].lower()}\" — "
+                f"Get it. You have nothing for \"{covers['label'].lower()}\", "
                 f"this is the first thing in your closet that would cover it."
             ),
             "weight": -min(1.0, 0.5 + evaluation["alpha"]),  # negative weight = green light

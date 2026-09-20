@@ -54,6 +54,8 @@ def status():
 
 class SpeechRequest(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
+    # The duck voice is played back fast, so it is rendered slow and warm.
+    ducky: bool = False
 
 
 @router.post("/speak")
@@ -73,7 +75,11 @@ async def speak(req: SpeechRequest):
                 json={
                     "text": text,
                     "model_id": ELEVENLABS_MODEL,
-                    "voice_settings": {"stability": 0.45, "similarity_boost": 0.75, "speed": 1.05},
+                    "voice_settings": (
+                        {"stability": 0.75, "similarity_boost": 0.95, "style": 0.2, "speed": 0.72}
+                        if req.ducky
+                        else {"stability": 0.45, "similarity_boost": 0.75, "speed": 1.05}
+                    ),
                 },
             )
         if response.status_code in (401, 403):

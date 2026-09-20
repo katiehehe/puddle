@@ -38,6 +38,23 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
   background: linear-gradient(var(--paper) 72%, rgba(251, 249, 244, 0));
 }
 .brand { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 44px; letter-spacing: -0.035em; }
+.brand span { position: relative; isolation: isolate; }
+/* Water rising up the wordmark, wave and all. */
+.brand span::after {
+  content: ""; position: absolute; left: -8%; right: -8%; bottom: -6px; height: 0; z-index: -1;
+  pointer-events: none; overflow: hidden;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='16' viewBox='0 0 40 16'%3E%3Cpath d='M0 16V9C5 2 15 2 20 9s15 7 20 0v7z' fill='%235fc4f5'/%3E%3C/svg%3E")
+      repeat-x 0 0 / 52px 20px,
+    linear-gradient(#5fc4f5, #2e9fe0) no-repeat 0 18px / 100% calc(100% - 18px);
+  transition: height 1.2s cubic-bezier(.3, .7, .3, 1);
+}
+.brand:hover span::after { height: 92%; animation: brandwave 2.2s linear infinite; }
+
+@keyframes brandwave {
+  from { background-position: 0 0, 0 18px; }
+  to { background-position: 52px 0, 0 18px; }
+}
 .navlinks { display: flex; align-items: center; gap: 22px; font-size: 15px; color: var(--muted); }
 .navlinks a:hover { color: var(--ink); }
 .live {
@@ -445,6 +462,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .askpanel .askrow button { flex: 0 0 auto; padding: 11px 14px; }
 .askmic { background: var(--duck) !important; color: var(--ink) !important; }
 .askmic.on { background: var(--bad) !important; color: #fff !important; }
+.askfoot { display: flex; gap: 16px; align-items: center; }
+.askmute[aria-pressed="true"] { color: var(--ink); font-weight: 700; }
 .askmute {
   align-self: flex-start; font: inherit; font-size: 13px; cursor: pointer;
   border: 0; background: none; color: var(--muted); padding: 0; text-decoration: underline;
