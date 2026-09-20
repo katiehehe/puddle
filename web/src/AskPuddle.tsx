@@ -19,14 +19,15 @@ const SUGGESTIONS = [
 
 type Turn = { question: string; answer: string; intent: string };
 
-// Donald-duck playback: speeding the clip up without pitch correction.
-const DUCKY_RATE = 1.5;
+// Donald-duck playback: the clip is rendered slow and warm, then sped up
+// without pitch correction, which lifts the pitch but keeps the pace gentle.
+const DUCKY_RATE = 1.4;
 
 function browserSpeak(text: string, ducky: boolean) {
   if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = ducky ? 1.25 : 1.02;
-  utterance.pitch = ducky ? 2 : 1.15;
+  utterance.rate = ducky ? 0.82 : 1.02;
+  utterance.pitch = ducky ? 1.9 : 1.15;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -72,7 +73,7 @@ export function AskPuddle({ open, onClose }: { open: boolean; onClose: () => voi
       silence();
       const turn = speech.current;
       try {
-        const hosted = await speakLine(line);
+        const hosted = await speakLine(line, ducky);
         if (turn !== speech.current) return;
         const bytes = Uint8Array.from(atob(hosted.audio), (c) => c.charCodeAt(0));
         const player = new Audio(URL.createObjectURL(new Blob([bytes], { type: hosted.mime })));
