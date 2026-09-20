@@ -3,21 +3,47 @@
 <head>
 <meta charset="utf-8" />
 <style>
-  body { width: 240px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #16191c; }
-  .top { background: linear-gradient(160deg, #fff8e8, #eef6fb); padding: 16px; }
-  h1 { margin: 0; font-size: 20px; } h1 span { color: #e8a317; }
-  .tag { font-size: 12px; color: #5d6771; margin-top: 2px; }
-  .body { padding: 14px 16px; }
-  .saved { font-size: 26px; font-weight: 700; color: #2a7fb8; }
-  .lbl { font-size: 12px; color: #5d6771; }
-  a { display: inline-block; margin-top: 12px; font-size: 13px; color: #2a7fb8; }
+  /* docs/theme.md — Clay Pond (claymorphism) palette */
+  body { width: 272px; margin: 0;
+    font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: #332f3a; background: #eaf2f8; }
+  .top { padding: 18px; display: flex; gap: 14px; align-items: center;
+    background: rgba(255,255,255,.6); border-radius: 0 0 28px 28px;
+    box-shadow: 10px 10px 20px rgba(96,140,170,.22), -6px -6px 16px rgba(255,255,255,.9),
+      inset -4px -4px 8px rgba(255,255,255,1);
+    position: relative; overflow: hidden; }
+  .top::before { content: ""; position: absolute; width: 140px; height: 140px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(242,180,49,.4) 0%, transparent 70%);
+    top: -60px; right: -30px; }
+  .ducklogo { width: 52px; height: 52px; border-radius: 50%; font-size: 32px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; position: relative;
+    background: linear-gradient(145deg, #ffffff, #dff0fa);
+    box-shadow: 8px 8px 16px rgba(96,140,170,.3), -6px -6px 12px rgba(255,255,255,.9),
+      inset 2px 3px 5px rgba(255,255,255,.6), inset -2px -3px 5px rgba(14,165,233,.08); }
+  h1 { margin: 0; font-size: 21px; font-weight: 900; letter-spacing: -.01em; position: relative; }
+  h1 span { color: #0ea5e9; }
+  .tag { font-size: 12px; color: #635f69; margin-top: 2px; font-weight: 500; position: relative; }
+  .body { padding: 16px 18px; }
+  .saved { font-size: 28px; font-weight: 900; letter-spacing: -.02em; color: #0369a1; }
+  .lbl { font-size: 12px; color: #635f69; font-weight: 600; }
+  .pond { height: 13px; border-radius: 99px; background: #e2edf5; overflow: hidden; margin: 12px 0 4px;
+    box-shadow: inset 6px 6px 12px #cddcea, inset -6px -6px 12px #ffffff; }
+  .fill { height: 100%; border-radius: 99px; width: 0;
+    background: linear-gradient(180deg, #7dd3fc, #0ea5e9);
+    box-shadow: inset 2px 3px 4px rgba(255,255,255,.6), inset -2px -3px 4px rgba(3,105,161,.4);
+    transition: width .5s ease; }
+  a { display: inline-block; margin-top: 14px; font-size: 13px; color: #0369a1; font-weight: 700; }
 </style>
 </head>
 <body>
-  <div class="top"><h1><span>Puddle</span> 🦆</h1><div class="tag">A duck that lives in your cart.</div></div>
+  <div class="top">
+    <div class="ducklogo">🦆</div>
+    <div><h1><span>Puddle</span></h1><div class="tag">A duck that lives in your cart.</div></div>
+  </div>
   <div class="body">
     <div class="saved" id="saved">$0</div>
     <div class="lbl">saved from regret buys</div>
+    <div class="pond"><div class="fill" id="fill"></div></div>
     <a href="http://localhost:5173" target="_blank">Open your closet portfolio →</a>
   </div>
   <script src="popup.js"></script>

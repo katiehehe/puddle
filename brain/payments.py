@@ -30,6 +30,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Protocol
 
+from jwcrypto import jwe, jwk
+
 BUDGET_CAP = 500.0
 SANDBOX_BASE = "https://sandbox.api.visa.com"
 PUSH_PATH = "visadirect/fundstransfer/v1/pushfundstransactions"
@@ -40,7 +42,7 @@ HELLO_PATH = "vdp/helloworld"
 ACQUIRING_BIN = "408999"
 ACQUIRER_COUNTRY = "840"
 SENDER_ACCOUNT = "4653459515756154"
-RECIPIENT_ACCOUNT = "4957030420210496"
+RECIPIENT_ACCOUNT = "4957030420210454"
 
 
 def _ssl_context() -> ssl.SSLContext:
@@ -128,8 +130,12 @@ class VisaSandboxProvider:
     """Visa Direct in the sandbox, authenticated with an X-Pay-Token.
 
     Two-way SSL is used instead when a client certificate and key are
-    configured; Visa accepts either, and which one a project gets depends on
-    how it was created.
+    configured; Visa Direct only accepts that one, while Hello World takes
+    either.
+
+    Products carrying account data additionally enforce message level
+    encryption: the body travels as a JWE inside {"encData": ...} and the
+    response comes back the same way. Without it Visa answers 400/9125.
     """
 
     name = "visa_sandbox"
@@ -142,6 +148,9 @@ class VisaSandboxProvider:
         key: str | None = None,
         user_id: str | None = None,
         password: str | None = None,
+        mle_key_id: str | None = None,
+        mle_server_cert: str | None = None,
+        mle_client_key: str | None = None,
     ):
         self.api_key = api_key
         self.shared_secret = shared_secret
@@ -149,10 +158,36 @@ class VisaSandboxProvider:
         self.key = key
         self.user_id = user_id
         self.password = password
+        self.mle_key_id = mle_key_id
+        self.mle_server_cert = mle_server_cert
+        self.mle_client_key = mle_client_key
 
     @property
     def mutual_tls(self) -> bool:
         return bool(self.cert and self.key)
+
+    @property
+    def encrypts(self) -> bool:
+        return bool(self.mle_key_id and self.mle_server_cert and self.mle_client_key)
+
+    def _encrypt(self, body: dict) -> dict:
+        header = {
+            "alg": "RSA-OAEP-256",
+            "enc": "A128GCM",
+            "kid": self.mle_key_id,
+            # Visa rejects a token older than two minutes; milliseconds.
+            "iat": int(time.time() * 1000),
+        }
+        token = jwe.JWE(json.dumps(body).encode(), recipient=_pem(self.mle_server_cert), protected=header)
+        return {"encData": token.serialize(compact=True)}
+
+    def _decrypt(self, payload: dict) -> dict:
+        enc_data = payload.get("encData")
+        if not enc_data:
+            return payload
+        token = jwe.JWE()
+        token.deserialize(enc_data, key=_pem(self.mle_client_key))
+        return json.loads(token.payload)
 
     def _x_pay_token(self, path: str, query: str, body: str) -> str:
         timestamp = str(int(time.time()))
@@ -161,11 +196,15 @@ class VisaSandboxProvider:
         return f"xv2:{timestamp}:{digest}"
 
     def _call(self, path: str, body: dict | None) -> dict:
-        payload = json.dumps(body) if body is not None else ""
+        encrypted = body is not None and self.encrypts
+        wire_body = self._encrypt(body) if encrypted else body
+        payload = json.dumps(wire_body) if wire_body is not None else ""
         query = urllib.parse.urlencode({"apikey": self.api_key})
         headers = {"Accept": "application/json"}
         if body is not None:
             headers["Content-Type"] = "application/json"
+        if encrypted:
+            headers["keyId"] = self.mle_key_id
         if self.mutual_tls:
             credentials = b64encode(f"{self.user_id}:{self.password}".encode()).decode()
             headers["Authorization"] = f"Basic {credentials}"
@@ -182,7 +221,8 @@ class VisaSandboxProvider:
         if self.mutual_tls:
             context.load_cert_chain(certfile=self.cert, keyfile=self.key)
         with urllib.request.urlopen(request, timeout=8, context=context) as response:
-            return json.loads(response.read() or b"{}")
+            received = json.loads(response.read() or b"{}")
+        return self._decrypt(received) if encrypted else received
 
     def ping(self) -> dict:
         """Cheap credential check -- Hello World is the endpoint Visa ships for it."""
@@ -213,8 +253,9 @@ class VisaSandboxProvider:
             "pointOfServiceData": {"motoECIIndicator": "0", "panEntryMode": "90", "posConditionCode": "00"},
             "recipientName": "Puddle Merchant",
             "recipientPrimaryAccountNumber": RECIPIENT_ACCOUNT,
-            # yddd + 7 digits, the 12-character form Visa's samples use.
-            "retrievalReferenceNumber": now_utc.strftime("%y%j") + f"{random.randrange(10**7):07d}",
+            # yddd + 8 digits: Visa rejects any other 12-character shape with
+            # "Mandatory field 'RetrievalReferenceNumber' ... invalid content".
+            "retrievalReferenceNumber": now_utc.strftime("%y%j")[1:] + f"{random.randrange(10**8):08d}",
             "senderAccountNumber": SENDER_ACCOUNT,
             "senderAddress": "901 Metro Center Blvd",
             "senderCity": "Foster City",
@@ -242,7 +283,7 @@ class VisaSandboxProvider:
         try:
             payload = self._call(PUSH_PATH, self._push_request(amount, item_id))
         except urllib.error.HTTPError as err:
-            detail = _error_detail(err)
+            detail = _error_detail(err, self._decrypt if self.encrypts else None)
             return PaymentResult(
                 mode=self.name,
                 approved=False,
@@ -276,12 +317,19 @@ class VisaSandboxProvider:
         )
 
 
-def _error_detail(err: urllib.error.HTTPError) -> str:
+def _pem(path: str | None) -> jwk.JWK:
+    with open(str(path), "rb") as handle:
+        return jwk.JWK.from_pem(handle.read())
+
+
+def _error_detail(err: urllib.error.HTTPError, decrypt=None) -> str:
     try:
         body = json.loads(err.read() or b"{}")
+        if decrypt is not None:
+            body = decrypt(body)
     except (ValueError, OSError):
         return f"HTTP {err.code}"
-    reason = body.get("responseStatus", {}).get("message") or body.get("message")
+    reason = body.get("responseStatus", {}).get("message") or body.get("errorMessage") or body.get("message")
     return f"HTTP {err.code}: {reason}" if reason else f"HTTP {err.code}"
 
 
@@ -296,5 +344,8 @@ def get_provider() -> PaymentProvider:
             key=os.environ.get("VISA_KEY_PATH"),
             user_id=os.environ.get("VISA_USER_ID"),
             password=os.environ.get("VISA_PASSWORD"),
+            mle_key_id=os.environ.get("VISA_MLE_KEY_ID"),
+            mle_server_cert=os.environ.get("VISA_MLE_SERVER_CERT_PATH"),
+            mle_client_key=os.environ.get("VISA_MLE_CLIENT_KEY_PATH"),
         )
     return MockProvider()

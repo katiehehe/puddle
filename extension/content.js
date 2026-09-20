@@ -2,44 +2,20 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
+  // docs/theme.md — Clay Pond palette, kept in sync with web/src/styles.css.
   const PALETTE = {
-    ink: "#16191c", muted: "#5d6771", line: "#e4e8ec",
-    duck: "#f2b431", bill: "#ef7a2c", water: "#2a7fb8", good: "#0d7a4a", bad: "#b3261e", surface: "#ffffff"
+    ink: "#332f3a", muted: "#635f69", line: "#b8d4e4",
+    duck: "#f2b431", duckDeep: "#8a6408", bill: "#ef7a2c",
+    water: "#0ea5e9", waterDeep: "#0369a1", waterLight: "#7dd3fc", ripple: "#b8d9ec", foam: "#e3f1f9",
+    good: "#10b981", bad: "#f43f5e", surface: "#ffffff", surfaceHi: "#f0f7fb",
+    recessed: "#e2edf5", page: "#eaf2f8"
   };
 
-  // One duck, four moods. Eyes and brow carry the whole expression.
+  // The mascot is the duck emoji; mood rides in a small badge and the card accent.
   const DUCK = (state) => {
-    const face = {
-      idle: {
-        eye: '<circle cx="64" cy="46" r="3.1" fill="#16191c"/>',
-        brow: "",
-      },
-      curious: {
-        eye: '<circle cx="65" cy="45" r="3.3" fill="#16191c"/>',
-        brow: '<path d="M58 36 q7 -4 13 -1" stroke="#a97c12" stroke-width="3" fill="none" stroke-linecap="round"/>',
-      },
-      concerned: {
-        eye: '<circle cx="64" cy="47" r="3.4" fill="#16191c"/>',
-        brow: '<path d="M57 34 l13 6" stroke="#a97c12" stroke-width="3" fill="none" stroke-linecap="round"/>',
-      },
-      approving: {
-        eye: '<path d="M60 47 q4.5 -5 9 0" stroke="#16191c" stroke-width="3" fill="none" stroke-linecap="round"/>',
-        brow: "",
-      },
-    }[state] || { eye: '<circle cx="64" cy="46" r="3.1" fill="#16191c"/>', brow: "" };
-
-    return `<svg width="74" height="74" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
-      <ellipse cx="55" cy="96" rx="34" ry="7" fill="#dceaf4"/>
-      <ellipse cx="55" cy="93" rx="22" ry="4" fill="#bcdcef"/>
-      <ellipse cx="38" cy="66" rx="17" ry="14" fill="#e3a521"/>
-      <circle cx="56" cy="60" r="30" fill="${PALETTE.duck}"/>
-      <circle cx="62" cy="44" r="21" fill="${PALETTE.duck}"/>
-      <circle cx="52" cy="53" r="5" fill="#f7c95e" opacity=".55"/>
-      <circle cx="73" cy="52" r="4.2" fill="#f08a8a" opacity=".5"/>
-      ${face.brow}
-      ${face.eye}
-      <path d="M80 47 q14 2 13 7 q-1 5 -13 5 z" fill="${PALETTE.bill}"/>
-    </svg>`;
+    const mark = { curious: "?", concerned: "!", approving: "✓" }[state] || "";
+    return `<div class="duckwrap"><span class="duckmoji">🦆</span>${
+      mark ? `<span class="mood">${mark}</span>` : ""}</div>`;
   };
 
   const HEADER = {
@@ -112,22 +88,47 @@
     shadow.innerHTML = `
       <style>
         *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
-        .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;background:${PALETTE.surface};border:1px solid ${PALETTE.line};
-          border-left:4px solid ${accent};border-radius:16px;padding:14px 16px;
-          box-shadow:0 10px 28px rgba(20,25,28,.16);animation:pop .28s ease}
-        @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+        .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
+          background:linear-gradient(165deg,#fff6dd 0%,#dff0fb 55%,${PALETTE.surface} 100%);
+          border-radius:28px;padding:16px 18px;animation:pop .28s ease;
+          box-shadow:16px 16px 32px rgba(96,140,170,.3),-10px -10px 24px rgba(255,255,255,.9),
+            inset 4px 4px 8px rgba(14,165,233,.05),inset -4px -4px 8px rgba(255,255,255,1),
+            inset -4px 0 0 ${accent}}
+        @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
         .row{display:flex;gap:12px;align-items:flex-start}
+        .duckwrap{position:relative;flex-shrink:0;width:60px;height:60px;border-radius:50%;
+          background:linear-gradient(145deg,#ffffff,${PALETTE.foam});
+          box-shadow:8px 8px 16px rgba(96,140,170,.3),-6px -6px 12px rgba(255,255,255,.9),
+            inset 3px 3px 6px rgba(255,255,255,.6),inset -3px -3px 6px rgba(14,165,233,.08);
+          display:flex;align-items:center;justify-content:center}
+        .duckmoji{font-size:36px;line-height:1}
+        .mood{position:absolute;top:-4px;right:-4px;width:20px;height:20px;border-radius:50%;
+          background:${accent};color:#fff;font-size:12px;font-weight:800;
+          display:flex;align-items:center;justify-content:center;
+          box-shadow:2px 3px 6px rgba(0,0,0,.25),inset 1px 2px 3px rgba(255,255,255,.4)}
         .bubble{flex:1}
         .quack{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${PALETTE.muted};font-weight:700}
         .line{font-size:15px;line-height:1.45;color:${PALETTE.ink};margin:3px 0 8px}
-        .chip{display:inline-block;background:#f3f6f8;border:1px solid ${PALETTE.line};border-radius:99px;
-          padding:2px 10px;font-size:12px;color:${PALETTE.muted};margin-bottom:10px}
+        .chip{display:inline-block;background:${PALETTE.foam};border-radius:99px;
+          padding:4px 12px;font-size:12px;color:${PALETTE.waterDeep};margin-bottom:10px;font-weight:700;
+          box-shadow:inset 3px 3px 6px #cddcea,inset -3px -3px 6px #ffffff}
         .btns{display:flex;gap:8px;justify-content:flex-end}
-        button{border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${PALETTE.line}}
-        .skip{background:${accent};color:#fff;border-color:${accent}}
-        .buy{background:#fff;color:${PALETTE.ink}}
-        .pond{margin-top:12px;height:8px;border-radius:99px;background:#eaf3f8;overflow:hidden}
-        .fill{height:100%;background:${PALETTE.water};width:${pondPct(pond.saved)}%;transition:width .5s ease}
+        button{border-radius:16px;padding:9px 15px;font-size:13px;font-weight:700;cursor:pointer;
+          border:none;transition:all .2s}
+        button:hover{transform:translateY(-2px)}
+        button:active{transform:scale(.92);box-shadow:inset 6px 6px 12px rgba(0,0,0,.15),inset -6px -6px 12px rgba(255,255,255,.3)}
+        button:focus-visible{outline:3px solid ${PALETTE.water};outline-offset:2px}
+        .skip{background:linear-gradient(145deg,${accent},${accent});color:#fff;
+          box-shadow:8px 8px 16px rgba(96,140,170,.35),inset 2px 3px 5px rgba(255,255,255,.45),inset -2px -3px 5px rgba(0,0,0,.15)}
+        .buy{background:${PALETTE.surface};color:${PALETTE.ink};
+          box-shadow:8px 8px 16px rgba(96,140,170,.25),-4px -4px 10px rgba(255,255,255,.9),inset 2px 3px 5px rgba(255,255,255,.8),inset -2px -3px 5px rgba(14,165,233,.08)}
+        .pond{margin-top:14px;height:12px;border-radius:99px;background:${PALETTE.recessed};overflow:hidden;
+          box-shadow:inset 6px 6px 12px #cddcea,inset -6px -6px 12px #ffffff}
+        .fill{height:100%;border-radius:99px;position:relative;
+          background:linear-gradient(180deg,${PALETTE.waterLight},${PALETTE.water});
+          box-shadow:inset 2px 3px 4px rgba(255,255,255,.6),inset -2px -3px 4px rgba(3,105,161,.4);
+          width:${pondPct(pond.saved)}%;transition:width .5s ease}
+        @media(prefers-reduced-motion:reduce){.card{animation:none}}
         .saved{font-size:12px;color:${PALETTE.water};margin-top:5px;font-weight:600}
         .done{font-size:14px;color:${PALETTE.ink}}
       </style>

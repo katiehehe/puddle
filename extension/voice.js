@@ -6,17 +6,23 @@
     panel.className = "voice-panel";
     panel.innerHTML = `
       <style>
-        .voice-panel{border-top:1px solid #e4e8ec;margin-top:12px;padding-top:12px;color:#16191c}
+        .voice-panel{border-top:1px solid #b8d4e4;margin-top:14px;padding-top:14px;color:#332f3a}
         .voice-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-        .voice-controls button{background:#f5f7f9;color:#16191c}
-        .voice-controls button[aria-pressed="true"]{color:#b3261e;border-color:#b3261e}
-        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:2px solid #2a7fb8;outline-offset:3px}
+        .voice-controls button{background:#fff;color:#332f3a;border-radius:14px;
+          box-shadow:6px 6px 12px rgba(96,140,170,.25),-4px -4px 8px rgba(255,255,255,.9),
+            inset 2px 2px 4px rgba(255,255,255,.8),inset -2px -2px 4px rgba(14,165,233,.08)}
+        .voice-controls button[aria-pressed="true"]{color:#be123c}
+        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:3px solid #0ea5e9;outline-offset:3px}
         .voice-panel button:disabled{opacity:.55;cursor:default}
-        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#5d6771;margin:8px 0}
+        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#635f69;margin:8px 0}
         .voice-answer{font-size:14px;line-height:1.5;margin:8px 0;overflow-wrap:anywhere}
-        .voice-form{display:flex;gap:6px;margin-top:10px}
-        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #b9c3ca;border-radius:6px;padding:8px;font-size:13px}
-        .voice-label{display:block;font-size:12px;margin-top:12px}
+        .voice-form{display:flex;gap:8px;margin-top:10px}
+        .voice-form input{width:0;flex:1;min-width:0;border:none;border-radius:14px;
+          padding:10px 12px;font-size:13px;background:#e2edf5;color:#332f3a;
+          box-shadow:inset 6px 6px 12px #cddcea,inset -6px -6px 12px #ffffff}
+        .voice-form input:focus{background:#fff}
+        .voice-form input::placeholder{color:#635f69}
+        .voice-label{display:block;font-size:12px;margin-top:12px;color:#635f69;font-weight:600}
         .voice-panel [hidden]{display:none!important}
         @media(prefers-reduced-motion:reduce){.card{animation:none!important}}
       </style>

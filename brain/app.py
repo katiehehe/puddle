@@ -40,7 +40,7 @@ app.mount("/demo-assets", StaticFiles(directory=PROJECT_ROOT / "extension"), nam
 
 @app.get("/demo", response_class=HTMLResponse)
 def voice_demo():
-    page = (PROJECT_ROOT / "mock-shop" / "index.html").read_text()
+    page = (PROJECT_ROOT / "mock-shop" / "index.html").read_text(encoding="utf-8")
     page = page.replace("<body>", '<body data-puddle-mode="web">')
     # Same shop, duck and voice controller as the extension. Only transport differs.
     scripts = '<script src="/demo-assets/transport.js"></script>'
