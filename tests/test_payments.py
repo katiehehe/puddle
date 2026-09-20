@@ -183,3 +183,27 @@ def test_plaintext_body_when_mle_is_not_configured(monkeypatch):
     seen = _capture(monkeypatch, {"actionCode": "00"})
     provider.pay(64.0, "sku_991")
     assert "encData" not in seen["body"] and "keyid" not in seen["headers"]
+
+
+def test_mock_receipt_carries_card_auth_and_guards():
+    res = payments.MockProvider().pay(128.0, "cand_boots").dict()
+    assert res["status"] == "approved"
+    assert res["card"] == {"network": "VISA", "last4": "6154", "kind": "network token"}
+    assert res["auth_code"] == "00"
+    assert res["settled_at"]
+    assert res["token"].startswith("tok_")
+    assert res["guards"] == payments.GUARDS
+    assert res["rail"] == "Visa Direct (simulated)"
+
+
+def test_mock_decline_over_cap_has_no_token_or_auth():
+    res = payments.MockProvider().pay(payments.BUDGET_CAP + 1, "x").dict()
+    assert res["status"] == "declined"
+    assert res["token"] == "" and res["auth_code"] == "" and res["settled_at"] == ""
+
+
+def test_preview_flags_a_blocked_amount(monkeypatch):
+    monkeypatch.delenv("VISA_API_KEY", raising=False)
+    ok, blocked = payments.preview(50), payments.preview(999)
+    assert ok["blocked"] is None and ok["mode"] == "mock" and ok["card"]["last4"] == "6154"
+    assert blocked["blocked"].startswith("Over budget cap")

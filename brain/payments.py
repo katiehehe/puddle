@@ -63,6 +63,21 @@ def _ssl_context() -> ssl.SSLContext:
         return ssl.create_default_context()
 
 
+# What makes a Puddle payment safe to tap, stated once so both providers and
+# the UI say the same thing.
+GUARDS = [
+    f"Capped at ${BUDGET_CAP:.0f} per purchase",
+    "One tap, one charge: retries are deduplicated",
+    "A decline records nothing: no closet change, no pond change",
+    "Card number never leaves the network token",
+]
+
+
+def card_on_file() -> dict:
+    """The tokenized funding card. Only the last four digits ever reach a client."""
+    return {"network": "VISA", "last4": SENDER_ACCOUNT[-4:], "kind": "network token"}
+
+
 @dataclass
 class PaymentResult:
     mode: str
@@ -72,12 +87,36 @@ class PaymentResult:
     network: str = "VISA"
     reason: str | None = None
     message: str = ""
+    auth_code: str = ""
+    settled_at: str = ""
 
     def dict(self) -> dict:
         return {
             **asdict(self),
             "status": "approved" if self.approved else "error" if self.reason == "provider_error" else "declined",
+            "card": card_on_file(),
+            "guards": GUARDS,
+            "rail": "Visa Direct" + (" (simulated)" if self.mode == "mock" else " sandbox"),
         }
+
+
+def preview(amount: float) -> dict:
+    """What the buy button will do before it is tapped: rail, card, guards,
+    and whether the amount already fails a guard."""
+    provider = get_provider()
+    blocked = _capped(amount)
+    return {
+        "mode": provider.name,
+        "rail": "Visa Direct" + (" (simulated)" if provider.name == "mock" else " sandbox"),
+        "card": card_on_file(),
+        "guards": GUARDS,
+        "cap": BUDGET_CAP,
+        "blocked": blocked,
+    }
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class PaymentProvider(Protocol):
@@ -103,9 +142,11 @@ class MockProvider:
             mode="mock",
             approved=reason is None,
             amount=amount,
-            token="tok_" + uuid.uuid4().hex[:16],
+            token="tok_" + uuid.uuid4().hex[:16] if reason is None else "",
             reason=reason,
             message="Paid (simulated)." if reason is None else "Declined (simulated).",
+            auth_code="00" if reason is None else "",
+            settled_at=_now_iso() if reason is None else "",
         )
 
     def ping(self) -> dict:
@@ -314,6 +355,8 @@ class VisaSandboxProvider:
             token=str(token),
             reason=None if approved else "not_approved",
             message="Settled over Visa Direct." if approved else f"Visa declined (action code {action_code}).",
+            auth_code=str(payload.get("approvalCode") or action_code or "") if approved else "",
+            settled_at=_now_iso() if approved else "",
         )
 
 

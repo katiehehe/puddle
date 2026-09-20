@@ -109,6 +109,9 @@
       : PALETTE.ink;
     // One event_id per intentional action; the brain dedupes retries on it.
     const skipEvent = crypto.randomUUID(), buyEvent = crypto.randomUUID();
+    const pay = result.payment || null;
+    const cardLabel = (p) => p?.card ? `${p.card.network === "VISA" ? "Visa" : esc(p.card.network)} \u2022\u2022\u2022\u2022 ${esc(p.card.last4)}` : "Visa";
+    const guardList = (guards) => (guards || []).map(g => `<li>${esc(g)}</li>`).join("");
 
     shadow.innerHTML = `
       <style>
@@ -152,9 +155,26 @@
         .nums{display:none;font-size:12px;color:${PALETTE.muted};margin-bottom:10px;line-height:1.6}
         .nums.open{display:block}
         .nums b{color:${PALETTE.ink}}
+        .payline{display:flex;align-items:center;justify-content:space-between;gap:8px;
+          font-size:11px;color:${PALETTE.muted};margin-top:10px}
+        .payline .vmark{font-weight:900;font-style:italic;letter-spacing:-.02em;color:#1a1f71;font-size:13px}
+        .payline button{background:none;border:0;padding:0;font-size:11px;font-weight:600;
+          color:${PALETTE.muted};text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+        .guards{display:none;margin:6px 0 0;padding:0 0 0 14px;font-size:11px;line-height:1.55;color:${PALETTE.muted}}
+        .guards.open{display:block}
+        .receipt{border:1px solid ${PALETTE.line};border-radius:12px;padding:12px 14px;margin:0 0 10px;
+          font-size:12px;line-height:1.6;color:${PALETTE.muted};background:#fbfaf6}
+        .receipt .row{display:flex;justify-content:space-between;gap:10px}
+        .receipt b{color:${PALETTE.ink}}
+        .receipt .ok{color:#1e7f4f;font-weight:700}
+        .receipt .no{color:${PALETTE.bad};font-weight:700}
+        .receipt .vmark{font-weight:900;font-style:italic;color:#1a1f71;font-size:14px}
+        .receipt ul{margin:6px 0 0;padding:0 0 0 14px}
       </style>
       <div class="card" id="card">
-        <div class="duckhead">${DUCK}<b>Puddle</b></div>
+        <div class="duckhead">${DUCK}<b>Puddle</b>${result.phrasing?.source === "llm"
+          ? `<span class="chip" style="margin:0 0 0 auto" title="${esc(result.headline_math || "")}">said by ${esc(result.phrasing.model)}${result.phrasing.cached ? " · cached" : ""}</span>`
+          : ""}</div>
         ${advice ? `<div class="verdict">${esc(advice.verdict)}</div>` : ""}
         <div class="line">${esc(line)}</div>
         ${c ? `<span class="chip">${esc(c)}</span>` : ""}
@@ -171,11 +191,21 @@
            href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">See my closet</a>
         <div class="btns">
           <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
-          <button class="buy" id="buy">Buy anyway</button>
+          <button class="buy" id="buy">${pay?.blocked ? "Over your cap" : "Buy anyway"}</button>
         </div>
+        ${pay ? `<div class="payline"><span><span class="vmark">VISA</span>&nbsp; ${cardLabel(pay)}${pay.blocked ? " \u00b7 " + esc(pay.blocked) : ""}</span><button id="guards">Why this is safe</button></div>
+        <ul class="guards" id="guardlist">${guardList(pay.guards)}</ul>` : ""}
         <div class="pond"><div class="fill"></div></div>
         <div class="saved">$${esc(pond.saved)} in the pond</div>
       </div>`;
+
+    const guardsBtn = shadow.getElementById("guards");
+    if (guardsBtn) {
+      guardsBtn.onclick = () => {
+        const open = shadow.getElementById("guardlist").classList.toggle("open");
+        guardsBtn.textContent = open ? "Hide" : "Why this is safe";
+      };
+    }
 
     const more = shadow.getElementById("more");
     if (more) {
@@ -222,9 +252,22 @@
       const declined = res.approved === false || (res.status && res.status !== "approved");
       shadow.querySelector(".line").innerHTML = declined
         ? `<span class="done">Payment ${esc(res.status || "failed")}: nothing was recorded.</span>`
-        : `<span class="done">Bought${res.mode === "mock" ? " (simulated)" : ""}. It's in your closet now.</span>`;
-      shadow.querySelector(".btns").remove();
-      dismiss(2600);
+        : `<span class="done">Bought. It's in your closet now.</span>`;
+      const receipt = document.createElement("div");
+      receipt.className = "receipt";
+      receipt.innerHTML = `
+        <div class="row"><span><span class="vmark">VISA</span>&nbsp; ${cardLabel(res)}</span>
+          <span class="${declined ? "no" : "ok"}">${declined ? "Declined" : "Approved"}</span></div>
+        <div class="row"><span>Amount</span><b>${esc(cash(res.amount ?? item.price))}</b></div>
+        <div class="row"><span>Rail</span><b>${esc(res.rail || "Visa Direct")}</b></div>
+        ${res.auth_code ? `<div class="row"><span>Auth code</span><b>${esc(res.auth_code)}</b></div>` : ""}
+        ${res.token ? `<div class="row"><span>Network token</span><b>${esc(String(res.token).slice(0, 12))}\u2026</b></div>` : ""}
+        ${declined && res.message ? `<div>${esc(res.message)}</div>` : ""}
+        <ul>${guardList(res.guards)}</ul>`;
+      shadow.querySelector(".btns").replaceWith(receipt);
+      shadow.querySelector(".payline")?.remove();
+      shadow.getElementById("guardlist")?.remove();
+      dismiss(declined ? 6000 : 5200);
     };
   }
 
