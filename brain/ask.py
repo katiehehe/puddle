@@ -61,6 +61,18 @@ _QUANTITY = re.compile(
     r"count|number of)\b"
 )
 
+# What the question is *about* sits after one of these: a preposition, a
+# determiner, or a verb of owning and buying. "Spent on Bitcoin" and "own for
+# rain" are the same grammar, and only one of the two subjects exists here.
+_SUBJECT = re.compile(
+    r"\b(?:on|in|at|for|about|from|with|by|near|among|between|versus|than|like|"
+    r"into|onto|off|via|during|before|after|inside|outside|around|"
+    r"my|your|a|an|the|this|that|more|another|other|new|some|any|\w+ing|"
+    r"do|does|did|is|are|was|were|has|have|had|"
+    r"can|could|may|might|must|shall|should|will|would|"
+    r"buy|bought|own|owns|wear|spend|spent)\s+(?=(\w+))"
+)
+
 # A question has to be about the shopper's own things before any handler gets
 # to read it. Without this, an occasion word inside "will it rain in Boston"
 # looks exactly like one inside "what do I own for rain".
@@ -116,17 +128,26 @@ _GENERIC = set(
     help helping useful usefully anyway besides currently presently
     waste wasted wasting predict predicts prediction predictions predicted
     balanced unbalanced worn wears worth accurate inaccurate mistake mistakes
-    regret regrets regretted flag flagged flags ledger history log logged""".split()
+    regret regrets regretted flag flagged flags ledger history log logged
+    quick quickly simple simply brief briefly ideal ideally possess possesses
+    proportion proportions splurge splurged gather gathering dust habit habits
+    once twice already truly basically essentially exactly specifically""".split()
 )
 
 # Colours and fabrics a shopper may reasonably name. One the closet does not
 # stock is a real question with a zero answer, not a stranger.
-QUALITY_WORDS = set(
-    """black white grey gray navy blue red green yellow orange pink purple brown beige
-    cream ivory tan khaki olive burgundy maroon charcoal silver gold
-    denim leather suede cotton wool linen silk satin cashmere fleece nylon polyester
+COLOUR_WORDS = set(
+    """black white grey navy blue red green yellow orange pink purple brown beige
+    cream ivory tan khaki olive burgundy maroon charcoal silver gold""".split()
+)
+FABRIC_WORDS = set(
+    """denim leather suede cotton wool linen silk satin cashmere fleece nylon polyester
     mesh sequin corduroy velvet knit tweed canvas rubber""".split()
 )
+QUALITY_WORDS = COLOUR_WORDS | FABRIC_WORDS | {"gray"}
+
+# One spelling of a colour, so "gray crewneck" finds the Grey one.
+SPELLINGS = {"gray": "grey"}
 
 
 def _vocabulary() -> set[str]:
@@ -152,8 +173,10 @@ def _stems(word: str) -> set[str]:
     forms = {word}
     for ending, stem in (("es", 2), ("s", 1), ("ing", 3), ("ed", 2), ("ly", 2)):
         if word.endswith(ending) and len(word) - stem >= 3:
-            forms.add(word[:-stem])
-            forms.add(word[:-stem] + "e")
+            cut = word[:-stem]
+            forms.update({cut, cut + "e"})
+            if len(cut) > 3 and cut[-1] == cut[-2]:  # skipping -> skip
+                forms.add(cut[:-1])
     return forms
 
 
@@ -168,11 +191,21 @@ def _stranger(word: str) -> bool:
 def _known(text: str) -> bool:
     """False as soon as the question names something the closet has never seen.
 
-    Grammar was the wrong place to look for this: Gucci sits in front of a noun,
-    Rihanna behind one, Paris after a comma, and none of them are answerable.
-    Every word has to be one this closet or plain English can account for.
+    Only the noun slots are read. A stranger is a stranger where a subject goes
+    -- "spent on Bitcoin" -- and beside a garment the closet does own: "gucci
+    jackets", "crewnecks rihanna owns", "for rain, paris". Everywhere else the
+    shopper may say what they like, because English is larger than any list.
     """
-    return not any(_stranger(word) for word in re.findall(r"[A-Za-z']+", text))
+    if any(_stranger(word) for word in _SUBJECT.findall(text)):
+        return False
+    words = text.split()
+    for i, word in enumerate(words):
+        if not _stems(word) & _VOCABULARY:
+            continue
+        neighbours = words[max(i - 1, 0) : i] + words[i + 1 : i + 2]
+        if any(_stranger(other) for other in neighbours):
+            return False
+    return True
 
 
 def _plural(subject: str, qualities: list[str]) -> str:
@@ -229,20 +262,24 @@ class Wardrobe:
             return None
         subject, items, _ = found
         qualities = [q for q in self._qualities(text) if q not in subject.split()]
-        if len(qualities) > 1 and re.search(r"\bor\b", text):
-            # "black or white tops" asks for both rails, not their intersection.
-            items = [i for i in items if {i.color, i.material} & set(qualities)]
-            return subject, [" or ".join(qualities)], items
+        colours = [q for q in qualities if q in COLOUR_WORDS]
+        spoken = qualities
+        if len(colours) > 1 and re.search(r"\bor\b", text):
+            # "black or white cotton tops" asks for two colours, one fabric.
+            items = [i for i in items if i.color in colours]
+            qualities = [q for q in qualities if q not in colours]
+            spoken = [" or ".join(colours), *qualities]
         for quality in qualities:
             items = [i for i in items if quality in (i.color, i.material)]
-        return subject, qualities, items
+        return subject, spoken, items
 
     def _qualities(self, text: str) -> list[str]:
         """Colours and fabrics named in the question, stocked here or not."""
         known = {i.color for i in self.items} | {i.material for i in self.items}
         spoken = {q for q in known if q} | QUALITY_WORDS
         found = [q for q in sorted(spoken) if re.search(rf"\b{re.escape(q)}\b", text)]
-        return [q for q in found if not any(q != other and q in other.split() for other in found)]
+        said = [SPELLINGS.get(q, q) for q in found]
+        return [q for q in dict.fromkeys(said) if not any(q != o and q in o.split() for o in said)]
 
     def names_a_rail(self, text: str) -> bool:
         """True when the question names a kind or a rail, not just a stray word.
@@ -285,6 +322,11 @@ class Wardrobe:
         return None
 
 
+def _counting(text: str, w: Wardrobe) -> bool:
+    """"How many rain boots do I own" is a count, not a question about rain."""
+    return bool(_QUANTITY.search(text)) and w.names_a_rail(text)
+
+
 # --- answers ----------------------------------------------------------------
 # Each takes (text, wardrobe) and returns (answer, facts) or None when it has
 # no evidence to stand on.
@@ -321,6 +363,8 @@ def _accuracy(text: str, w: Wardrobe):
 
 def _gaps(text: str, w: Wardrobe):
     if not re.search(r"\b(gap|gaps|missing|uncovered|hole|holes)\b|\bwhat (do|should) i need\b", text):
+        return None
+    if _counting(text, w):
         return None
     gaps = sorted(w.closet.gaps(), key=lambda g: -g["p"])
     if not gaps:
@@ -430,7 +474,7 @@ def _spend(text: str, w: Wardrobe):
 
 
 def _returns(text: str, w: Wardrobe):
-    if not re.search(r"\b(return|returns|returned|send back|sent back|refund)\b", text):
+    if not re.search(r"\b(return|returns|returned|returning|send back|sent back|refund|refunds)\b", text):
         return None
     baseline = w.miner.baseline_return_rate()
     returned = [p for p in w.purchases if p.returned]
@@ -498,8 +542,7 @@ def _for_occasion(text: str, w: Wardrobe):
     state_key = _state_in(text)
     if state_key is None:
         return None
-    # "How many rain boots do I own" is a count, not a question about rain.
-    if _QUANTITY.search(text) and w.names_a_rail(text):
+    if _counting(text, w):
         return None
     covering = w.closet.serving(state_key)
     label = _label(state_key).lower()

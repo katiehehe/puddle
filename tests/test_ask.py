@@ -163,6 +163,24 @@ def test_a_colour_the_closet_lacks_is_a_question_not_a_stranger():
     assert both["facts"]["count"] == 6
     assert both["answer"].startswith("6 black or white tops")
     assert ask("Could someone count my crewnecks?")["intent"] == "count"
+    assert ask("How many gray crewnecks do I own?")["answer"] == "One: Grey crewneck. $45, 5 wears."
+    mixed = ask("How many black or white cotton tops do I own?")
+    assert mixed["facts"]["count"] == 0
+
+
+def test_plain_english_around_a_wardrobe_question_is_not_a_stranger():
+    """Refusal reads noun slots, so ordinary words elsewhere cost nothing."""
+    answerable = {
+        "Quickly count my crewnecks, please.": "count",
+        "How many jackets do I currently possess?": "count",
+        "What clothes are gathering dust in my closet?": "summary",
+        "How much have I splurged on clothes?": "spend",
+        "What percentage of purchases am I returning?": "returns",
+        "How much money have I saved by skipping purchases?": "saved",
+        "Which clothes have I never worn even once?": "unworn",
+    }
+    for question, intent in answerable.items():
+        assert ask(question)["intent"] == intent, question
 
 
 def test_item_questions_still_go_to_the_checkout_handler():
