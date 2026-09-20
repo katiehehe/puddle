@@ -125,6 +125,32 @@ def test_a_count_follows_the_words_the_question_used():
     assert black["answer"].startswith("One: Black jeans.")
     assert ask("How many black tops do I own?")["answer"].startswith("4 black tops")
 
+    red = ask("How many red jeans do I own?")
+    assert red["facts"]["count"] == 0
+    assert red["answer"] == "None: you own no red jeans."
+
+    assert ask("How many denim jackets do I own?")["facts"]["count"] == 1
+    assert ask("How many trousers do I own?")["facts"]["count"] == 4
+    assert ask("How many boots do I own?")["answer"].startswith("2 pairs of boots")
+    assert ask("How many dresses do I own?")["intent"] == "count"
+
+
+def test_a_named_garment_beats_the_occasion_it_belongs_to():
+    boots = ask("How many rain boots do I own?")
+    assert boots["intent"] == "count"
+    assert boots["facts"]["count"] == 1
+    assert ask("What do I own for rain?")["intent"] == "occasion"
+
+
+def test_a_stranger_is_refused_wherever_the_grammar_puts_them():
+    for question in (
+        "how many crewnecks might taylor swift own?",
+        "how many crewnecks would beyonce own?",
+        "how many jackets does Elon Musk own?",
+        "What did I spend at Zara?",
+    ):
+        assert ask(question)["intent"] == "unknown", question
+
 
 def test_item_questions_still_go_to_the_checkout_handler():
     reply = ask("Why should I skip these?", item_id="cand_boots", now_hour=23)

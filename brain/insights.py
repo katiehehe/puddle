@@ -28,7 +28,7 @@ _PLURAL = {
     "accessory": "accessories",
 }
 
-_KIND_PLURAL = {
+KIND_PLURAL = {
     "sneakers": "pairs of sneakers",
     "boots": "pairs of boots",
     "heels": "pairs of heels",
@@ -43,7 +43,7 @@ _KIND_PLURAL = {
 
 
 def kind_label(kind: str, count: int) -> str:
-    label = _KIND_PLURAL.get(kind, kind.replace("_", " ") + "s")
+    label = KIND_PLURAL.get(kind, kind.replace("_", " ") + "s")
     return f"{count} {label}"
 
 
@@ -95,7 +95,7 @@ def notices(closet: list[Item], wear_counts: dict[str, int], coverage: dict) -> 
     if worked:
         kind, avg = max(worked, key=lambda kv: kv[1])
         if avg >= 5:
-            label = _KIND_PLURAL.get(kind, kind.replace("_", " ") + "s")
+            label = KIND_PLURAL.get(kind, kind.replace("_", " ") + "s")
             out.append(
                 {
                     "title": f"Your {label} earn their keep.",
