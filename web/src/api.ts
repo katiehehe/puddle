@@ -82,6 +82,42 @@ export async function getStatus(): Promise<Status | null> {
   }
 }
 
+export type Quote = {
+  ask: number;
+  fair_bid: number;
+  no_price: boolean;
+  fair_value: number;
+  expected_wears: number;
+  wears_logged: number;
+  your_cost_per_wear: number;
+  cost_per_wear_if_bought: number | null;
+  return_prob: number;
+  return_evidence: string;
+  friction: number;
+  ev: number;
+  ev_if_skipped: number;
+  units_held: number;
+  units: { id: string; title: string; wears: number }[];
+  unit_wears: number;
+  alpha: number;
+  covers_gap: { label: string } | null;
+};
+
+/** The same item, quoted as a trade: what it's offered at, what it's worth here. */
+export async function getQuote(itemId: string, nowHour: number): Promise<Quote> {
+  return call<Quote>(`/desk/${encodeURIComponent(itemId)}?now_hour=${nowHour}`);
+}
+
+/** The duck, answering in text. The extension uses this too, then speaks it. */
+export async function askDuck(itemId: string, question: string, nowHour: number): Promise<string> {
+  const r = await call<{ answer?: string }>("/voice/respond", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ transcript: question, item_id: itemId, now_hour: nowHour }),
+  });
+  return r.answer ?? "I don't have a read on that one.";
+}
+
 export async function gradePrediction(id: string, correct: boolean): Promise<void> {
   await call(`/predict/${encodeURIComponent(id)}/grade?correct=${correct}`, { method: "POST" });
 }

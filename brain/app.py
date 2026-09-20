@@ -19,7 +19,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import history, ledger, payments, pond, storage, voice
+from . import desk, history, ledger, payments, pond, storage, voice
 from .catalog import CLOSET, STOREFRONT, Item, coerce_item
 from .miner import Miner, rank, verdict
 from .portfolio import Closet
@@ -300,6 +300,19 @@ def portfolio(now_hour: int | None = None, budget: float = DEFAULT_BUDGET) -> di
         "pond": pond.state(),
         "ledger": {"predictions": ledger.entries(), "accuracy": ledger.accuracy_label()},
     }
+
+
+@app.get("/desk/{item_id}")
+def desk_quote(item_id: str, now_hour: int | None = None) -> dict:
+    """The same item, quoted as a trade: ask, fair bid, EV against her history."""
+    if now_hour is not None and not 0 <= now_hour <= 23:
+        raise HTTPException(422, "now_hour must be between 0 and 23")
+    item = next((i for i in CLOSET + STOREFRONT if i.id == item_id), None)
+    if item is None:
+        raise HTTPException(404, "unknown item")
+    closet, miner, counts = _context()
+    now = datetime.now().replace(hour=DASHBOARD_HOUR if now_hour is None else now_hour, minute=40)
+    return desk.quote(item, closet, miner, counts, now)
 
 
 @app.get("/closet")
