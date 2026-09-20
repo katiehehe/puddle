@@ -15,3 +15,6 @@ def isolated_state(tmp_path, monkeypatch):
     monkeypatch.delenv("VISA_MLE_CLIENT_KEY_PATH", raising=False)
     monkeypatch.setenv("PAYMENT_INTENT_SECRET", "test-payment-intent-secret")
     monkeypatch.delenv("DEEPGRAM_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("PUDDLE_ANTHROPIC_KEY", raising=False)
