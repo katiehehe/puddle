@@ -3,21 +3,40 @@
 <head>
 <meta charset="utf-8" />
 <style>
-  body { width: 240px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #16191c; }
-  .top { background: linear-gradient(160deg, #fff8e8, #eef6fb); padding: 16px; }
-  h1 { margin: 0; font-size: 20px; } h1 span { color: #e8a317; }
+  /* docs/theme.md — pond palette */
+  body { width: 260px; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #16191c; }
+  .top { background: linear-gradient(160deg, #fff8e8, #f4fafd 55%, #dceaf4); padding: 16px;
+    display: flex; gap: 12px; align-items: center; }
+  h1 { margin: 0; font-size: 20px; letter-spacing: -.01em; } h1 span { color: #a97c12; }
   .tag { font-size: 12px; color: #5d6771; margin-top: 2px; }
   .body { padding: 14px 16px; }
-  .saved { font-size: 26px; font-weight: 700; color: #2a7fb8; }
+  .saved { font-size: 26px; font-weight: 800; letter-spacing: -.02em; color: #2a7fb8; }
   .lbl { font-size: 12px; color: #5d6771; }
-  a { display: inline-block; margin-top: 12px; font-size: 13px; color: #2a7fb8; }
+  .pond { height: 9px; border-radius: 99px; background: #dceaf4; overflow: hidden; margin: 10px 0 4px; }
+  .fill { height: 100%; border-radius: 99px; width: 0;
+    background: linear-gradient(90deg, #1d5f8a, #2a7fb8); transition: width .5s ease; }
+  a { display: inline-block; margin-top: 12px; font-size: 13px; color: #2a7fb8; font-weight: 600; }
 </style>
 </head>
 <body>
-  <div class="top"><h1><span>Puddle</span> 🦆</h1><div class="tag">A duck that lives in your cart.</div></div>
+  <div class="top">
+    <svg width="52" height="52" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="55" cy="96" rx="38" ry="8" fill="none" stroke="#dceaf4" stroke-width="2.5"/>
+      <ellipse cx="55" cy="93" rx="22" ry="4" fill="#bcdcef"/>
+      <ellipse cx="38" cy="66" rx="17" ry="14" fill="#e3a521"/>
+      <circle cx="56" cy="60" r="30" fill="#f2b431"/>
+      <circle cx="62" cy="44" r="21" fill="#f2b431"/>
+      <circle cx="52" cy="53" r="5" fill="#f7c95e" opacity=".55"/>
+      <circle cx="73" cy="52" r="4.2" fill="#f08a8a" opacity=".5"/>
+      <circle cx="64" cy="46" r="3.1" fill="#16191c"/>
+      <path d="M80 47 q14 2 13 7 q-1 5 -13 5 z" fill="#ef7a2c"/>
+    </svg>
+    <div><h1><span>Puddle</span></h1><div class="tag">A duck that lives in your cart.</div></div>
+  </div>
   <div class="body">
     <div class="saved" id="saved">$0</div>
     <div class="lbl">saved from regret buys</div>
+    <div class="pond"><div class="fill" id="fill"></div></div>
     <a href="http://localhost:5173" target="_blank">Open your closet portfolio →</a>
   </div>
   <script src="popup.js"></script>

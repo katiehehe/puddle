@@ -2,6 +2,31 @@ import { useEffect, useState } from "react";
 import { getPortfolio } from "./api";
 import { FIXTURE, Portfolio } from "./fixtures";
 
+// docs/theme.md — keep the palette in sync with extension/content.js.
+const THEME = {
+  duck: "#f2b431", duckDeep: "#a97c12", bill: "#ef7a2c",
+  water: "#2a7fb8", waterDeep: "#1d5f8a", ripple: "#dceaf4",
+  reed: "#0d7a4a", warning: "#b3261e", muted: "#5d6771", line: "#e4e8ec",
+};
+
+// The mascot in its idle mood, on ripple rings. Mood faces live in content.js.
+function DuckLogo({ size = 88 }: { size?: number }) {
+  return (
+    <svg className="ducklogo" width={size} height={size} viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="55" cy="96" rx="38" ry="8" fill="none" stroke={THEME.ripple} strokeWidth="2.5" />
+      <ellipse cx="55" cy="94" rx="26" ry="5.5" fill={THEME.ripple} />
+      <ellipse cx="55" cy="93" rx="22" ry="4" fill="#bcdcef" />
+      <ellipse cx="38" cy="66" rx="17" ry="14" fill="#e3a521" />
+      <circle cx="56" cy="60" r="30" fill={THEME.duck} />
+      <circle cx="62" cy="44" r="21" fill={THEME.duck} />
+      <circle cx="52" cy="53" r="5" fill="#f7c95e" opacity=".55" />
+      <circle cx="73" cy="52" r="4.2" fill="#f08a8a" opacity=".5" />
+      <circle cx="64" cy="46" r="3.1" fill="#16191c" />
+      <path d="M80 47 q14 2 13 7 q-1 5 -13 5 z" fill={THEME.bill} />
+    </svg>
+  );
+}
+
 function CoverageRadar({ coverage }: { coverage: Portfolio["coverage"] }) {
   const size = 320, cx = size / 2, cy = size / 2, R = 120;
   const n = coverage.length;
@@ -14,13 +39,13 @@ function CoverageRadar({ coverage }: { coverage: Portfolio["coverage"] }) {
   return (
     <svg width={size + 130} height={size} viewBox={`-65 0 ${size + 130} ${size}`}>
       {rings.map((r, i) => (
-        <polygon key={i} points={r} fill="none" stroke="#e4e8ec" />
+        <polygon key={i} points={r} fill="none" stroke={THEME.line} />
       ))}
       {coverage.map((_, i) => {
         const [x, y] = pt(i, R);
-        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#eef1f4" />;
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={THEME.ripple} />;
       })}
-      <polygon points={poly} fill="rgba(42,127,184,.18)" stroke="#2a7fb8" strokeWidth={2} />
+      <polygon points={poly} fill="rgba(42,127,184,.18)" stroke={THEME.water} strokeWidth={2} />
       {coverage.map((c, i) => {
         const [lx, ly] = pt(i, R + 20);
         const gap = c.coverage < 0.45;
@@ -30,9 +55,9 @@ function CoverageRadar({ coverage }: { coverage: Portfolio["coverage"] }) {
         const lines = c.state.split(" / ");
         return (
           <g key={i}>
-            <circle cx={dx} cy={dy} r={3.5} fill={gap ? "#b3261e" : "#2a7fb8"} />
+            <circle cx={dx} cy={dy} r={3.5} fill={gap ? THEME.warning : THEME.water} />
             <text x={lx} y={ly - (lines.length - 1) * 6} fontSize={11} textAnchor={anchor}
-              fill={gap ? "#b3261e" : "#5d6771"} fontWeight={gap ? 700 : 400}>
+              fill={gap ? THEME.warning : THEME.muted} fontWeight={gap ? 700 : 400}>
               {lines.map((l, k) => (
                 <tspan key={k} x={lx} dy={k === 0 ? 0 : 12}>{l}</tspan>
               ))}
@@ -52,15 +77,19 @@ export default function App() {
     getPortfolio().then(({ data, live }) => { setP(data); setLive(live); });
   }, []);
 
-  const pondPct = Math.min(100, (p.pond.saved / 500) * 100);
+  // Same $800 pond scale as the duck card and popup.
+  const pondPct = Math.min(100, (p.pond.saved / 800) * 100);
 
   return (
     <div className="page">
       <header className="hero">
-        <div>
-          <div className="tag">PUDDLE · YOUR CLOSET PORTFOLIO</div>
-          <h1>Your wardrobe, as an <span>investment portfolio</span> 🦆</h1>
-          <p className="sub">Everything you own, priced by how much use it actually returns: and the trades to improve it.</p>
+        <div className="hero-main">
+          <DuckLogo />
+          <div>
+            <div className="tag">PUDDLE · YOUR CLOSET PORTFOLIO</div>
+            <h1>Your wardrobe, as an <span>investment portfolio</span></h1>
+            <p className="sub">Everything you own, priced by how much use it actually returns: and the trades to improve it.</p>
+          </div>
         </div>
         <div className={"badge " + (live ? "on" : "off")}>{live ? "live · brain connected" : "offline · demo data"}</div>
       </header>
@@ -147,7 +176,10 @@ export default function App() {
         </div>
       </section>
 
-      <footer className="foot">Puddle · HackMIT 2026 · brain: FastAPI + numpy · surfaces: extension + dashboard</footer>
+      <footer className="foot">
+        <span className="prints">❋ ❋ ❋</span>
+        Puddle · HackMIT 2026 · brain: FastAPI + numpy · surfaces: extension + dashboard
+      </footer>
     </div>
   );
 }

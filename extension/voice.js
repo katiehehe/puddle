@@ -8,14 +8,14 @@
       <style>
         .voice-panel{border-top:1px solid #e4e8ec;margin-top:12px;padding-top:12px;color:#16191c}
         .voice-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-        .voice-controls button{background:#f5f7f9;color:#16191c}
+        .voice-controls button{background:#f4fafd;color:#16191c;border-color:#dceaf4}
         .voice-controls button[aria-pressed="true"]{color:#b3261e;border-color:#b3261e}
         .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:2px solid #2a7fb8;outline-offset:3px}
         .voice-panel button:disabled{opacity:.55;cursor:default}
         .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#5d6771;margin:8px 0}
         .voice-answer{font-size:14px;line-height:1.5;margin:8px 0;overflow-wrap:anywhere}
         .voice-form{display:flex;gap:6px;margin-top:10px}
-        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #b9c3ca;border-radius:6px;padding:8px;font-size:13px}
+        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #b9c3ca;border-radius:8px;padding:8px;font-size:13px}
         .voice-label{display:block;font-size:12px;margin-top:12px}
         .voice-panel [hidden]{display:none!important}
         @media(prefers-reduced-motion:reduce){.card{animation:none!important}}
