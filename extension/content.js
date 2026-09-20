@@ -552,23 +552,40 @@
    * A shop that drives Puddle itself says so, and keeps the behaviour it
    * scripted: the duck stays hidden until that shop summons it. Everywhere
    * else, reading the product is the only way to know there is one, so a
-   * readable product *is* the signal that this page is worth sitting on. */
-  if (!document.body.dataset.puddleShop) {
+   * readable product *is* the signal that this page is worth sitting on.
+   *
+   * Re-read on a timer rather than once on load, because a storefront can swap
+   * the product without a reload: Amazon moves between items through
+   * history.pushState and changes size and colour in place, and a duck that
+   * only looks once keeps answering about the item you have already left. The
+   * check is a handful of querySelectors and returns early unless the product
+   * actually changed, so the cost of asking every second is not worth avoiding. */
+  let parkedKey = "";
+  function park() {
+    if (document.body.dataset.puddleShop) return;
     const item = globalThis.PuddleExtract?.();
     // A guessed title means a search or category page: many products, none of
     // them this one. Uninvited, that is not enough to speak on.
-    if (item && !item._guessedTitle) {
-      send({ type: "score", item, now_hour: new Date().getHours() })
-        .then((result) => {
-          // A checkout click while we were scoring owns the card; do not
-          // yank it back to a button underneath the user.
-          if (!result || host) return;
-          pageItem = item;
-          pageResult = result;
-          renderLauncher();
-        })
-        // No backend, no duck. A page we cannot score is not ours to decorate.
-        .catch(() => {});
-    }
+    if (!item || item._guessedTitle) return;
+    const key = `${item.title}|${item.price}|${item.size || ""}`;
+    if (key === parkedKey) return;
+    parkedKey = key;
+    send({ type: "score", item, now_hour: new Date().getHours() })
+      .then((result) => {
+        // Another product landed while this one was scoring: that answer is
+        // already stale, and the newer request owns the duck.
+        if (!result || key !== parkedKey) return;
+        pageItem = item;
+        pageResult = result;
+        // Redraw even over an open card: it is about the item that just left.
+        host?.remove(); host = null;
+        renderLauncher();
+      })
+      // No backend, no duck. A page we cannot score is not ours to decorate.
+      .catch(() => {});
   }
+
+  park();
+  const parkPoll = setInterval(park, 1000);
+  window.addEventListener("pagehide", () => clearInterval(parkPoll));
 })();
