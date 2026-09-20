@@ -37,6 +37,10 @@ app = FastAPI(title="Puddle Brain", version="0.3.0")
 app.include_router(voice.router)
 app.mount("/demo-assets", StaticFiles(directory=PROJECT_ROOT / "extension"), name="demo-assets")
 
+DASHBOARD_DIST = PROJECT_ROOT / "web" / "dist"
+if DASHBOARD_DIST.is_dir():
+    app.mount("/dashboard", StaticFiles(directory=DASHBOARD_DIST, html=True), name="dashboard")
+
 
 @app.get("/demo", response_class=HTMLResponse)
 def voice_demo():

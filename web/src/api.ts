@@ -1,6 +1,7 @@
 import { FIXTURE, Portfolio } from "./fixtures";
 
-const BRAIN = "http://localhost:8000";
+// Empty base = same origin, for the build the brain serves at /dashboard.
+const BRAIN = import.meta.env.VITE_BRAIN ?? "http://localhost:8000";
 
 export async function getPortfolio(): Promise<{ data: Portfolio; live: boolean }> {
   try {
