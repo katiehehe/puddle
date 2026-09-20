@@ -163,6 +163,19 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 }
 
 /* --- dashboard ---------------------------------------------------------- */
+/* The closet page pops up from below the same way the landing page does. */
+.shell .dashhead h1, .shell .dashhead > p, .shell .statrow, .shell .noticed h3, .shell .note, .shell .tabs, .shell .tabbody > * {
+  animation: popup .7s cubic-bezier(.2, .8, .2, 1) both;
+}
+.shell .dashhead > p { animation-delay: .12s; }
+.shell .statrow { animation-delay: .24s; }
+.shell .noticed h3 { animation-delay: .36s; }
+.shell .note:nth-child(1) { animation-delay: .46s; }
+.shell .note:nth-child(2) { animation-delay: .56s; }
+.shell .note:nth-child(n+3) { animation-delay: .66s; }
+.shell .tabs { animation-delay: .76s; }
+.shell .tabbody > * { animation-delay: .88s; }
+
 .dashhead { padding: 18px 0 8px; }
 .dashhead h1 { font-size: 44px; }
 .dashhead > p { color: var(--muted); margin: 8px 0 26px; }
