@@ -92,7 +92,9 @@
     const accent = state === "concerned" ? PALETTE.bad : state === "approving" ? PALETTE.good : PALETTE.water;
     const pond = (await send({ type: "pond" })) || { saved: 0 };
     const c = chip(result);
-    const line = result.headline || (result.insights[0] && result.insights[0].line) || "That one's fine.";
+    const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
+    // One event_id per intentional action; the brain dedupes retries on it.
+    const skipEvent = crypto.randomUUID(), buyEvent = crypto.randomUUID();
 
     shadow.innerHTML = `
       <style>
@@ -145,7 +147,7 @@
     };
 
     shadow.getElementById("skip").onclick = async () => {
-      const next = await send({ type: "skip", item, prediction_id: result.prediction_id });
+      const next = await send({ type: "skip", item, prediction_id: result.prediction_id, event_id: skipEvent });
       shadow.querySelector(".line").textContent = "Good call. I'll ask in 30 days whether I was right.";
       shadow.querySelector(".fill").style.width = pondPct(next.saved) + "%";
       shadow.querySelector(".saved").textContent = `🪙 $${next.saved} in the pond`;
@@ -154,10 +156,12 @@
     };
 
     shadow.getElementById("buy").onclick = async () => {
-      const res = await send({ type: "checkout", item, prediction_id: result.prediction_id });
-      shadow.querySelector(".line").innerHTML =
-        `<span class="done">Done — ${res.network} ${res.mode === "mock" ? "(sandbox)" : ""}. ` +
-        `I'll ask in 30 days whether I was wrong.</span>`;
+      const res = await send({ type: "checkout", item, prediction_id: result.prediction_id, event_id: buyEvent });
+      const declined = res.approved === false || (res.status && res.status !== "approved");
+      shadow.querySelector(".line").innerHTML = declined
+        ? `<span class="done">Payment ${res.status || "failed"} — nothing was recorded.</span>`
+        : `<span class="done">Done — ${res.network} ${res.mode === "mock" ? "(sandbox)" : ""}. ` +
+          `I'll ask in 30 days whether I was wrong.</span>`;
       shadow.querySelector(".btns").remove();
       dismiss(2600);
     };

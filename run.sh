@@ -5,9 +5,13 @@ set -e
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 echo "→ brain on :8000"
-[ -d "$ROOT/.venv" ] || python3 -m venv "$ROOT/.venv"
-"$ROOT/.venv/bin/pip" install -q -e "$ROOT[dev]"
-("$ROOT/.venv/bin/uvicorn" brain.app:app --app-dir "$ROOT" --port 8000) &
+if [ ! -d "$ROOT/.venv" ]; then
+  if command -v python3 >/dev/null; then python3 -m venv "$ROOT/.venv"; else python -m venv "$ROOT/.venv"; fi
+fi
+# Unix venvs keep entry points in bin/, Windows venvs in Scripts/.
+PYBIN="$ROOT/.venv/bin"; [ -d "$PYBIN" ] || PYBIN="$ROOT/.venv/Scripts"
+"$PYBIN/pip" install -q -e "$ROOT[dev]"
+("$PYBIN/uvicorn" brain.app:app --app-dir "$ROOT" --port 8000) &
 BRAIN=$!
 
 echo "→ mock shop on :5500"

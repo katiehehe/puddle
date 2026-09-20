@@ -103,7 +103,7 @@ class Miner:
             # The contrast is the insight. A late-night return rate on its own
             # says nothing unless you know what the rest of the day looks like.
             "line": (
-                f"It's {now.strftime('%-I:%M%p').lower()} — {round(100 * rate)}% of what you buy "
+                f"It's {now.strftime('%I:%M%p').lstrip('0').lower()} — {round(100 * rate)}% of what you buy "
                 f"this late comes back, against {round(100 * baseline)}% the rest of the day."
             ),
             "weight": min(1.0, 0.35 + 0.6 * (rate - baseline)),

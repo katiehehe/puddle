@@ -69,17 +69,17 @@ async function score(item, nowHour) {
   }
 }
 
-async function checkout(item, predictionId) {
+async function checkout(item, predictionId, eventId) {
   try {
-    return await post("/checkout", { item, prediction_id: predictionId });
+    return await post("/checkout", { item, prediction_id: predictionId, event_id: eventId });
   } catch (e) {
     return { mode: "mock", approved: true, token: "tok_offline", amount: item.price, network: "VISA" };
   }
 }
 
-async function skip(item, predictionId) {
+async function skip(item, predictionId, eventId) {
   try {
-    const res = await post("/skip", { item, prediction_id: predictionId });
+    const res = await post("/skip", { item, prediction_id: predictionId, event_id: eventId });
     return res.pond;
   } catch (e) {
     return localPond(item.price || 0);
@@ -98,8 +98,8 @@ async function pond() {
 
 const HANDLERS = {
   score: (m) => score(m.item, m.now_hour),
-  checkout: (m) => checkout(m.item, m.prediction_id),
-  skip: (m) => skip(m.item, m.prediction_id),
+  checkout: (m) => checkout(m.item, m.prediction_id, m.event_id),
+  skip: (m) => skip(m.item, m.prediction_id, m.event_id),
   pond: () => pond()
 };
 

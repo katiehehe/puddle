@@ -143,6 +143,8 @@ def test_bad_items_are_rejected(changes):
 def test_invalid_hour_and_action():
     assert client.post("/score_item", json={"item_id": "cand_boots", "now_hour": 24}).status_code == 422
     assert client.get("/portfolio?now_hour=24").status_code == 422
+    assert client.get("/portfolio?budget=0").status_code == 422
+    assert client.get("/portfolio?budget=-5").status_code == 422
     assert skip(action="refund").status_code == 422
     assert skip(event="").status_code == 422
 
