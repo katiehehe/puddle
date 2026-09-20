@@ -61,13 +61,25 @@ def test_inference_agrees_with_the_catalog_it_will_be_compared_against():
 
 
 def test_a_scraped_item_reaches_the_same_verdict_as_the_catalog_one():
-    """The end that matters: title + price only, no id, no attributes -- and
-    the duck must still make the same call it makes on the seeded item."""
+    """The end that matters: what a page actually hands over -- title, price,
+    and the size and colour it states on its controls -- and the duck must
+    still make the same call it makes on the seeded item.
+
+    Colour is here because substitution now depends on it: an emerald slip
+    dress does not stand in for the black one already hanging up, so a scrape
+    that dropped the colour would reach the opposite verdict for a real reason
+    rather than a bug. The extension reads the swatch for exactly this.
+    """
     closet, miner, _ = _context()
     now = datetime.now().replace(hour=14, minute=40)
     for item in STOREFRONT:
         scraped = coerce_item(
-            {"title": item.title, "price": item.price, **({"size": item.size} if item.size else {})}
+            {
+                "title": item.title,
+                "price": item.price,
+                **({"size": item.size} if item.size else {}),
+                **({"color": item.color} if item.color else {}),
+            }
         )
         assert scraped is not None, f"could not read {item.title} off a page"
         seeded_call = recommend(item, closet, miner, now)["decision"]

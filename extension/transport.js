@@ -2,13 +2,23 @@
 // worker forwards requests; /demo uses same-origin HTTP without an extension.
 (() => {
   const extension = Boolean(globalThis.chrome?.runtime?.id);
+  // Reloading the extension leaves this script running on a page it can no
+  // longer talk to. Reaching for the dead port throws where a caller cannot
+  // catch it, so check first and fail the way every other error here fails.
+  globalThis.PuddleOrphaned = () => extension && !globalThis.chrome?.runtime?.id;
   globalThis.PuddleSend = async msg => {
     if (extension) return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage(msg, response => {
-        if (chrome.runtime.lastError) reject(new Error("Puddle could not connect. Reload the extension and page."));
-        else if (!response || response.error) reject(new Error(response?.error || "Puddle did not respond."));
-        else resolve(response);
-      });
+      if (globalThis.PuddleOrphaned()) {
+        reject(new Error("Puddle was reloaded. Refresh the page."));
+        return;
+      }
+      try {
+        chrome.runtime.sendMessage(msg, response => {
+          if (chrome.runtime.lastError) reject(new Error("Puddle could not connect. Reload the extension and page."));
+          else if (!response || response.error) reject(new Error(response?.error || "Puddle did not respond."));
+          else resolve(response);
+        });
+      } catch (error) { reject(error); }
     });
     let path, body, method = "POST", headers = { "Content-Type": "application/json" };
     switch (msg.type) {

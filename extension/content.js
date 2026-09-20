@@ -566,6 +566,9 @@
    * actually changed, so the cost of asking every second is not worth avoiding. */
   let parkedKey = "";
   function park() {
+    // Reloading the extension orphans this script. Nothing it asks for can
+    // arrive any more, so stop asking rather than failing once a second.
+    if (globalThis.PuddleOrphaned?.()) { clearInterval(parkPoll); return; }
     if (document.body.dataset.puddleShop) return;
     const item = globalThis.PuddleExtract?.();
     // A guessed title means a search or category page: many products, none of

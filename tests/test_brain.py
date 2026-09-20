@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import datetime
 
 from brain import history
@@ -315,3 +316,29 @@ def test_every_flagged_duplicate_pair_shares_a_kind():
                 f"{item.title} ({item.kind}) flagged as a duplicate of "
                 f"{other.title} ({other.kind})"
             )
+
+
+def test_a_bright_colour_is_not_a_substitute_for_the_neutral_you_own():
+    """The closet holds four near-identical charcoal and grey crewnecks. A
+    fifth neutral one duplicates them; the first red one does not, because the
+    reason you reach for it is the reason the charcoal one will not do."""
+    closet = _closet()
+    charcoal = replace(BY_ID["own_101"], id="cand", title="Another crewneck", color="charcoal")
+    red = replace(charcoal, color="red")
+
+    neutral_dupes = {d["id"] for d in closet.evaluate(charcoal)["redundant_with"]}
+    bright_dupes = {d["id"] for d in closet.evaluate(red)["redundant_with"]}
+
+    assert "own_101" in neutral_dupes, "a fifth neutral crewneck must still be a duplicate"
+    assert not bright_dupes & neutral_dupes, (
+        f"red crewneck still counted {bright_dupes} as substitutes"
+    )
+
+
+def test_an_unstated_colour_does_not_hide_a_duplicate():
+    """Most storefronts never say what colour a thing is. Refusing to
+    substitute on missing data would quietly drop real duplicates, so an empty
+    colour has to behave the way it did before colour existed."""
+    closet = _closet()
+    unstated = replace(BY_ID["own_101"], id="cand", title="Another crewneck", color="")
+    assert "own_101" in {d["id"] for d in closet.evaluate(unstated)["redundant_with"]}

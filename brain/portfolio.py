@@ -20,6 +20,29 @@ from .states import STATES, stake_weighted
 
 RISK_AVERSION = 3.0
 
+# Colours that do the same job in an outfit. Two neutrals stand in for each
+# other; a neutral and a bright do not, which is why a fifth charcoal crewneck
+# is a duplicate and the first red one is not.
+NEUTRALS = frozenset({
+    "black", "charcoal", "grey", "gray", "white", "cream", "ivory",
+    "beige", "tan", "khaki", "navy", "brown", "denim", "indigo",
+    "taupe", "camel", "stone", "sand", "oatmeal", "ecru", "bone",
+    "slate", "graphite", "olive", "natural", "nude", "off-white",
+})
+
+
+def interchangeable_colour(owned: str, candidate: str) -> bool:
+    """Whether two colours can stand in for each other in the same outfit.
+
+    An unknown colour answers True: a storefront that never said what colour
+    this is has not given us grounds to claim the two are *different*, and
+    refusing to substitute on missing data would quietly hide real duplicates.
+    """
+    owned, candidate = (owned or "").strip().lower(), (candidate or "").strip().lower()
+    if not owned or not candidate or owned == candidate:
+        return True
+    return owned in NEUTRALS and candidate in NEUTRALS
+
 
 def payoff(item: Item, state) -> float:
     """a_is in [0,1] -- multiplicative so any hard mismatch zeroes it out."""
@@ -252,6 +275,10 @@ class Closet:
                 and abs(item.formality - candidate.formality) <= 1
                 and item.rain_ok == candidate.rain_ok
                 and abs(item.warmth - candidate.warmth) <= 1
+                # Colour is part of what a garment *is*, not decoration on top
+                # of it: you reach for the red one when the charcoal one will
+                # not do, so it cannot be the charcoal one's substitute.
+                and interchangeable_colour(item.color, candidate.color)
             )
             if corr > 0.82 and same_slot:
                 dupes.append(
