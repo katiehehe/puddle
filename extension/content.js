@@ -2,12 +2,12 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
-  // docs/theme.md — Night Pond palette, kept in sync with web/src/styles.css.
+  // docs/theme.md — Daylight Pond palette, kept in sync with web/src/styles.css.
   const PALETTE = {
-    ink: "#eaf4fa", muted: "#9db8c9", line: "#2b5878",
-    duck: "#f2b431", duckDeep: "#ffd166", bill: "#ef7a2c",
-    water: "#4fb0e6", waterDeep: "#9fd6f2", ripple: "#1d4560", foam: "#16374f",
-    good: "#46c586", bad: "#ff7a6e", surface: "#123047", surfaceHi: "#1a3f5c", page: "#0b1f2e"
+    ink: "#16303f", muted: "#4d6b7d", line: "#b8d4e4",
+    duck: "#f2b431", duckDeep: "#8a6408", bill: "#ef7a2c",
+    water: "#1f7ab8", waterDeep: "#155e8a", ripple: "#b8d9ec", foam: "#e3f1f9",
+    good: "#0e8a52", bad: "#d43d2a", surface: "#f4fafd", surfaceHi: "#e9f4fb", page: "#dceef7"
   };
 
   // The mascot is the duck emoji; mood rides in a small badge and the card accent.
@@ -88,9 +88,9 @@
       <style>
         *{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
         .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
-          background:linear-gradient(165deg,${PALETTE.surfaceHi} 0%,${PALETTE.surface} 55%,${PALETTE.page} 100%);
-          border:1px solid ${PALETTE.line};border-left:4px solid ${accent};border-radius:16px;padding:14px 16px;
-          box-shadow:0 12px 32px rgba(0,0,0,.45);animation:pop .28s ease}
+          background:linear-gradient(165deg,#ffedb8 0%,#cfe9f7 50%,${PALETTE.surface} 100%);
+          border:1px solid #8fc3de;border-left:4px solid ${accent};border-radius:16px;padding:14px 16px;
+          box-shadow:0 12px 32px rgba(21,94,138,.28);animation:pop .28s ease}
         @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
         .row{display:flex;gap:12px;align-items:flex-start}
         .duckwrap{position:relative;flex-shrink:0;width:56px;height:56px;border-radius:50%;
@@ -98,7 +98,7 @@
           border:2px solid ${PALETTE.ripple};display:flex;align-items:center;justify-content:center}
         .duckmoji{font-size:34px;line-height:1}
         .mood{position:absolute;top:-4px;right:-4px;width:18px;height:18px;border-radius:50%;
-          background:${accent};color:${PALETTE.page};font-size:12px;font-weight:800;
+          background:${accent};color:#fff;font-size:12px;font-weight:800;
           display:flex;align-items:center;justify-content:center}
         .bubble{flex:1}
         .quack{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${PALETTE.muted};font-weight:700}
@@ -108,10 +108,10 @@
         .btns{display:flex;gap:8px;justify-content:flex-end}
         button{border-radius:9px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ${PALETTE.line}}
         button:focus-visible{outline:2px solid ${PALETTE.water};outline-offset:2px}
-        .skip{background:${accent};color:${PALETTE.page};border-color:${accent}}
+        .skip{background:${accent};color:#fff;border-color:${accent}}
         .buy{background:${PALETTE.surfaceHi};color:${PALETTE.ink}}
         .pond{margin-top:12px;height:8px;border-radius:99px;background:${PALETTE.ripple};overflow:hidden}
-        .fill{height:100%;border-radius:99px;position:relative;background:linear-gradient(90deg,${PALETTE.water},${PALETTE.waterDeep});
+        .fill{height:100%;border-radius:99px;position:relative;background:linear-gradient(90deg,${PALETTE.waterDeep},${PALETTE.water});
           width:${pondPct(pond.saved)}%;transition:width .5s ease}
         .fill::after{content:"";position:absolute;inset:0;border-radius:99px;
           background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);

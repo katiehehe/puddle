@@ -6,19 +6,19 @@
     panel.className = "voice-panel";
     panel.innerHTML = `
       <style>
-        .voice-panel{border-top:1px solid #2b5878;margin-top:12px;padding-top:12px;color:#eaf4fa}
+        .voice-panel{border-top:1px solid #b8d4e4;margin-top:12px;padding-top:12px;color:#16303f}
         .voice-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-        .voice-controls button{background:#1a3f5c;color:#eaf4fa;border-color:#2b5878}
-        .voice-controls button[aria-pressed="true"]{color:#ff7a6e;border-color:#ff7a6e}
-        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:2px solid #4fb0e6;outline-offset:3px}
+        .voice-controls button{background:#e9f4fb;color:#16303f;border-color:#b8d4e4}
+        .voice-controls button[aria-pressed="true"]{color:#d43d2a;border-color:#d43d2a}
+        .voice-panel button:focus-visible,.voice-panel input:focus-visible{outline:2px solid #1f7ab8;outline-offset:3px}
         .voice-panel button:disabled{opacity:.55;cursor:default}
-        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#9db8c9;margin:8px 0}
+        .voice-status,.voice-heard{font-size:12px;line-height:1.5;color:#4d6b7d;margin:8px 0}
         .voice-answer{font-size:14px;line-height:1.5;margin:8px 0;overflow-wrap:anywhere}
         .voice-form{display:flex;gap:6px;margin-top:10px}
-        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #2b5878;border-radius:8px;
-          padding:8px;font-size:13px;background:#0b1f2e;color:#eaf4fa}
-        .voice-form input::placeholder{color:#9db8c9}
-        .voice-label{display:block;font-size:12px;margin-top:12px;color:#9db8c9}
+        .voice-form input{width:0;flex:1;min-width:0;border:1px solid #b8d4e4;border-radius:8px;
+          padding:8px;font-size:13px;background:#fff;color:#16303f}
+        .voice-form input::placeholder{color:#4d6b7d}
+        .voice-label{display:block;font-size:12px;margin-top:12px;color:#4d6b7d}
         .voice-panel [hidden]{display:none!important}
         @media(prefers-reduced-motion:reduce){.card{animation:none!important}}
       </style>

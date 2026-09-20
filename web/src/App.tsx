@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { getPortfolio } from "./api";
 import { FIXTURE, Portfolio } from "./fixtures";
 
-// docs/theme.md — Night Pond palette, kept in sync with extension/content.js.
+// docs/theme.md — Daylight Pond palette, kept in sync with extension/content.js.
 const THEME = {
-  duck: "#f2b431", duckDeep: "#ffd166",
-  water: "#4fb0e6", waterDeep: "#9fd6f2", ripple: "#1d4560",
-  reed: "#46c586", warning: "#ff7a6e", muted: "#9db8c9", line: "#2b5878",
+  duck: "#f2b431", duckDeep: "#8a6408",
+  water: "#1f7ab8", waterDeep: "#155e8a", ripple: "#b8d9ec",
+  reed: "#0e8a52", warning: "#d43d2a", muted: "#4d6b7d", line: "#b8d4e4",
 };
 
 // The mascot: the duck emoji floating on a ripple.
@@ -32,7 +32,7 @@ function CoverageRadar({ coverage }: { coverage: Portfolio["coverage"] }) {
         const [x, y] = pt(i, R);
         return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke={THEME.ripple} />;
       })}
-      <polygon points={poly} fill="rgba(79,176,230,.2)" stroke={THEME.water} strokeWidth={2} />
+      <polygon points={poly} fill="rgba(31,122,184,.22)" stroke={THEME.water} strokeWidth={2} />
       {coverage.map((c, i) => {
         const [lx, ly] = pt(i, R + 20);
         const gap = c.coverage < 0.45;
