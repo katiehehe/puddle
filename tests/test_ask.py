@@ -260,3 +260,27 @@ def test_a_brand_counts_only_when_it_hangs_in_this_closet():
 def test_a_brand_nobody_here_wears_is_still_a_stranger():
     own("Grey wool sweater", "Gap")
     assert ask("How many Balenciaga tops do I own?")["intent"] == "unknown"
+
+
+def test_wondering_aloud_about_a_garment_answers_from_the_closet():
+    """The demo asks "what about a rain jacket?" with no "I" anywhere in it."""
+    rain = ask("What about a rain jacket?")
+    assert rain["intent"] == "occasion"
+    assert rain["scope"] == "wardrobe"
+
+    suit = ask("Should I get a suit?")
+    assert suit["intent"] == "occasion"
+    assert "formal" in suit["answer"].lower()
+
+    leather = ask("What about a leather jacket?")
+    assert leather["intent"] == "considering"
+    assert leather["facts"]["count"] == 0
+
+    more = ask("How about another pair of boots?")
+    assert more["intent"] == "considering"
+    assert more["facts"]["count"] >= 2
+
+
+def test_wondering_aloud_about_a_stranger_is_still_refused():
+    for text in ["What about the weather in Boston?", "Should I get Tesla stock?"]:
+        assert ask(text)["intent"] == "unknown", text
