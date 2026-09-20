@@ -162,23 +162,45 @@ class Miner:
             "weight": -min(1.0, 0.5 + evaluation["alpha"]),  # negative weight = green light
         }
 
-    def overexposure(self, item: Item, concentration: dict, closet: list[Item]) -> dict | None:
-        if concentration["top_share"] < 0.16:
+    def overexposure(
+        self, concentration: dict, evaluation: dict, gaps: list[dict]
+    ) -> dict | None:
+        """You are buying more of the occasion you already own the most for,
+        while another one goes unserved.
+
+        The previous gate keyed on the candidate's own category and formality,
+        which could never line up with where the concentration actually was --
+        the crowded occasion here is served by tops, and every formal-enough
+        item in the storefront is outerwear. Concentration is a fact about
+        states, so the rule has to be stated over states.
+        """
+        if concentration["top_share"] < 0.30 or concentration["top_count"] < 4:
             return None
-        same = [i for i in closet if i.category == item.category and abs(i.formality - item.formality) <= 1]
-        if len(same) < 5 or item.formality < 4:
+        # Does this item pile into that same occasion?
+        if evaluation.get("top_state") != concentration["top_state"]:
             return None
+        # Something that closes a gap is not more-of-the-same, whatever it duplicates.
+        if evaluation.get("covers_gap"):
+            return None
+        if not gaps:
+            return None
+        gap = gaps[0]
+        n = concentration["top_count"]
         return {
             "type": "overexposure",
             "stat": {
                 "top_state": concentration["top_state"],
+                "top_label": concentration["top_label"],
                 "share": concentration["top_share"],
                 "hhi": concentration["hhi"],
-                "count": len(same),
+                "count": n,
+                "uncovered": gap["state"],
+                "uncovered_label": gap["label"],
             },
             "line": (
-                f"You already have {len(same)} of these and nothing for an interview. "
-                f"You're very concentrated in one occasion."
+                f"You have {n} things for {concentration['top_label'].lower()} "
+                f"and nothing for {gap['label'].lower()}. "
+                f"This is more of what you already own most."
             ),
             "weight": 0.35,
         }

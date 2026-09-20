@@ -122,6 +122,9 @@ def risk_free(items: list[Item], mix: dict[str, float]) -> float:
     return float(np.mean(mu))
 
 
+COVERED = 0.55  # payoff at which an occasion counts as served
+
+
 class Closet:
     def __init__(self, items: list[Item], mix: dict[str, float]):
         self.items = items
@@ -149,7 +152,7 @@ class Closet:
                     "p_weighted": round(float(self._p[j]), 4),
                     "best": round(float(best[j]), 3),
                     "best_item": self.items[int(self._A[:, j].argmax())].id,
-                    "covered": bool(best[j] >= 0.55),
+                    "covered": bool(best[j] >= COVERED),
                 }
             )
         return out
@@ -157,12 +160,37 @@ class Closet:
     def gaps(self) -> list[dict]:
         return [c for c in self.coverage() if not c["covered"]]
 
+    def donatable(self) -> list[str]:
+        """Ids of items you can let go without opening a hole.
+
+        Lowest expected payoff is the wrong test on its own: the one thing you
+        own for an occasion is rarely worn precisely because that occasion is
+        rare, and donating it is how a covered state becomes a gap. An item is
+        safe only where something else already clears the bar behind it.
+        """
+        if len(self.items) < 2:
+            return []
+        A = self._A
+        n_states = A.shape[1]
+        order = np.argsort(-A, axis=0)
+        best_i = order[0]                                  # who serves each state
+        runner_up = A[order[1], np.arange(n_states)]       # what is left without them
+        safe = []
+        for i, item in enumerate(self.items):
+            sole_support = any(
+                best_i[j] == i and A[i, j] >= COVERED and runner_up[j] < COVERED
+                for j in range(n_states)
+            )
+            if not sole_support:
+                safe.append(item.id)
+        return safe
+
     def concentration(self) -> dict:
         """Herfindahl over which occasion each item is *for* (its argmax state)."""
-        share = np.zeros(len(STATES))
+        counts = np.zeros(len(STATES))
         for row in self._A:
-            share[int(row.argmax())] += 1.0
-        share = share / share.sum()
+            counts[int(row.argmax())] += 1.0
+        share = counts / counts.sum()
         hhi = float((share**2).sum())
         top = int(share.argmax())
         return {
@@ -170,6 +198,7 @@ class Closet:
             "top_state": STATES[top].key,
             "top_label": STATES[top].label,
             "top_share": round(float(share[top]), 3),
+            "top_count": int(counts[top]),
         }
 
     # --- the buy decision ---------------------------------------------------
@@ -206,7 +235,16 @@ class Closet:
             d_i, d_c = a_i - self.mu[idx], a_c - mu_c
             denom = np.sqrt(((d_i * d_i) @ self._p) * ((d_c * d_c) @ self._p))
             corr = float(((d_i * d_c) @ self._p) / denom) if denom > 1e-12 else 0.0
-            same_slot = item.category == candidate.category and abs(item.formality - candidate.formality) <= 1
+            # Same slot means genuinely substitutable. Two layers can trace
+            # near-identical payoff curves and still not stand in for each
+            # other: a rain shell and a puffer differ in what they protect
+            # against, not in how often they get worn.
+            same_slot = (
+                item.category == candidate.category
+                and abs(item.formality - candidate.formality) <= 1
+                and item.rain_ok == candidate.rain_ok
+                and abs(item.warmth - candidate.warmth) <= 1
+            )
             if corr > 0.82 and same_slot:
                 dupes.append(
                     {
@@ -234,4 +272,6 @@ class Closet:
             "mu": round(mu_c, 3),
             "redundant_with": dupes[:3],
             "covers_gap": covers,
+            "top_state": STATES[int(a_c.argmax())].key,
+            "top_label": STATES[int(a_c.argmax())].label,
         }

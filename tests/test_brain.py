@@ -159,3 +159,101 @@ def test_storefront_item_dict_from_the_mock_shop_resolves():
     )
     assert res["item"]["id"] == "sku_999"
     assert res["duck_state"] == "approving"
+
+
+# --- insight-rule regressions (P1-1 / P1-2 / P1-3) --------------------------
+
+
+def test_overexposure_actually_fires_somewhere_in_the_storefront():
+    """It used to be unreachable: the gate keyed on the candidate's own
+    category and formality, which never lined up with where the concentration
+    was. A rule that can never fire is a rule we do not have."""
+    from brain.catalog import STOREFRONT
+
+    closet = _closet()
+    miner = Miner(history.purchases(), history.wear_counts())
+    fired = [
+        it.title
+        for it in STOREFRONT
+        if miner.overexposure(closet.concentration(), closet.evaluate(it), closet.gaps())
+    ]
+    assert fired, "overexposure never fires -- one of five insight types is dead code"
+
+
+def test_overexposure_names_the_crowded_occasion_and_the_empty_one():
+    from brain.catalog import STOREFRONT
+
+    closet = _closet()
+    miner = Miner(history.purchases(), history.wear_counts())
+    conc = closet.concentration()
+    hit = next(
+        o
+        for it in STOREFRONT
+        if (o := miner.overexposure(conc, closet.evaluate(it), closet.gaps()))
+    )
+    assert hit["stat"]["top_state"] == conc["top_state"]
+    assert hit["stat"]["uncovered"] in {g["state"] for g in closet.gaps()}
+    assert hit["stat"]["count"] >= 4
+
+
+def test_overexposure_stays_quiet_for_something_that_closes_a_gap():
+    """More-of-the-same is the claim; an item covering an unserved occasion
+    is the opposite of that, however much it duplicates."""
+    from brain.catalog import STOREFRONT
+
+    closet = _closet()
+    miner = Miner(history.purchases(), history.wear_counts())
+    candidate = next(it for it in STOREFRONT if closet.evaluate(it)["covers_gap"])
+    ev = closet.evaluate(candidate)
+    assert ev["covers_gap"], "fixture no longer covers a gap; pick another candidate"
+    assert miner.overexposure(closet.concentration(), ev, closet.gaps()) is None
+
+
+def test_rain_layer_and_warm_layer_are_not_called_duplicates():
+    """A rain shell and a puffer trace near-identical payoff curves and are
+    still not substitutes: they protect against different things."""
+    closet = _closet()
+    puffer = next(i for i in CLOSET if i.title == "Puffer jacket")
+    shell = next(i for i in CLOSET if i.title == "Rain shell")
+    assert puffer.rain_ok != shell.rain_ok, "fixture changed; this test is meaningless now"
+    dupes = {d["id"] for d in closet.evaluate(puffer)["redundant_with"]}
+    assert shell.id not in dupes
+    dupes = {d["id"] for d in closet.evaluate(shell)["redundant_with"]}
+    assert puffer.id not in dupes
+
+
+def test_genuine_duplicates_are_still_caught():
+    """The guard above must not buy its correctness by going blind."""
+    closet = _closet()
+    crew = next(i for i in CLOSET if i.title == "Charcoal crewneck")
+    dupes = {d["title"] for d in closet.evaluate(crew)["redundant_with"] if d["id"] != crew.id}
+    assert len(dupes) >= 2, f"real crewneck duplicates went missing: {dupes}"
+
+
+def test_donate_never_recommends_the_only_thing_serving_an_occasion():
+    """Lowest expected payoff is the wrong test alone: a rare-occasion item is
+    rarely worn *because* the occasion is rare. Donating it opens the gap the
+    radar then paints red."""
+    from brain.portfolio import COVERED
+
+    closet = _closet()
+    safe = set(closet.donatable())
+    covered_before = {c["state"]: c for c in closet.coverage() if c["covered"]}
+    mix = life_mix([w.dict() for w in history.wears()])
+    for item in CLOSET:
+        if item.id not in safe:
+            continue
+        after = Closet([i for i in CLOSET if i.id != item.id], mix)
+        for c in after.coverage():
+            if c["state"] in covered_before:
+                assert c["best"] >= COVERED, (
+                    f"donating {item.title} drops {c['label']} to {c['best']}"
+                )
+
+
+def test_portfolio_donate_panel_is_coverage_safe():
+    board = portfolio()
+    closet = _closet()
+    safe = set(closet.donatable())
+    for d in board["rebalance"]["donate"]:
+        assert d["id"] in safe, f"dashboard suggests donating {d['title']}, which opens a gap"

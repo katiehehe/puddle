@@ -40,6 +40,17 @@ Negative return, redundancy, or concentration evidence takes precedence over
 positive alpha. Time alone does not turn a useful suit into a skip. Purchased
 variants are removed from the candidate lists and added to holdings.
 
+`rebalance.donate` lists dead weight by ascending expected payoff, but only
+items whose removal leaves every covered occasion still covered -- the one
+thing you own for a rare occasion is rarely worn *because* the occasion is
+rare, and donating it is how a covered state becomes a gap. Expect this list
+to be shorter than two entries on a tightly-covered closet.
+
+`overexposure` carries `top_count` alongside `top_share`: how many items sit
+in the crowded occasion. The `overexposure` *insight* fires when a candidate's
+own best occasion is that same crowded one while another occasion is still
+unserved, and stays silent for anything that closes a gap.
+
 ## Record an action
 
 Preferred endpoint: `POST /actions`.

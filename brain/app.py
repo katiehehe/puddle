@@ -112,6 +112,17 @@ def _resolve(req) -> Item:
         raise HTTPException(422, "invalid item attributes") from exc
 
 
+def _donate(closet: Closet, holdings: list[dict]) -> list[dict]:
+    """Dead weight you can actually part with.
+
+    Ranked by expected payoff, but filtered to items whose removal leaves every
+    covered occasion still covered -- otherwise the panel tells you to donate
+    the one thing holding up a state and the radar then paints it as a gap.
+    """
+    safe = set(closet.donatable())
+    return [h for h in sorted(holdings, key=lambda h: h["expected_payoff"]) if h["id"] in safe][:2]
+
+
 def recommend(item, closet, miner, now):
     evaluation = closet.evaluate(item)
     insights = rank(
@@ -120,7 +131,7 @@ def recommend(item, closet, miner, now):
             miner.redundancy(item, evaluation),
             miner.time_pattern(now),
             miner.coverage_gap(evaluation),
-            miner.overexposure(item, closet.concentration(), closet.items),
+            miner.overexposure(closet.concentration(), evaluation, closet.gaps()),
         ]
     )
     # Return/redundancy evidence takes precedence over portfolio improvement.
@@ -276,7 +287,7 @@ def portfolio(now_hour: int | None = None, budget: float = DEFAULT_BUDGET) -> di
             "buy": picked,
             "skip": skips,
             "neutral": neutral,
-            "donate": sorted(holdings, key=lambda h: h["expected_payoff"])[:2],
+            "donate": _donate(closet, holdings),
             "budget": budget,
             "spent": round(spent, 2),
         },
