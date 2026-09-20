@@ -30,7 +30,7 @@ router = APIRouter(tags=["ask"])
 # portfolio is defined over.
 STATE_WORDS: dict[str, tuple[str, ...]] = {
     "rain": ("rain", "rainy", "raining", "snow", "wet", "storm"),
-    "formal": ("formal", "interview", "wedding", "funeral", "job", "smart"),
+    "formal": ("formal", "interview", "wedding", "funeral", "job", "smart", "suit", "suits"),
     "gym": ("gym", "workout", "work out", "working out", "running", "athletic", "exercise", "training"),
     "night_out": ("night out", "party", "club", "clubbing", "going out"),
     "date": ("date", "dinner", "date night"),
@@ -74,6 +74,13 @@ _SUBJECT = re.compile(
     r"do|does|did|is|are|was|were|has|have|had|"
     r"can|could|may|might|must|shall|should|will|would|"
     r"buy|bought|own|owns|wear|spend|spent)\s+(?=(\w+))"
+)
+
+# Shopping out loud: "what about a rain jacket" names no owner but is still a
+# question about this closet, because the answer is what the closet already has.
+_WONDERING = re.compile(
+    r"\b(what about|how about|what if i (get|got|buy|bought)|do i need|should i (get|buy)|"
+    r"is it worth (getting|buying)|thinking about)\b"
 )
 
 # A question has to be about the shopper's own things before any handler gets
@@ -655,6 +662,30 @@ def _count(text: str, w: Wardrobe):
     )
 
 
+def _considering(text: str, w: Wardrobe):
+    """"What about a rain jacket?" -- answered with what that rail holds now."""
+    if not _WONDERING.search(text):
+        return None
+    match = w.matching(text)
+    if match is None:
+        return None
+    subject, qualities, items = match
+    named = _plural(subject, qualities)
+    facts = {
+        "subject": " ".join([*qualities, subject]),
+        "count": len(items),
+        "wears": sum(w.wears(i) for i in items),
+        "paid": round(sum(i.price for i in items)),
+    }
+    if not items:
+        return (f"You own no {named}, so it would be your first.", facts)
+    return (
+        f"You already own {facts['count']} {named}: {_listing([i.title for i in items])}. "
+        f"{money(facts['paid'])} of them, {facts['wears']} wears between them.",
+        facts,
+    )
+
+
 def _summary(text: str, w: Wardrobe):
     if not re.search(
         r"\b(my closet|my wardrobe|how do i shop|how am i doing|summar|overview|anything else)\b", text
@@ -680,6 +711,7 @@ ANSWERS = [
     ("spend", _spend),
     ("value", _value),
     ("count", _count),
+    ("considering", _considering),
     ("summary", _summary),
 ]
 
@@ -702,7 +734,11 @@ def answer(question: str, closet: Closet, miner: Miner, counts: dict[str, int]) 
         return None
     # "How many tops are not black" leaves the owner unsaid; counting a rail of
     # this closet is about this closet, and a stranger in it was refused above.
-    if not _MINE.search(text) and not _counting(text, wardrobe):
+    if (
+        not _MINE.search(text)
+        and not _counting(text, wardrobe)
+        and not (_WONDERING.search(text) and (_state_in(text) or wardrobe.names_a_rail(text)))
+    ):
         return None
     for intent, handler in ANSWERS:
         found = handler(text, wardrobe)
