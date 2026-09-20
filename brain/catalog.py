@@ -109,6 +109,32 @@ _KIND_BY_CATEGORY = {"boots": "boots", "formal": "formal", "sneakers": "sneakers
 _CATEGORY_ALIAS = {"boots": "shoes", "sneakers": "shoes", "formal": "outer"}
 
 
+def _apply_personal_wardrobe() -> None:
+    """Swap the seeded closet for a personal one when PUDDLE_WARDROBE is set.
+
+    Imported late: wardrobe builds catalog Items, so a module-level import
+    there would be circular. Failures are raised, not swallowed -- silently
+    scoring someone else's closet is worse than refusing to start.
+    """
+    global CLOSET, STOREFRONT, CATALOG, BY_ID
+    import os
+
+    if not os.environ.get("PUDDLE_WARDROBE", "").strip():
+        return
+    from .wardrobe import load, merged_storefront
+
+    data = load()
+    if not data:
+        return
+    CLOSET = data["closet"]
+    STOREFRONT = merged_storefront(STOREFRONT, data["storefront"])
+    CATALOG = CLOSET + STOREFRONT
+    BY_ID = {item.id: item for item in CATALOG}
+
+
+_apply_personal_wardrobe()
+
+
 def coerce_item(raw: dict) -> Item | None:
     """Build an Item from whatever a checkout page hands us."""
     known = BY_ID.get(ALIASES.get(raw.get("id", ""), raw.get("id", "")))
