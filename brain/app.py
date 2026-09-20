@@ -32,6 +32,7 @@ from . import (
     occasions,
     payment_intents,
     payments,
+    phrase,
     pond,
     storage,
     voice,
@@ -271,24 +272,37 @@ def score_item(req: ScoreRequest) -> dict:
     prediction_id = storage.record(
         item, result["headline"], result["decision"], result["duck_state"], result["confidence"]
     )
+    advised = advice.advise(
+        item,
+        result["portfolio"],
+        desk.quote(item, closet, miner, counts, now),
+        shopping,
+        closet.items,
+        counts,
+        occasions.coverage(closet),
+        occasions.usage(_wear_events(closet.items)),
+        brand=str((req.item or {}).get("brand", "")),
+        brands=advice.brand_stats(closet_store.rows(), counts),
+    )
+    # The math decides; the model only phrases it, and only when it stays
+    # inside the facts. The deterministic headline is always kept alongside.
+    said = phrase.phrase(item.title, item.price, advised)
+    phrasing = (
+        {"source": "llm", **said}
+        if said
+        else {"source": "deterministic", "provider": None, "model": None, "cached": False}
+    )
     return {
         "item": item.dict(),
         **result,
+        "headline": said["line"] if said else result["headline"],
+        "headline_math": result["headline"],
+        "phrasing": phrasing,
         "shopping": shopping,
-        "advice": advice.advise(
-            item,
-            result["portfolio"],
-            desk.quote(item, closet, miner, counts, now),
-            shopping,
-            closet.items,
-            counts,
-            occasions.coverage(closet),
-            occasions.usage(_wear_events(closet.items)),
-            brand=str((req.item or {}).get("brand", "")),
-            brands=advice.brand_stats(closet_store.rows(), counts),
-        ),
+        "advice": advised,
         "prediction_id": prediction_id,
         "accuracy": ledger.accuracy(),
+        "payment": payments.preview(item.price),
     }
 
 
@@ -757,7 +771,7 @@ def grade(prediction_id: str, correct: bool) -> dict:
 @app.get("/health")
 def health(check_payments: bool = False) -> dict:
     provider = payments.get_provider()
-    out = {"ok": True, "service": "puddle-brain", "payments": provider.name}
+    out = {"ok": True, "service": "puddle-brain", "payments": provider.name, "phrasing": phrase.configured()}
     if check_payments:
         out["payments_check"] = provider.ping()
     return out

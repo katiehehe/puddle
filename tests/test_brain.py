@@ -128,7 +128,14 @@ def test_score_item_contract():
         "reasons",
         "shopping",
         "advice",
+        "payment",
+        "headline_math",
+        "phrasing",
     }
+    assert res["phrasing"]["source"] == "deterministic"
+    assert res["headline"] == res["headline_math"]
+    assert res["payment"]["card"]["last4"] == "6154"
+    assert res["payment"]["guards"]
     assert res["duck_state"] == "concerned"
     assert res["insights"][0]["type"] == "return_pattern"
     assert res["prediction_id"]
