@@ -57,7 +57,7 @@ function CheckoutMock() {
     <div className="mock">
       <div className="mockbar">
         <span /> <span /> <span />
-        <div className="mockurl">northwick.com, live demo, try checkout</div>
+        <div className="mockurl">northwick.com</div>
       </div>
       <iframe className="demoframe" src="/demo?embed=1" title="Puddle live demo" />
     </div>
