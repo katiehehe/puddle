@@ -336,6 +336,24 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .addfoot button { border: 0; cursor: pointer; font: inherit; font-weight: 700; }
 .addfoot button:disabled { opacity: .4; cursor: default; }
 
+/* The rail: staged things, each with the duck's verdict on the picture. */
+.railverdict {
+  position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 700;
+  border-radius: 99px; padding: 3px 9px; background: var(--paper); color: var(--muted);
+}
+.railverdict.for { background: var(--good); color: #fff; }
+.railverdict.think { background: var(--duck); color: var(--ink); }
+.railverdict.against { background: var(--bad); color: #fff; }
+.railreason { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.railbtns { display: flex; gap: 8px; margin-top: 10px; }
+.railbtns button:disabled { opacity: .4; cursor: default; }
+.ghostbtn {
+  border: 1px solid var(--line); background: none; border-radius: 999px;
+  font: inherit; font-size: 13px; font-weight: 700; color: var(--muted);
+  padding: 8px 14px; cursor: pointer;
+}
+.railgap { margin-top: 40px; }
+
 /* purchase cards */
 .buycard {
   display: grid; grid-template-columns: 76px 1fr auto; gap: 16px; align-items: center;

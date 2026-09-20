@@ -5,19 +5,22 @@ import {
   editPurchase,
   getMe,
   getQuote,
-  getStatus,
   getStorefront,
+  buyStaged,
+  getCart,
   guessItem,
   logWears,
   scoreItem,
+  stageItem,
+  unstageItem,
   CatalogItem,
+  StagedItem,
   ClosetPiece,
   Coverage,
   Me,
   PurchaseRow,
   Quote,
   Score,
-  Status,
   Usage,
 } from "./api";
 import { AskPuddle } from "./AskPuddle";
@@ -101,18 +104,23 @@ const TELLS = [
 ];
 
 function Home() {
+  const hash = useHash();
+  useEffect(() => {
+    if (!hash.includes("install")) return;
+    const t = setTimeout(() => document.getElementById("install")?.scrollIntoView(), 60);
+    return () => clearTimeout(t);
+  }, [hash]);
   return (
     <div className="home">
       <nav className="nav">
-        <a className="brand" href="#/">
+        <a className="brand" href="#/home">
           <Duck size={54} />
           <span>Puddle</span>
         </a>
         <div className="navlinks">
-          <a href="#how">How it works</a>
           <a href="/demo">Live demo</a>
           <a href="#/closet">My closet</a>
-          <a className="cta small" href="#install">
+          <a className="cta small" href="#/home?install">
             Add to Chrome
           </a>
         </div>
@@ -200,7 +208,7 @@ function Home() {
 
 /* ------------------------------------------------------------- dashboard */
 
-const TABS = ["Closet", "Purchases", "How you dress", "Value", "Worth it?"] as const;
+const TABS = ["Closet", "Purchases", "How you dress", "Value", "Cart"] as const;
 type Tab = (typeof TABS)[number];
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -963,12 +971,158 @@ function WorthIt({ items }: { items: CatalogItem[] }) {
   );
 }
 
+/* ---------------------------------- the staging rail: considered, not owned */
+
+function StageForm({ onStaged }: { onStaged: () => void }) {
+  const [form, setForm] = useState({ title: "", price: "", source_url: "" });
+  const [guess, setGuess] = useState("");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const look = () => {
+    guessItem(form.title, form.source_url).then((g) => {
+      if (!g) return setGuess("");
+      if (!g.recognised) return setGuess("Not sure what that is yet — plainer words help, like \"grey wool sweater\".");
+      setGuess(`Looks like a ${(g.kind ?? g.category ?? "").replace(/_/g, " ")}${g.brand ? ` from ${g.brand}` : ""}.`);
+    });
+  };
+
+  const save = () => {
+    setSaving(true);
+    setError("");
+    stageItem({
+      title: form.title.trim(),
+      price: Number(form.price) || 0,
+      source_url: form.source_url.trim() || undefined,
+    })
+      .then(() => {
+        setForm({ title: "", price: "", source_url: "" });
+        setGuess("");
+        onStaged();
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setSaving(false));
+  };
+
+  return (
+    <section className="addcard">
+      <h3>Park something you're thinking about</h3>
+      <div className="addmain">
+        <label className="wide">
+          What is it?
+          <input
+            placeholder="Suede chelsea boots"
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            onBlur={look}
+          />
+        </label>
+        <label>
+          Price
+          <input
+            inputMode="decimal"
+            placeholder="128"
+            value={form.price}
+            onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+          />
+        </label>
+        <label className="wide">
+          Link
+          <input
+            placeholder="https://…"
+            value={form.source_url}
+            onChange={(e) => setForm((f) => ({ ...f, source_url: e.target.value }))}
+            onBlur={look}
+          />
+        </label>
+      </div>
+      {guess && <p className="guess">{guess}</p>}
+      <div className="addfoot">
+        <span />
+        <button className="cta small" disabled={!form.title.trim() || saving} onClick={save}>
+          {saving ? "Parking…" : "Park it on the rail"}
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+    </section>
+  );
+}
+
+function StagedCard({ item, onChange }: { item: StagedItem; onChange: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const review = item.review;
+  const act = (fn: () => Promise<unknown>) => () => {
+    setBusy(true);
+    fn().then(onChange).finally(() => setBusy(false));
+  };
+  return (
+    <article className="piece">
+      <div className="piecepic">
+        <Garment category={item.category} colour={item.color || "grey"} kind={item.kind} />
+        <span className={`railverdict ${review.stance}`}>{review.verdict}</span>
+      </div>
+      <h4>{item.title}</h4>
+      <div className="piecemeta">
+        {round(item.price)}
+        {item.brand ? ` · ${item.brand}` : ""}
+      </div>
+      {review.reasons.map((r) => (
+        <p className="railreason" key={r}>{r}</p>
+      ))}
+      <div className="railbtns">
+        <button className="cta small" disabled={busy} onClick={act(() => buyStaged(item.id))}>
+          Bought it
+        </button>
+        <button className="ghostbtn" disabled={busy} onClick={act(() => unstageItem(item.id))}>
+          Take it off
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function CartTab({ items, onChange }: { items: CatalogItem[]; onChange: () => void }) {
+  const [cart, setCart] = useState<StagedItem[] | null>(null);
+  const reload = useCallback(() => {
+    getCart().then((c) => setCart(c.items)).catch(() => setCart([]));
+  }, []);
+  useEffect(reload, [reload]);
+
+  const changed = () => {
+    reload();
+    onChange();
+  };
+
+  return (
+    <>
+      <h2>Thinking it over</h2>
+      <p className="hint">The rail: things you're considering. Puddle reviews every one.</p>
+      <StageForm onStaged={reload} />
+      {cart && cart.length > 0 && (
+        <div className="grid">
+          {cart.map((i) => (
+            <StagedCard key={i.id} item={i} onChange={changed} />
+          ))}
+        </div>
+      )}
+      {cart && cart.length === 0 && (
+        <p className="hint">Nothing parked. Something catch your eye? Add it above and see what the duck says.</p>
+      )}
+      {items.length > 0 && (
+        <>
+          <h2 className="railgap">Or check something from the shop</h2>
+          <WorthIt items={items} />
+        </>
+      )}
+    </>
+  );
+}
+
 /* -------------------------------------------------------------- shell */
 
 function Dashboard() {
   const [me, setMe] = useState<Me | null>(null);
   const [items, setItems] = useState<CatalogItem[]>([]);
-  const [status, setStatus] = useState<Status | null>(null);
   const [tab, setTab] = useState<Tab>("Closet");
   const [failed, setFailed] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -980,7 +1134,6 @@ function Dashboard() {
   useEffect(() => {
     reload();
     getStorefront().then(setItems);
-    getStatus().then(setStatus);
   }, [reload]);
 
   // A wear is fire-and-forget on screen; the refresh only catches the
@@ -1022,7 +1175,8 @@ function Dashboard() {
         </a>
         <div className="navlinks">
           <a href="/demo">Live demo</a>
-          <a className="cta small" href="#/home">
+          <a href="#/closet">My closet</a>
+          <a className="cta small" href="#/home?install">
             Add to Chrome
           </a>
         </div>
@@ -1069,7 +1223,7 @@ function Dashboard() {
         {tab === "Purchases" && <PurchasesTab me={me} onChange={reload} />}
         {tab === "How you dress" && <DressTab me={me} usage={me.usage} />}
         {tab === "Value" && <ValueTab me={me} />}
-        {tab === "Worth it?" && (items.length ? <WorthIt items={items} /> : <p className="hint">No shop connected.</p>)}
+        {tab === "Cart" && <CartTab items={items} onChange={reload} />}
       </main>
 
       <footer className="foot">
