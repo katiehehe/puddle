@@ -8,6 +8,11 @@
   :root { --ink:#16191c; --muted:#5d6771; --line:#e4e8ec; --accent:#111827; }
   * { box-sizing: border-box; }
   body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif; color:var(--ink); background:#fafbfc; }
+  .pn { border-bottom:1px solid var(--line); padding:10px 28px; display:flex; justify-content:space-between; align-items:center; font-size:13px; background:#fdf9f1; }
+  .pn a { color:var(--muted); text-decoration:none; font-weight:600; }
+  .pn .pb { color:var(--ink); font-weight:800; font-size:14px; }
+  .pn .pl { display:flex; gap:18px; align-items:center; }
+  .pn .pc { background:var(--ink); color:#fff; border-radius:99px; padding:6px 13px; }
   header { border-bottom:1px solid var(--line); padding:16px 28px; display:flex; justify-content:space-between; align-items:center; }
   .brand { font-weight:800; letter-spacing:.18em; }
   .cart { color:var(--muted); font-size:14px; }
@@ -28,6 +33,14 @@
 </style>
 </head>
 <body>
+  <nav class="pn">
+    <a class="pb" href="/">🦆 Puddle</a>
+    <div class="pl">
+      <a href="/demo">Live demo</a>
+      <a href="/dashboard/">My closet</a>
+      <a class="pc" href="/#/home?install">Add to Chrome</a>
+    </div>
+  </nav>
   <header>
     <div class="brand">NORTHWICK</div>
     <div class="cart">Cart (1)</div>
