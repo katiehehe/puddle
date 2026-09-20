@@ -42,7 +42,7 @@ _KIND_PLURAL = {
 }
 
 
-def _kind_label(kind: str, count: int) -> str:
+def kind_label(kind: str, count: int) -> str:
     label = _KIND_PLURAL.get(kind, kind.replace("_", " ") + "s")
     return f"{count} {label}"
 
@@ -115,7 +115,7 @@ def summarise(closet: list[Item], wear_counts: dict[str, int], purchases: list[P
 
     kind, pile = _biggest_pile(closet)
     if pile > 1:
-        lines.append(f"You own {_kind_label(kind, pile)}.")
+        lines.append(f"You own {kind_label(kind, pile)}.")
 
     used = [i for i in closet if wear_counts.get(i.id, 0) >= USED_THRESHOLD]
     if closet:

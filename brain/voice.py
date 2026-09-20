@@ -12,7 +12,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import storage
+from . import ask, storage
 from .catalog import STOREFRONT
 
 router = APIRouter(prefix="/voice", tags=["voice"])
@@ -184,7 +184,7 @@ def respond(req: VoiceQuestion):
     if not req.transcript.strip():
         raise HTTPException(422, "Please ask a question.")
     item = _resolve(req)
-    closet, miner, _ = _context()
+    closet, miner, counts = _context()
     now = datetime.now()
     if req.now_hour is not None:
         now = now.replace(hour=req.now_hour, minute=40)
@@ -244,6 +244,16 @@ def respond(req: VoiceQuestion):
             else "I do not have a strong reason to recommend buying or skipping this item."
         )
     else:
-        response["answer"] = "Ask why I recommend this item, what about size nine, or what to get instead."
+        # A question the checkout handler has no reading of is usually about the
+        # closet rather than the thing on the page, so it goes to the wardrobe
+        # answers before it becomes a list of supported commands.
+        wardrobe = ask.answer(req.transcript, closet, miner, counts)
+        if wardrobe is not None:
+            response.update(answer=wardrobe["answer"], intent=wardrobe["intent"], scope="wardrobe")
+        else:
+            response["answer"] = (
+                "Ask why I recommend this item, what about size nine, or what to get instead. "
+                "I can also answer about your closet: what you own for rain, or what you never wear."
+            )
     response["answer"] = response["answer"].replace(" \u2014 ", ", ")
     return response
