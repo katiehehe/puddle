@@ -2,21 +2,19 @@
 (function () {
   // The extension ignores the explicitly selected web demo, which has its own panel.
   if (document.body.dataset.puddleMode === "web" && globalThis.chrome?.runtime?.id) return;
-  // docs/theme.md — Field Guide palette, kept in sync with web/src/styles.css.
+  // web/src/styles.css — the dark card the hero mock uses: ink card, duck yellow.
   const PALETTE = {
-    ink: "#2c2a24", muted: "#8a8270", line: "#cfc5a8",
-    duck: "#c98a2b", duckDeep: "#8a5a17", bill: "#b06a28",
-    water: "#3e6b8e", waterDeep: "#2f5570", waterTint: "#e7edf1", ripple: "#b9c8cf", foam: "#ece4cf",
-    good: "#5b7a4b", bad: "#a63d2f", surface: "#fbf8ee", surfaceHi: "#ece4cf",
-    page: "#f6f1e3"
+    ink: "#1d2026", duck: "#ffd166", beak: "#f1893b",
+    text: "#e7e6e2", muted: "#9aa0a8", line: "#3a3e47", fill: "#33373f",
+    good: "#8fce9f", bad: "#ee9a92",
   };
 
-  // The mascot is the duck emoji; mood rides in a small badge and the card accent.
-  const DUCK = (state) => {
-    const mark = { curious: "?", concerned: "!", approving: "✓" }[state] || "";
-    return `<div class="duckwrap"><span class="duckmoji">🦆</span>${
-      mark ? `<span class="mood">${mark}</span>` : ""}</div>`;
-  };
+  // The same mascot the app draws — a yellow circle duck, not an emoji.
+  const DUCK = `<svg viewBox="0 0 64 64" width="30" height="30" aria-hidden="true">
+    <circle cx="32" cy="34" r="20" fill="${PALETTE.duck}"/>
+    <circle cx="44" cy="20" r="12" fill="${PALETTE.duck}"/>
+    <circle cx="48" cy="17" r="2.2" fill="#23262d"/>
+    <path d="M56 21 h9 l-3 5 h-6 z" fill="${PALETTE.beak}"/></svg>`;
 
   // Where the duck's reasoning is shown in full.
   const DASHBOARD = (document.body.dataset.puddleMode === "web" ? "" : "http://localhost:8000")
@@ -98,7 +96,6 @@
     voiceCleanup?.();
     ensureHost();
     const state = result.duck_state || "idle";
-    const accent = state === "concerned" ? PALETTE.bad : state === "approving" ? PALETTE.good : PALETTE.water;
     const pond = (await send({ type: "pond" })) || { saved: 0 };
     if (version !== renderVersion) return;
     const c = chip(result);
@@ -108,89 +105,73 @@
     const plain = advice ? advice.reasons.map(r => r.text) : facts(money);
     const line = result.headline || ((result.insights || [])[0] || {}).line || "That one's fine.";
     const verdictTone = advice
-      ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.ink
-      : PALETTE.ink;
+      ? advice.stance === "for" ? PALETTE.good : advice.stance === "against" ? PALETTE.bad : PALETTE.duck
+      : PALETTE.duck;
     // One event_id per intentional action; the brain dedupes retries on it.
     const skipEvent = crypto.randomUUID(), buyEvent = crypto.randomUUID();
 
     shadow.innerHTML = `
       <style>
-        *{box-sizing:border-box;font-family:"Space Grotesk","Outfit",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+        *{box-sizing:border-box;font-family:"Outfit",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
         .card{width:min(346px,calc(100vw - 40px));max-height:calc(100vh - 40px);overflow:auto;
-          background:${PALETTE.surface};
+          background:${PALETTE.ink};color:${PALETTE.text};border-radius:16px;
           padding:16px 18px;animation:pop .2s ease;
-          border:1px solid ${PALETTE.ink};border-left:4px solid ${accent}}
+          box-shadow:0 18px 40px rgba(29,32,38,.28)}
         @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-        .row{display:flex;gap:12px;align-items:flex-start}
-        .duckwrap{position:relative;flex-shrink:0;width:56px;height:56px;border-radius:50%;
-          background:${PALETTE.foam};border:1px solid ${PALETTE.ink};
-          display:flex;align-items:center;justify-content:center}
-        .duckmoji{font-size:34px;line-height:1}
-        .mood{position:absolute;top:-4px;right:-4px;width:20px;height:20px;border-radius:50%;
-          background:${accent};color:#fff;font-size:12px;font-weight:800;
-          display:flex;align-items:center;justify-content:center}
-        .bubble{flex:1}
-        .quack{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:${PALETTE.muted};font-weight:700}
-        .verdict{font-family:Georgia,"Times New Roman",serif;font-size:19px;font-weight:700;
-          letter-spacing:-.01em;color:${verdictTone};margin:2px 0 2px}
-        .line{font-family:Georgia,"Times New Roman",serif;font-size:15px;line-height:1.45;
-          color:${PALETTE.ink};margin:3px 0 8px;font-style:italic}
-        .chip{display:inline-block;border:1px solid ${PALETTE.waterDeep};
+        .duckhead{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:10px}
+        .duckhead b{color:#fff}
+        .verdict{font-size:17px;font-weight:800;color:${verdictTone};margin:0 0 6px}
+        .line{font-size:14px;line-height:1.5;color:${PALETTE.text};margin:0 0 10px}
+        .line b{color:#fff}
+        .chip{display:inline-block;border:1px solid ${PALETTE.line};
           padding:3px 10px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
-          color:${PALETTE.waterDeep};margin-bottom:10px;font-weight:700}
-        .btns{display:flex;gap:8px;justify-content:flex-end}
-        button{padding:9px 14px;font-size:10px;font-weight:700;cursor:pointer;
-          text-transform:uppercase;letter-spacing:.08em;border:1px solid ${PALETTE.ink};
-          transition:all .15s}
-        button:focus-visible{outline:2px solid ${PALETTE.water};outline-offset:2px}
-        .skip{background:${accent};border-color:${accent};color:#fff}
-        .buy{background:transparent;color:${PALETTE.ink}}
-        .buy:hover{background:${PALETTE.foam}}
-        .pond{margin-top:14px;height:10px;background:${PALETTE.page};
-          border:1px solid ${PALETTE.ink};overflow:hidden}
-        .fill{height:100%;background:${PALETTE.water};
+          color:${PALETTE.muted};margin-bottom:10px;font-weight:700;border-radius:99px}
+        .btns{display:flex;gap:8px}
+        .btns button{flex:1;padding:8px 0;font-size:13px;font-weight:700;cursor:pointer;
+          border:0;border-radius:9px;transition:all .15s}
+        button:focus-visible{outline:2px solid ${PALETTE.duck};outline-offset:2px}
+        .skip{background:${PALETTE.duck};color:${PALETTE.ink}}
+        .skip:hover{transform:translateY(-1px)}
+        .buy{background:${PALETTE.fill};color:#cfcec9}
+        .buy:hover{background:#3d4149}
+        .pond{margin-top:14px;height:6px;background:${PALETTE.fill};
+          border-radius:99px;overflow:hidden}
+        .fill{height:100%;background:${PALETTE.duck};
           width:${pondPct(pond.saved)}%;transition:width .3s ease}
         @media(prefers-reduced-motion:reduce){.card{animation:none}}
         .saved{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
-          color:${PALETTE.water};margin-top:6px;font-weight:700}
-        .ask{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
-          color:${PALETTE.muted};margin-bottom:8px}
-        .done{font-size:14px;color:${PALETTE.ink};font-style:normal}
+          color:${PALETTE.muted};margin-top:6px;font-weight:700}
+        .ask{font-size:13px;font-weight:700;color:#fff;margin:12px 0 10px}
+        .done{font-size:14px;color:${PALETTE.text}}
         .facts{margin:0 0 10px;padding:0;list-style:none}
-        .facts li{font-family:Georgia,"Times New Roman",serif;font-style:italic;
-          font-size:13px;line-height:1.45;color:${PALETTE.muted};margin-bottom:4px}
-        .more,.why{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-          color:${PALETTE.waterDeep};text-decoration:underline;text-underline-offset:2px}
+        .facts li{font-size:13px;line-height:1.5;color:#cfcec9;margin-bottom:4px}
+        .more,.why{font-size:12px;font-weight:600;color:${PALETTE.muted};
+          text-decoration:underline;text-underline-offset:2px}
         .more{display:block;background:none;border:none;padding:0 0 10px;cursor:pointer}
         .why{display:inline-block;margin-bottom:10px}
         .nums{display:none;font-size:12px;color:${PALETTE.muted};margin-bottom:10px;line-height:1.6}
         .nums.open{display:block}
-        .nums b{color:${PALETTE.ink}}
+        .nums b{color:#fff}
       </style>
       <div class="card" id="card">
-        <div class="row">
-          ${DUCK(state)}
-          <div class="bubble">
-            <div class="quack">Puddle</div>
-            ${advice ? `<div class="verdict">${esc(advice.verdict)}</div>` : ""}
-            <div class="line">${esc(line)}</div>
-            ${c ? `<span class="chip">${esc(c)}</span>` : ""}
-            <ul class="facts">${plain.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
-            <div class="ask">Still worth it?</div>
-            <button class="more" id="more">View numbers</button>
-            <div class="nums" id="nums">
-              ${money ? `Worth about <b>${esc(cash(money.resale))}</b> resold. ` : ""}
-              At 5 wears <b>${esc(cash((money?.per_wear_at || {})[5] || 0))}</b> each,
-              at 10 <b>${esc(cash((money?.per_wear_at || {})[10] || 0))}</b>,
-              at 20 <b>${esc(cash((money?.per_wear_at || {})[20] || 0))}</b>.
-            </div>
-            <a class="why" target="_blank" rel="noopener"
-               href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">See my closet</a>
-            <div class="btns">
-              <button class="buy" id="buy">Buy anyway</button>
-              <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
-            </div>
-          </div>
+        <div class="duckhead">${DUCK}<b>Puddle</b></div>
+        ${advice ? `<div class="verdict">${esc(advice.verdict)}</div>` : ""}
+        <div class="line">${esc(line)}</div>
+        ${c ? `<span class="chip">${esc(c)}</span>` : ""}
+        <ul class="facts">${plain.map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+        <div class="ask">Still worth it?</div>
+        <button class="more" id="more">View numbers</button>
+        <div class="nums" id="nums">
+          ${money ? `Worth about <b>${esc(cash(money.resale))}</b> resold. ` : ""}
+          At 5 wears <b>${esc(cash((money?.per_wear_at || {})[5] || 0))}</b> each,
+          at 10 <b>${esc(cash((money?.per_wear_at || {})[10] || 0))}</b>,
+          at 20 <b>${esc(cash((money?.per_wear_at || {})[20] || 0))}</b>.
+        </div>
+        <a class="why" target="_blank" rel="noopener"
+           href="${esc(DASHBOARD + encodeURIComponent(item.title || ""))}">See my closet</a>
+        <div class="btns">
+          <button class="skip" id="skip">${state === "approving" ? "Not now" : "Skip it"}</button>
+          <button class="buy" id="buy">Buy anyway</button>
         </div>
         <div class="pond"><div class="fill"></div></div>
         <div class="saved">$${esc(pond.saved)} in the pond</div>
