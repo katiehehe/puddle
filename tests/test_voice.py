@@ -277,3 +277,10 @@ def test_a_lettered_size_is_a_size_question():
     assert voice.intent("What about a large?")[1] == "L"
     # An adjective in front of a noun is not a size.
     assert voice.intent("Is a large part of my closet black?")[0] != "size"
+
+
+def test_abbreviated_and_adjectival_sizes():
+    """'in XL' is a size; 'a large part of my closet' is not."""
+    assert voice.intent("Does it come in XL?") == ("size", "XL")
+    assert voice.intent("Does it come in s?") == ("size", "S")
+    assert voice.intent("What about a large part of my closet?")[0] != "size"

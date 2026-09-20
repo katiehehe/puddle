@@ -191,8 +191,8 @@ def intent(text):
     # adjective doing its ordinary work, as in "a large part of my closet".
     lettered = re.search(
         r"\bsize\s+(extra small|extra large|xs|xl|small|medium|large|s|m|l)\b"
-        r"|\b(?:in|about)\s+(?:a\s+|an\s+)?(extra small|extra large|small|medium|large)\b"
-        r"|\b(?:a|an)\s+(extra small|extra large|small|medium|large)\s*$",
+        r"|\b(?:in|about|a|an)\s+(?:a\s+|an\s+)?"
+        r"(extra small|extra large|xs|xl|small|medium|large|s|m|l)\s*\??\s*$",
         clean,
     )
     if lettered:
