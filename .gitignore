@@ -2,10 +2,10 @@
 brain/.venv/
 data/
 web/node_modules/
-# web/dist is committed on purpose: vercel.json builds only api/index.py, and
-# its `builds` key disables buildCommand, so nothing on Vercel runs `npm run
-# build`. The brain serves this directory at /dashboard, and mounts it only if
-# it exists -- without it the deployed site says "Dashboard not built".
+# web/dist is committed on purpose. Vercel deploys one Python function and the
+# repo has no root package.json, so nothing there ever runs `npm run build`.
+# The brain mounts this directory at /dashboard only when it exists, so without
+# it the deployed site answers "Dashboard not built".
 # Rebuild and recommit it when the frontend changes.
 __pycache__/
 *.pyc
