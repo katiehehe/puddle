@@ -3,6 +3,10 @@
 **A duck that lives in your cart.** It knows everything you already own (modeled as an
 investment portfolio) and everything you've sent back: and it speaks up *before* you pay.
 
+**Live: [puddle-ochre.vercel.app](https://puddle-ochre.vercel.app)** — the dashboard and
+the brain on one origin. The duck itself is a Chrome extension, so it is
+[loaded unpacked](#4-extension-the-duck) rather than visited.
+
 Two surfaces, one brain:
 - **Extension**: the duck reacts uninvited — parked on a product page before you
   click anything, and again at checkout.
