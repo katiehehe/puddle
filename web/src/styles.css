@@ -182,7 +182,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 /* The closet reveals on scroll the same way the landing page does: each
    card (.piece, .buycard) pops in on its own as it enters the view. */
 .shell .dashhead h1, .shell .dashhead > p, .shell .statrow, .shell .tabs,
-.shell .tabbody > *, .shell .piece, .shell .buycard, .shell .note {
+.shell .tabbody > *, .shell .piece, .shell .buycard {
   opacity: 0; transform: translateY(28px);
 }
 .shell .in { animation: popup .7s cubic-bezier(.2, .8, .2, 1) both; }
@@ -194,8 +194,8 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .shell .dashhead > p { animation-delay: .1s; }
 .shell .statrow { animation-delay: .2s; }
 .shell .tabs { animation-delay: .3s; }
-.shell .piece:nth-child(2n), .shell .buycard:nth-child(2n), .shell .note:nth-child(2n) { animation-delay: .06s; }
-.shell .piece:nth-child(3n), .shell .buycard:nth-child(3n), .shell .note:nth-child(3n) { animation-delay: .12s; }
+.shell .piece:nth-child(2n), .shell .buycard:nth-child(2n) { animation-delay: .06s; }
+.shell .piece:nth-child(3n), .shell .buycard:nth-child(3n) { animation-delay: .12s; }
 
 .dashhead { padding: 18px 0 8px; }
 .dashhead h1 { font-size: 44px; }
@@ -270,16 +270,9 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .buycol b { font-size: 15px; }
 
 /* your shopping */
-.notes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.note {
-  display: flex; gap: 12px; align-items: flex-start;
-  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 18px 20px; box-shadow: var(--shadow);
-}
-.note p { margin: 0; font-size: 16px; }
-/* The duck is a flex item, so a long note squeezes it narrower than the one
+/* The duck is a flex item, so a long line squeezes it narrower than the one
    beside it unless it is told to keep its size. */
-.note svg, .duckhead svg { flex: 0 0 auto; }
+.duckhead svg { flex: 0 0 auto; }
 .bars { display: flex; flex-direction: column; gap: 10px; max-width: 620px; }
 .bar { display: grid; grid-template-columns: 130px 1fr 30px; align-items: center; gap: 12px; font-size: 14px; }
 .bar > div { background: #eeebe3; border-radius: 99px; height: 10px; overflow: hidden; }
@@ -375,14 +368,6 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .coverrow i.thin { background: var(--duck); }
 .coverrow i.none { background: var(--bad); }
 .coverrow b { text-align: right; color: var(--muted); font-weight: 600; font-size: 13px; }
-.coversplit { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0 14px; max-width: 640px; }
-.coversplit > div { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
-.coversplit h4 { font-size: 14px; color: var(--muted); margin-bottom: 6px; }
-.coversplit p { margin: 0; font-weight: 600; }
-.cover .note { max-width: 640px; margin-top: 6px; }
-
-/* The headline observations, now among the shopping notes. */
-.notes .note p b { font-size: 15px; }
 
 /* add a purchase */
 .addcard {
@@ -490,7 +475,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .mockverdict { font-size: 17px !important; font-weight: 800; color: var(--duck) !important; margin-bottom: 6px !important; }
 
 @media (max-width: 900px) {
-  .addmain, .addmore, .coversplit, .ladder { grid-template-columns: 1fr; }
+  .addmain, .addmore, .ladder { grid-template-columns: 1fr; }
   .addcard label.wide { grid-column: span 1; }
   .buycard { grid-template-columns: 56px 1fr; }
   .coverrow { grid-template-columns: 110px 1fr 66px; }
@@ -546,7 +531,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 }
 
 @media (max-width: 900px) {
-  .stepgrid, .tellgrid, .statrow, .valuetop, .notes, .two, .details { grid-template-columns: 1fr; }
+  .stepgrid, .tellgrid, .statrow, .valuetop, .two, .details { grid-template-columns: 1fr; }
   .hero h1 { font-size: 46px; }
   .dashhead h1 { font-size: 36px; }
   .buy { grid-template-columns: 52px 1fr 80px 80px; }

@@ -56,7 +56,7 @@ const REVEAL =
 // Same on the dashboard: .piece and .buycard individually, so each thing pops
 // in separately as you scroll the closet or the cart.
 const DASH_REVEAL =
-  ".dashhead h1, .dashhead > p, .statrow, .tabs, .tabbody > *, .piece, .buycard, .note";
+  ".dashhead h1, .dashhead > p, .statrow, .tabs, .tabbody > *, .piece, .buycard";
 
 // How long after landing the page still counts as "arriving": content that
 // shows up later (tab swaps, async loads) appears in place without popping.
@@ -274,50 +274,11 @@ const today = () => new Date().toISOString().slice(0, 10);
 const when = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
-const ROLL_MS = 1100;
-
-/* Rolls the number up from zero once, the first time it renders, then stays put.
- * Non-numeric parts ("$", ",", "%") are kept; the digits are what count up. */
-function rollFrom(value: string, t: number): string {
-  const m = value.match(/^([^\d]*)([\d,]*\.?\d*)(.*)$/);
-  if (!m || !m[2]) return value;
-  const [, pre, num, post] = m;
-  const decimals = (num.split(".")[1] ?? "").length;
-  const target = Number(num.replace(/,/g, ""));
-  if (!Number.isFinite(target)) return value;
-  const eased = 1 - Math.pow(1 - t, 3);
-  const text = (target * eased).toLocaleString(undefined, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
-  return `${pre}${text}${post}`;
-}
-
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
-  const rolled = useRef(false);
-  const [text, setText] = useState(() => rollFrom(value, 0));
-
-  useEffect(() => {
-    if (rolled.current) {
-      setText(value);
-      return;
-    }
-    rolled.current = true;
-    const start = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / ROLL_MS);
-      setText(t >= 1 ? value : rollFrom(value, t));
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [value]);
-
   return (
     <div className="stat">
       <span>{label}</span>
-      <b>{text}</b>
+      <b>{value}</b>
       {note && <em>{note}</em>}
     </div>
   );
@@ -413,22 +374,6 @@ function CoveragePanel({ coverage }: { coverage: Coverage }) {
           </div>
         ))}
       </div>
-      <div className="coversplit">
-        <div>
-          <h4>You're well covered</h4>
-          <p>{coverage.well_covered.join(" · ") || "Nothing stands out yet."}</p>
-        </div>
-        <div>
-          <h4>Could use more options</h4>
-          <p>{coverage.gaps.join(" · ") || "No real gaps right now."}</p>
-        </div>
-      </div>
-      {coverage.advice && (
-        <div className="note">
-          <Duck size={26} />
-          <p>{coverage.advice}</p>
-        </div>
-      )}
     </section>
   );
 }
@@ -808,12 +753,6 @@ function DressTab({ me, usage }: { me: Me; usage: Usage }) {
           and are worth reading next to each other. */}
       <CoveragePanel coverage={me.coverage} />
       <h3 className="sub2">How you actually dress</h3>
-      {usage.lines.map((line) => (
-        <div className="note" key={line}>
-          <Duck size={26} />
-          <p>{line}</p>
-        </div>
-      ))}
       <div className="bars dressbars">
         {usage.rows.map((r) => (
           <div className="bar" key={r.state}>
