@@ -1,8 +1,10 @@
 {
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "{brain,mock-shop,extension,data,web/dist}/**"
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": { "includeFiles": "{brain,mock-shop,extension,data,web/dist}/**" }
     }
-  },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index.py" }]
+  ],
+  "routes": [{ "src": "/(.*)", "dest": "api/index.py" }]
 }
