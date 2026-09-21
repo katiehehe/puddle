@@ -19,6 +19,13 @@ and `cand_blazer` aliases work. Responses use canonical `sku_*` IDs.
 Known catalog prices/attributes are authoritative; an explicit size overrides
 catalog size. Unknown items require formality and warmth, each 1–5.
 
+Send `color` when the page states one. It decides what an item can substitute
+for: two neutrals stand in for each other, a neutral and a bright do not, so a
+fifth charcoal crewneck comes back redundant and the first red one does not. An
+omitted colour still substitutes — most storefronts never say, and refusing on
+missing data would hide real duplicates rather than find new ones — so dropping
+it changes the verdict rather than merely coarsening it.
+
 ```json
 {"item_id":"cand_boots","now_hour":23}
 ```

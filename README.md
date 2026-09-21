@@ -4,7 +4,8 @@
 investment portfolio) and everything you've sent back: and it speaks up *before* you pay.
 
 Two surfaces, one brain:
-- **Extension**: the duck reacts uninvited at checkout.
+- **Extension**: the duck reacts uninvited — parked on a product page before you
+  click anything, and again at checkout.
 - **Website**: your closet as a risk-return portfolio (Style Sharpe, coverage, rebalance).
 
 See [`PRD.md`](./PRD.md) for the full product spec.
@@ -44,6 +45,11 @@ python3 -m http.server 5500                # http://localhost:5500
 1. Chrome → `chrome://extensions` → enable **Developer mode**
 2. **Load unpacked** → select the `extension/` folder
 3. Open `http://localhost:5500`, pick an item, click **Checkout** → the duck appears.
+
+It also runs on `amazon.com`. There the duck parks in the top-right of a product
+page and scores the item on load, rather than waiting for a click that navigates
+away — open any clothing product and it appears without being asked. If it does
+not, check **Details → Site access** on the extension is not set to *On click*.
 
 Or just run everything: `./run.sh`
 
@@ -146,10 +152,12 @@ disables checkout instead of pretending.
 ## Architecture
 ```
 brain/       FastAPI + numpy : portfolio engine, history miner, ledger, pond, payments
-tests/       pytest          : the planted patterns and the portfolio invariants
+tests/       pytest + node   : the planted patterns and the portfolio invariants
 extension/   MV3 Chrome ext  : content script, shadow-DOM duck, background worker
 mock-shop/   static page     : a controlled checkout to demo the extension on
 web/         Vite + React    : closet-as-portfolio dashboard
+api/         Vercel entry    : serves the brain and the built dashboard in one origin
+docs/        the why         : extraction, backend contract, voice, theme, runbook
 ```
 
 ## Backend integration

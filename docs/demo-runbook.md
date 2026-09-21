@@ -31,6 +31,14 @@ uninvited is the thesis; a page you deliberately opened cannot show it.
 Beat 1 is the demo. If you get one thing out, make it that. Beat 3 is what
 stops it reading as a guilt machine.
 
+**If you want the stronger version of beat 0**, open a clothing product on
+`amazon.com` first. The duck parks in the top-right and scores it without being
+asked, on a page nobody prepared for us — which is the thesis, on a real store,
+in five seconds. Treat it as a bonus and not the spine of the run: it reads live
+Amazon markup, so a layout change on their side breaks it in a way the mock shop
+cannot break. Have the product page open in a tab beforehand, and confirm the
+duck is on it before you walk up.
+
 **Close on:** retailers run return-prediction models on you and never tell you,
 because telling you costs them the sale. We point that model — plus a portfolio
 of everything you own — at you.
