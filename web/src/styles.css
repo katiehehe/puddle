@@ -388,7 +388,6 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 
 /* what your closet covers */
 .cover { margin-bottom: 34px; }
-.coverhead { font-size: 20px; font-weight: 600; margin: 0 0 18px; max-width: 34em; }
 .coverrows { display: flex; flex-direction: column; gap: 9px; max-width: 640px; }
 .coverrow { display: grid; grid-template-columns: 140px 1fr 78px; align-items: center; gap: 12px; font-size: 14px; }
 .coverrow > div { background: #eeebe3; border-radius: 99px; height: 10px; overflow: hidden; }

@@ -362,7 +362,6 @@ function CoveragePanel({ coverage }: { coverage: Coverage }) {
   return (
     <section className="cover">
       <h3 className="sub2">What your closet covers</h3>
-      <p className="coverhead">{coverage.headline}</p>
       <div className="coverrows">
         {coverage.occasions.map((o) => (
           <div className="coverrow" key={o.state}>
