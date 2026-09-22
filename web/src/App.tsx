@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import {
   BRAIN,
@@ -52,11 +52,11 @@ function Duck({ size = 40 }: { size?: number }) {
 
 // Elements on the landing page that hide until scrolled into view.
 const REVEAL =
-  ".hero > div > *, .hero > .mock, .steps h2, .step, .tells h2, .tell, .install > div > *";
+  ".hero > div > *, .hero > .mock, .steps h2, .step, .tells h2, .qarow, .install > div > *";
 // Same on the dashboard: .piece and .buycard individually, so each thing pops
 // in separately as you scroll the closet or the cart.
 const DASH_REVEAL =
-  ".dashhead h1, .dashhead > p, .statrow, .tabs, .tabbody > *, .piece, .buycard";
+  ".dashhead h1, .dashhead > p, .tabs, .tabbody > *, .piece, .buycard";
 
 // How long after landing the page still counts as "arriving": content that
 // shows up later (tab swaps, async loads) appears in place without popping.
@@ -146,13 +146,12 @@ function CheckoutMock() {
   );
 }
 
-const TELLS = [
-  ["Do I already own this?", "Counts the near-duplicates hiding in your closet, and how much you actually wear them."],
-  ["Is this a good price?", "Compares it to what you've paid for the same kind of thing before."],
-  ["What will it cost me per wear?", "$128 you wear twice is expensive. $128 you wear fifty times isn't."],
-  ["Will I actually use it?", "Your own history says how often things like this get worn."],
-  ["What's it worth later?", "An estimate of what it resells for once you've owned it."],
-  ["What have I saved?", "Every skip goes in the pond, so not buying feels like something."],
+// What the duck actually said about the seeded closet, not a description of
+// what it could say. Showing one real answer beats listing six features.
+const ASKS = [
+  ["Do I already own this?", "You own 3 of these already. They cover the same days, and you've worn them 32 times between them."],
+  ["Will I keep it?", "Fifth pair of size-8 boots you've bought. You returned every one of the other four."],
+  ["Is this one worth it?", "Get it. You have nothing for formal or interviews, and this is the first thing that covers it."],
 ];
 
 function Home() {
@@ -193,7 +192,6 @@ function Home() {
 
       <header className="hero">
         <div>
-          <div className="pill">Chrome extension</div>
           <h1>Know if it's worth it before you buy it.</h1>
           <p>
             Puddle remembers what you own, notices what you actually wear, and talks the
@@ -212,17 +210,14 @@ function Home() {
         <h2>It gets better the more you wear</h2>
         <div className="stepgrid">
           <div className="step">
-            <span>1</span>
             <h3>Add what you buy</h3>
             <p>Name, price, date. Puddle works out the rest and puts it in your closet.</p>
           </div>
           <div className="step">
-            <span>2</span>
             <h3>Tap what you wear</h3>
             <p>One tap per thing. That's what turns a closet into an opinion worth having.</p>
           </div>
           <div className="step">
-            <span>3</span>
             <h3>Get a straight answer</h3>
             <p>At checkout it tells you whether something is worth it, and why. You still decide.</p>
           </div>
@@ -231,11 +226,15 @@ function Home() {
 
       <section className="tells">
         <h2>What it tells you</h2>
-        <div className="tellgrid">
-          {TELLS.map(([q, a]) => (
-            <div className="tell" key={q}>
-              <h3>{q}</h3>
-              <p>{a}</p>
+        <p className="tellsub">$128 you wear twice is expensive. $128 you wear fifty times isn't.</p>
+        <div className="qa">
+          {ASKS.map(([q, a]) => (
+            <div className="qarow" key={q}>
+              <span>{q}</span>
+              <p>
+                <Duck size={28} />
+                {a}
+              </p>
             </div>
           ))}
         </div>
@@ -285,12 +284,13 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 }
 
 function PieceCard({
-  piece, onWear, onOpen, onRemove,
+  piece, onWear, onOpen, onRemove, grouped = false,
 }: {
   piece: ClosetPiece;
   onWear: (id: string) => void;
   onOpen: () => void;
   onRemove: (id: string) => void;
+  grouped?: boolean;
 }) {
   // Optimistic: a wear tap has to feel free, or nobody logs the fifth one. The
   // tap is forgotten the moment the server's own count moves, so the two never
@@ -304,7 +304,11 @@ function PieceCard({
              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onOpen()}>
       <div className="piecepic">
         <Garment category={piece.category} colour={piece.color} kind={piece.kind} />
-        {piece.duplicates.length > 0 && <span className="dupe">+{piece.duplicates.length} similar</span>}
+        {/* Inside a group the header already says it; the badge is for a piece
+            whose twins are outside the current filter. */}
+        {!grouped && piece.duplicates.length > 0 && (
+          <span className="dupe">+{piece.duplicates.length} similar</span>
+        )}
         {piece.yours && (
           <button
             className="xbtn onpic"
@@ -378,6 +382,41 @@ function CoveragePanel({ coverage }: { coverage: Coverage }) {
   );
 }
 
+/* Things that stand in for one another, as groups.
+ *
+ * The brain lists each piece's duplicates by title, but not symmetrically: an
+ * off-shoulder top can name the cami while the cami does not name it back, and
+ * each list is capped at three. Following only the listed direction splits one
+ * group into overlapping halves and shows the same piece twice. So join either
+ * way -- A naming B or B naming A -- and every piece lands in exactly one group.
+ * Twins outside `pieces` (another filter) are ignored, and a piece with none in
+ * view is not a group of one: it stays with the rest. */
+function sameJob(pieces: ClosetPiece[]): ClosetPiece[][] {
+  const byTitle = new Map(pieces.map((p) => [p.title, p]));
+  const root = new Map(pieces.map((p) => [p.id, p.id]));
+  const find = (id: string): string => {
+    while (root.get(id) !== id) id = root.get(id)!;
+    return id;
+  };
+  for (const p of pieces) {
+    for (const title of p.duplicates) {
+      const twin = byTitle.get(title);
+      if (twin) root.set(find(p.id), find(twin.id));
+    }
+  }
+  const byRoot = new Map<string, ClosetPiece[]>();
+  for (const p of pieces) {
+    const r = find(p.id);
+    byRoot.set(r, [...(byRoot.get(r) ?? []), p]);
+  }
+  return [...byRoot.values()].filter((g) => g.length > 1);
+}
+
+const plural = (kind: string) => {
+  const noun = kind.replace(/_/g, " ");
+  return noun.endsWith("s") ? noun : `${noun}s`;
+};
+
 function ClosetTab({
   me, onWear, onChange,
 }: { me: Me; onWear: (id: string) => void; onChange: () => void }) {
@@ -386,11 +425,18 @@ function ClosetTab({
   const cats = me.shopping.categories;
   const shown = me.closet.filter((p) => filter === "all" || p.category === filter);
   const unworn = me.closet.filter((p) => p.wears === 0).length;
+  const groups = sameJob(shown);
+  const grouped = new Set(groups.flat().map((p) => p.id));
+  const rest = shown.filter((p) => !grouped.has(p.id));
+  // Groups first, then the rest: the order the cards are drawn in, so the
+  // arrows page through exactly what is on screen, top to bottom.
+  const ordered = [...groups.flat(), ...rest];
+  const at = (p: ClosetPiece) => ordered.indexOf(p);
 
   // Arrows walk the filtered list, in display order, and wrap. Whichever
   // subset you are looking at is the one you page through.
   const step = (by: number) =>
-    setOpen((i) => (i === null ? null : (i + by + shown.length) % shown.length));
+    setOpen((i) => (i === null ? null : (i + by + ordered.length) % ordered.length));
 
   async function remove(id: string) {
     // Archived, not deleted. What you bought stays true even once the thing
@@ -422,22 +468,55 @@ function ClosetTab({
           {unworn} thing{unworn === 1 ? "" : "s"} in here you've never worn.
         </p>
       )}
+      {groups.length > 0 && (
+        <section className="samejob">
+          <h3 className="sub2">Doing the same job</h3>
+          <p className="hint">
+            Things you own more than once. Each group covers the same days, so the next one
+            adds very little.
+          </p>
+          {groups.map((g) => (
+            <div className="dupegroup" key={g[0].id}>
+              <p className="dupehead">
+                <b>
+                  {g.length} {plural(g[0].kind)}
+                </b>
+                <span>{round(g.reduce((n, p) => n + p.paid, 0))} spent</span>
+                <span>worn {g.reduce((n, p) => n + p.wears, 0)} times between them</span>
+              </p>
+              <div className="grid">
+                {g.map((p) => (
+                  <PieceCard
+                    key={p.id}
+                    piece={p}
+                    grouped
+                    onWear={onWear}
+                    onOpen={() => setOpen(at(p))}
+                    onRemove={remove}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+          {rest.length > 0 && <h3 className="sub2">Everything else</h3>}
+        </section>
+      )}
       <div className="grid">
-        {shown.map((p, i) => (
+        {rest.map((p) => (
           <PieceCard
             key={p.id}
             piece={p}
             onWear={onWear}
-            onOpen={() => setOpen(i)}
+            onOpen={() => setOpen(at(p))}
             onRemove={remove}
           />
         ))}
       </div>
-      {open !== null && shown[open] && (
+      {open !== null && ordered[open] && (
         <ItemDetail
-          piece={shown[open]}
+          piece={ordered[open]}
           index={open}
-          total={shown.length}
+          total={ordered.length}
           onPrev={() => step(-1)}
           onNext={() => step(1)}
           onClose={() => setOpen(null)}
@@ -1248,16 +1327,6 @@ function Dashboard() {
   const shellRef = useRef<HTMLDivElement>(null);
   useReveal(shellRef, DASH_REVEAL);
 
-  const summary = useMemo(() => {
-    if (!me) return null;
-    return [
-      { label: "Things you own", value: String(me.shopping.items_owned) },
-      { label: "Spent on them", value: round(me.value.spent) },
-      { label: "Worth today", value: round(me.value.worth_now) },
-      { label: "Saved by skipping", value: round(me.value.saved) },
-    ];
-  }, [me]);
-
   if (failed) {
     return (
       <div className="shell">
@@ -1267,7 +1336,7 @@ function Dashboard() {
       </div>
     );
   }
-  if (!me || !summary) return <div className="shell"><p className="hint">Loading your closet…</p></div>;
+  if (!me) return <div className="shell"><p className="hint">Loading your closet…</p></div>;
 
   return (
     <div className="shell" ref={shellRef}>
@@ -1286,12 +1355,18 @@ function Dashboard() {
 
       <header className="dashhead">
         <h1>Your closet</h1>
-        <p>What you own and whether the next thing is worth it.</p>
-        <div className="statrow">
-          {summary.map((s) => (
-            <Stat key={s.label} label={s.label} value={s.value} />
-          ))}
-        </div>
+        {/* A sentence, not four tiles: the numbers read as a fact about you
+            rather than a dashboard's opening row. Savings join once there are some. */}
+        <p className="dashsum">
+          <b>{me.shopping.items_owned}</b> things, <b>{round(me.value.spent)}</b> spent on
+          them, worth <b>{round(me.value.worth_now)}</b> today
+          {me.value.saved > 0 && (
+            <>
+              , and <b>{round(me.value.saved)}</b> saved by skipping
+            </>
+          )}
+          .
+        </p>
       </header>
 
       <div className="tabs">
