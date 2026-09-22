@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import {
   BRAIN,
@@ -56,7 +56,7 @@ const REVEAL =
 // Same on the dashboard: .piece and .buycard individually, so each thing pops
 // in separately as you scroll the closet or the cart.
 const DASH_REVEAL =
-  ".dashhead h1, .dashhead > p, .tabs, .tabbody > *, .piece, .buycard";
+  ".dashhead h1, .dashhead > p, .statrow, .tabs, .tabbody > *, .piece, .buycard";
 
 // How long after landing the page still counts as "arriving": content that
 // shows up later (tab swaps, async loads) appears in place without popping.
@@ -1327,6 +1327,16 @@ function Dashboard() {
   const shellRef = useRef<HTMLDivElement>(null);
   useReveal(shellRef, DASH_REVEAL);
 
+  const summary = useMemo(() => {
+    if (!me) return null;
+    return [
+      { label: "Things you own", value: String(me.shopping.items_owned) },
+      { label: "Spent on them", value: round(me.value.spent) },
+      { label: "Worth today", value: round(me.value.worth_now) },
+      { label: "Saved by skipping", value: round(me.value.saved) },
+    ];
+  }, [me]);
+
   if (failed) {
     return (
       <div className="shell">
@@ -1336,7 +1346,7 @@ function Dashboard() {
       </div>
     );
   }
-  if (!me) return <div className="shell"><p className="hint">Loading your closet…</p></div>;
+  if (!me || !summary) return <div className="shell"><p className="hint">Loading your closet…</p></div>;
 
   return (
     <div className="shell" ref={shellRef}>
@@ -1355,18 +1365,12 @@ function Dashboard() {
 
       <header className="dashhead">
         <h1>Your closet</h1>
-        {/* A sentence, not four tiles: the numbers read as a fact about you
-            rather than a dashboard's opening row. Savings join once there are some. */}
-        <p className="dashsum">
-          <b>{me.shopping.items_owned}</b> things, <b>{round(me.value.spent)}</b> spent on
-          them, worth <b>{round(me.value.worth_now)}</b> today
-          {me.value.saved > 0 && (
-            <>
-              , and <b>{round(me.value.saved)}</b> saved by skipping
-            </>
-          )}
-          .
-        </p>
+        <p>What you own and whether the next thing is worth it.</p>
+        <div className="statrow">
+          {summary.map((s) => (
+            <Stat key={s.label} label={s.label} value={s.value} />
+          ))}
+        </div>
       </header>
 
       <div className="tabs">

@@ -184,7 +184,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 /* --- dashboard ---------------------------------------------------------- */
 /* The closet reveals on scroll the same way the landing page does: each
    card (.piece, .buycard) pops in on its own as it enters the view. */
-.shell .dashhead h1, .shell .dashhead > p, .shell .tabs,
+.shell .dashhead h1, .shell .dashhead > p, .shell .statrow, .shell .tabs,
 .shell .tabbody > *, .shell .piece, .shell .buycard {
   opacity: 0; transform: translateY(28px);
 }
@@ -195,6 +195,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
    item -- would hold its space and paint nothing. */
 .shell .still { animation: none; opacity: 1; transform: none; }
 .shell .dashhead > p { animation-delay: .1s; }
+.shell .statrow { animation-delay: .2s; }
 .shell .tabs { animation-delay: .3s; }
 .shell .piece:nth-child(2n), .shell .buycard:nth-child(2n) { animation-delay: .06s; }
 .shell .piece:nth-child(3n), .shell .buycard:nth-child(3n) { animation-delay: .12s; }
@@ -202,9 +203,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 .dashhead { padding: 18px 0 8px; }
 .dashhead h1 { font-size: 44px; }
 .dashhead > p { color: var(--muted); margin: 8px 0 26px; }
-/* The closet's totals as one sentence under the title. */
-.dashsum { font-size: 21px; line-height: 1.45; max-width: 30em; margin: 10px 0 32px; }
-.dashsum b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.statrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .stat {
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 18px 20px; box-shadow: var(--shadow);
@@ -561,7 +560,7 @@ code { background: #f0ece3; padding: 1px 6px; border-radius: 6px; font-size: .9e
 }
 
 @media (max-width: 900px) {
-  .stepgrid, .valuetop, .two, .details { grid-template-columns: 1fr; }
+  .stepgrid, .statrow, .valuetop, .two, .details { grid-template-columns: 1fr; }
   .qarow { grid-template-columns: 1fr; gap: 10px; }
   .hero h1 { font-size: 46px; }
   .dashhead h1 { font-size: 36px; }
